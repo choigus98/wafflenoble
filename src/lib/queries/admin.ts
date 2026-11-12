@@ -2,7 +2,8 @@ import 'server-only';
 import { and, asc, count, countDistinct, desc, eq, gt, sql } from 'drizzle-orm';
 import { requireAdmin } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
-import { chapterLikes, chapterViews, chapters, novels, readers } from '@/lib/db/schema';
+import { htmlExcerpt } from '@/lib/content';
+import { chapterLikes, chapterRevisions, chapterViews, chapters, novels, readers } from '@/lib/db/schema';
 import { getGuildSettings } from '@/lib/settings';
 import {
   chapterLikeCount,
@@ -62,6 +63,32 @@ export async function adminGetNovel(novelId: number) {
   return { novel, chapters: list, totalReaders: members?.total ?? 0 };
 }
 
+export type RevisionItem = { id: number; createdAt: string; title: string; charCount: number; excerpt: string };
+
+/** 이 회차의 이전 발행본 (최근 것부터 10개) */
+export async function adminListRevisions(chapterId: number): Promise<RevisionItem[]> {
+  await requireAdmin();
+  const rows = await db
+    .select({
+      id: chapterRevisions.id,
+      createdAt: chapterRevisions.createdAt,
+      title: chapterRevisions.title,
+      charCount: chapterRevisions.charCount,
+      contentHtml: chapterRevisions.contentHtml,
+    })
+    .from(chapterRevisions)
+    .where(eq(chapterRevisions.chapterId, chapterId))
+    .orderBy(desc(chapterRevisions.createdAt), desc(chapterRevisions.id))
+    .limit(10);
+  return rows.map((row) => ({
+    id: row.id,
+    createdAt: row.createdAt.toISOString(),
+    title: row.title,
+    charCount: row.charCount,
+    excerpt: htmlExcerpt(row.contentHtml),
+  }));
+}
+
 export async function adminGetChapter(novelId: number, chapterId: number) {
   await requireAdmin();
   const [row] = await db
@@ -72,7 +99,7 @@ export async function adminGetChapter(novelId: number, chapterId: number) {
     .limit(1);
   if (!row) return null;
 
-  const [viewers, likers] = await Promise.all([
+  const [viewers, likers, revisions] = await Promise.all([
     db
       .select({
         nickname: readers.nickname,
@@ -89,6 +116,7 @@ export async function adminGetChapter(novelId: number, chapterId: number) {
       .innerJoin(readers, eq(readers.id, chapterLikes.readerId))
       .where(eq(chapterLikes.chapterId, chapterId))
       .orderBy(asc(chapterLikes.createdAt)),
+    adminListRevisions(chapterId),
   ]);
 
   return {
@@ -97,6 +125,7 @@ export async function adminGetChapter(novelId: number, chapterId: number) {
     novelTitle: row.novelTitle,
     viewers,
     likers: likers.map((liker) => liker.nickname),
+    revisions,
   };
 }
 

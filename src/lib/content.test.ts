@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { countCharacters, sanitizeChapterHtml } from '@/lib/content';
+import { countCharacters, htmlExcerpt, sanitizeChapterHtml } from '@/lib/content';
 
 describe('본문 정제', () => {
   it('에디터에서 만들 수 있는 태그만 남긴다 (빈 태그는 <br /> 형태로 저장)', () => {
@@ -33,5 +33,18 @@ describe('글자수', () => {
 
   it('템플릿 블록 안의 글은 세지 않는다', () => {
     expect(countCharacters('<p>본문</p><div data-wn-block="live" data-wn-data="{&quot;title&quot;:&quot;제목&quot;}"></div>')).toBe(2);
+  });
+});
+
+describe('본문 첫머리 (발행본 목록용)', () => {
+  it('문단 사이는 띄어쓰고 태그·템플릿 내용은 뺀다', () => {
+    const html =
+      '<p>문이 열린 건 &amp; 자정이었다.</p><div data-wn-block="kakao" data-wn-data="{&quot;script&quot;:&quot;비밀&quot;}"></div><p>종소리<br />대신</p>';
+    expect(htmlExcerpt(html)).toBe('문이 열린 건 & 자정이었다. 종소리 대신');
+  });
+
+  it('길면 자르고 말줄임표', () => {
+    expect(htmlExcerpt(`<p>${'가'.repeat(80)}</p>`, 10)).toBe(`${'가'.repeat(10)}…`);
+    expect(htmlExcerpt('')).toBe('');
   });
 });

@@ -29,6 +29,13 @@
       "when": 1794483197416,
       "tag": "0003_novel_schedule_note",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794484321194,
+      "tag": "0004_chapter_revisions",
+      "breakpoints": true
     }
   ]
 }

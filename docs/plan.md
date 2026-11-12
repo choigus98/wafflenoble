@@ -115,6 +115,9 @@ export const novels = pgTable('novels', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+// 발행본 기록 (0004 마이그레이션): 길드원에게 보이는 회차를 수정 반영·되돌리기하기 직전 본문, 회차마다 최근 10개
+// chapter_revisions(id, chapter_id → chapters 삭제 시 함께 삭제, title, content_html, author_note, char_count, created_at)
+
 export const chapters = pgTable('chapters', {
   id: serial('id').primaryKey(),
   novelId: integer('novel_id').notNull().references(() => novels.id, { onDelete: 'cascade' }),

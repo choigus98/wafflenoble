@@ -6,7 +6,7 @@ import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/r
 import StarterKit from '@tiptap/starter-kit';
 import Link from 'next/link';
 import { useEffect, useRef, useState, useTransition, type ReactNode, type RefObject } from 'react';
-import { deleteChapter, saveChapter, scheduleChapter, setChapterStatus } from '@/app/admin/actions';
+import { deleteChapter, restoreRevision, saveChapter, scheduleChapter, setChapterStatus } from '@/app/admin/actions';
 import {
   StoryBlockNode,
   createTemplateEditingStore,
@@ -18,8 +18,9 @@ import { TemplateMenu } from '@/components/admin/story-block/template-menu';
 import { SubmitButton } from '@/components/submit-button';
 import { Badge, Button, buttonClass } from '@/components/ui';
 import { useDismiss } from '@/components/use-dismiss';
-import { formatNumber, formatSchedule, formatTime } from '@/lib/format';
+import { formatDateTime, formatNumber, formatSchedule, formatTime } from '@/lib/format';
 import { plainTextToBlocks } from '@/lib/paste';
+import type { RevisionItem } from '@/lib/queries/admin';
 import { cn } from '@/lib/utils';
 
 export type EditorChapter = {
@@ -33,6 +34,7 @@ export type EditorChapter = {
   updatedAt: string;
   publishedAt: string | null;
   scheduled: boolean; // 예약 발행 대기 중 (공개 시각 전이라 길드원에게 아직 안 보임)
+  revisions: RevisionItem[]; // 이전 발행본 (최근 것부터)
 };
 
 type SaveState = 'saved' | 'dirty' | 'saving' | 'error';
@@ -90,6 +92,8 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
   const [title, setTitle] = useState(chapter.title);
   const [position, setPosition] = useState(String(chapter.position));
   const [authorNote, setAuthorNote] = useState(chapter.authorNote);
+  const [revisions, setRevisions] = useState(chapter.revisions);
+  const [restorePending, startRestore] = useTransition();
   const [status, setStatus] = useState(chapter.status);
   const [publishAt, setPublishAt] = useState(chapter.publishedAt);
   const [scheduled, setScheduled] = useState(chapter.scheduled);
@@ -357,6 +361,45 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
     setCounts(countText(editor));
     setRecovery(null);
     handleChange();
+  }
+
+  /** 이전 발행본으로 되돌리기: 서버에서 바꾼 뒤 에디터 내용도 그 본문으로 바꾼다 (지금 본문은 기록에 남음) */
+  function restore(revision: RevisionItem) {
+    const lines = [
+      `${formatDateTime(new Date(revision.createdAt))} 발행본으로 되돌릴까요?`,
+      '지금 본문은 이전 발행본에 남아서 다시 되돌릴 수 있어요.',
+      isLiveNow() ? '길드원에게 바로 보여요.' : '',
+      saveState !== 'saved' ? '아직 저장하지 않은 수정은 사라져요.' : '',
+    ];
+    if (!window.confirm(lines.filter(Boolean).join('\n'))) return;
+    templateStore.set(null);
+    clearTimer();
+    startRestore(async () => {
+      const result = await restoreRevision(chapter.id, revision.id);
+      if (!result.ok) {
+        setMessage({ tone: 'error', text: result.message });
+        return;
+      }
+      if (editor) {
+        editor.commands.setContent(result.chapter.contentHtml, { emitUpdate: false });
+        setCounts(countText(editor));
+      }
+      draftRef.current = {
+        ...draftRef.current,
+        title: result.chapter.title,
+        html: editor ? editor.getHTML() : result.chapter.contentHtml,
+        authorNote: result.chapter.authorNote,
+      };
+      setTitle(result.chapter.title);
+      setAuthorNote(result.chapter.authorNote);
+      setSavedAt(result.chapter.updatedAt);
+      setSaveState('saved');
+      try {
+        localStorage.removeItem(storageKey);
+      } catch {}
+      setRevisions(result.revisions);
+      setMessage({ tone: 'info', text: '이전 발행본으로 되돌렸어요. 되돌리기 전 본문은 기록에 남았어요' });
+    });
   }
 
   function discardLocalCopy() {
@@ -639,6 +682,38 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
           className="min-h-24 w-full resize-y rounded-2xl border border-line bg-surface px-4 py-3 text-base leading-relaxed field-sizing-content placeholder:text-muted/70 focus:border-accent focus:ring-3 focus:ring-accent/20 focus:outline-none"
         />
       </div>
+
+      {/* 이전 발행본: 발행된 회차를 '수정 반영'할 때마다 바뀌기 전 본문이 쌓인다 (최근 10개) */}
+      {revisions.length > 0 ? (
+        <details className="group mt-8 rounded-2xl border border-line bg-surface px-4 py-3">
+          <summary className="cursor-pointer text-sm font-semibold">
+            이전 발행본 <span className="text-muted">{revisions.length}</span>
+          </summary>
+          <div className="mt-1 text-xs text-muted">수정 반영할 때마다 바뀌기 전 본문을 최근 10개까지 남겨요. 되돌려도 지금 본문은 기록에 남아요.</div>
+          <ul className="mt-2 divide-y divide-line" aria-busy={restorePending}>
+            {revisions.map((revision) => (
+              <li key={revision.id} className="flex items-center justify-between gap-3 py-2.5">
+                <span className="min-w-0">
+                  <span className="block text-sm tabular-nums">
+                    {formatDateTime(new Date(revision.createdAt))} · {formatNumber(revision.charCount)}자
+                  </span>
+                  <span className="block truncate text-xs text-muted">{revision.excerpt || '(빈 본문)'}</span>
+                </span>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => restore(revision)}
+                  disabled={restorePending}
+                  aria-label={`${formatDateTime(new Date(revision.createdAt))} 발행본으로 되돌리기`}
+                >
+                  되돌리기
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
 
       <div data-focus-hide="" className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-6">
         <a

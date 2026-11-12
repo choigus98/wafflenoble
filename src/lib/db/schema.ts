@@ -71,6 +71,26 @@ export const chapters = pgTable(
   (t) => [index('chapters_novel_position_idx').on(t.novelId, t.position)],
 );
 
+/**
+ * 발행본 기록: 길드원에게 보이는 회차를 '수정 반영'(또는 되돌리기)하기 직전의 본문을 보관한다.
+ * 회차마다 최근 10개만 남긴다. 임시저장·예약 회차의 자동저장은 기록하지 않는다
+ */
+export const chapterRevisions = pgTable(
+  'chapter_revisions',
+  {
+    id: serial('id').primaryKey(),
+    chapterId: integer('chapter_id')
+      .notNull()
+      .references(() => chapters.id, { onDelete: 'cascade' }),
+    title: varchar('title', { length: 100 }).notNull().default(''),
+    contentHtml: text('content_html').notNull().default(''),
+    authorNote: text('author_note').notNull().default(''),
+    charCount: integer('char_count').notNull().default(0),
+    createdAt: createdAt(), // 이 본문이 바뀐(밀려난) 시각
+  },
+  (t) => [index('chapter_revisions_chapter_idx').on(t.chapterId, t.createdAt)],
+);
+
 export const chapterLikes = pgTable(
   'chapter_likes',
   {

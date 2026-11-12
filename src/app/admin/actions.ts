@@ -13,7 +13,9 @@ import { countCharacters, sanitizeChapterHtml } from '@/lib/content';
 import { COVER_COLOR_KEYS } from '@/lib/cover';
 import { db } from '@/lib/db';
 import { isUniqueViolation } from '@/lib/db/errors';
-import { chapters, novels, readers, settings } from '@/lib/db/schema';
+import { chapterRevisions, chapters, novels, readers, settings } from '@/lib/db/schema';
+import { adminListRevisions, type RevisionItem } from '@/lib/queries/admin';
+import { isVisibleChapter } from '@/lib/queries/visibility';
 import { hasStoryBlocks } from '@/lib/story-blocks';
 import { NICKNAME_MAX, NICKNAME_MIN, normalizeNickname } from '@/lib/utils';
 import type { ActionState } from '@/lib/action-state';
@@ -134,19 +136,106 @@ export async function saveChapter(input: z.input<typeof chapterInputSchema>): Pr
   const charCount = countCharacters(clean);
   // 에디터는 빈 문서도 <p></p>로 내보내므로, 글자도 장면 전환도 템플릿도 없으면 빈 본문으로 저장
   const stored = charCount === 0 && !clean.includes('<hr') && !hasStoryBlocks(clean) ? '' : clean;
-  const [saved] = await db
-    .update(chapters)
-    .set({
-      title,
-      contentHtml: stored,
-      charCount,
-      ...(position === undefined ? {} : { position }),
-      ...(authorNote === undefined ? {} : { authorNote }),
-    })
-    .where(eq(chapters.id, id))
-    .returning({ updatedAt: chapters.updatedAt });
+  const saved = await db.transaction(async (tx) => {
+    // 길드원에게 보이는 회차의 본문이 바뀌면 바뀌기 전 본문을 발행본 기록에 남긴다
+    const [current] = await tx
+      .select({
+        title: chapters.title,
+        contentHtml: chapters.contentHtml,
+        authorNote: chapters.authorNote,
+        charCount: chapters.charCount,
+        live: isVisibleChapter,
+      })
+      .from(chapters)
+      .where(eq(chapters.id, id))
+      .for('update');
+    if (!current) return null;
+    const changed =
+      current.contentHtml !== stored || current.title !== title || (authorNote !== undefined && current.authorNote !== authorNote);
+    if (current.live && changed) await keepRevision(tx, id, current);
+    const [row] = await tx
+      .update(chapters)
+      .set({
+        title,
+        contentHtml: stored,
+        charCount,
+        ...(position === undefined ? {} : { position }),
+        ...(authorNote === undefined ? {} : { authorNote }),
+      })
+      .where(eq(chapters.id, id))
+      .returning({ updatedAt: chapters.updatedAt });
+    return row ?? null;
+  });
   if (!saved) return { ok: false, message: '회차를 찾을 수 없어요. 삭제됐을 수 있어요' };
   return { ok: true, savedAt: saved.updatedAt.toISOString() };
+}
+
+const REVISIONS_KEPT = 10;
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type RevisionContent = { title: string; contentHtml: string; authorNote: string; charCount: number };
+
+/** 발행본 기록에 한 개 남기고, 회차마다 최근 10개만 둔다 */
+async function keepRevision(tx: Tx, chapterId: number, content: RevisionContent) {
+  await tx.insert(chapterRevisions).values({ chapterId, ...content });
+  await tx.execute(sql`
+    delete from ${chapterRevisions}
+    where ${chapterRevisions.chapterId} = ${chapterId}
+      and ${chapterRevisions.id} not in (
+        select r.id from ${chapterRevisions} r where r.chapter_id = ${chapterId}
+        order by r.created_at desc, r.id desc limit ${REVISIONS_KEPT}
+      )
+  `);
+}
+
+export type RestoreRevisionResult =
+  | {
+      ok: true;
+      chapter: { title: string; contentHtml: string; authorNote: string; updatedAt: string };
+      revisions: RevisionItem[];
+    }
+  | { ok: false; message: string };
+
+/**
+ * 이전 발행본으로 되돌리기. 지금 본문도 기록에 남겨서 되돌린 것을 다시 되돌릴 수 있다.
+ * 길드원에게 보이는 회차면 되돌린 본문이 바로 보인다
+ */
+export async function restoreRevision(chapterId: number, revisionId: number): Promise<RestoreRevisionResult> {
+  await requireAdmin();
+  if (!idSchema.safeParse(chapterId).success || !idSchema.safeParse(revisionId).success) {
+    return { ok: false, message: '잘못된 요청이에요' };
+  }
+  const restored = await db.transaction(async (tx) => {
+    const [revision] = await tx
+      .select()
+      .from(chapterRevisions)
+      .where(and(eq(chapterRevisions.id, revisionId), eq(chapterRevisions.chapterId, chapterId)));
+    if (!revision) return null;
+    const [current] = await tx
+      .select({ title: chapters.title, contentHtml: chapters.contentHtml, authorNote: chapters.authorNote, charCount: chapters.charCount })
+      .from(chapters)
+      .where(eq(chapters.id, chapterId))
+      .for('update');
+    if (!current) return null;
+    await keepRevision(tx, chapterId, current);
+    const [row] = await tx
+      .update(chapters)
+      .set({
+        title: revision.title,
+        contentHtml: revision.contentHtml,
+        authorNote: revision.authorNote,
+        charCount: revision.charCount,
+      })
+      .where(eq(chapters.id, chapterId))
+      .returning({ title: chapters.title, contentHtml: chapters.contentHtml, authorNote: chapters.authorNote, updatedAt: chapters.updatedAt });
+    return row ?? null;
+  });
+  if (!restored) return { ok: false, message: '되돌릴 기록을 찾을 수 없어요' };
+  return {
+    ok: true,
+    chapter: { ...restored, updatedAt: restored.updatedAt.toISOString() },
+    revisions: await adminListRevisions(chapterId),
+  };
 }
 
 /**

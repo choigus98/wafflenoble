@@ -35,3 +35,13 @@ export function countCharacters(html: string): number {
   );
   return [...text].length;
 }
+
+/** 목록에 보여 줄 본문 첫머리 (문단 사이는 띄어쓰기, 템플릿 블록 내용은 빠짐) */
+export function htmlExcerpt(html: string, max = 60): string {
+  const text = sanitizeHtml(html.replace(/<\/(p|blockquote)>|<br\s*\/?>/g, ' '), { allowedTags: [], allowedAttributes: {} })
+    .replace(/&(amp|lt|gt|quot|#39|nbsp);/g, (entity) => ENTITIES[entity] ?? entity)
+    .replace(/\s+/g, ' ')
+    .trim();
+  const chars = [...text];
+  return chars.length > max ? `${chars.slice(0, max).join('')}…` : text;
+}

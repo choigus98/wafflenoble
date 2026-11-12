@@ -22,7 +22,7 @@ async function ChapterAdmin({ params }: Pick<PageProps<'/admin/novels/[novelId]/
   const data = await adminGetChapter(novelId, chapterId);
   if (!data) notFound();
 
-  const { chapter, novelTitle, viewers, likers, scheduled } = data;
+  const { chapter, novelTitle, viewers, likers, scheduled, revisions } = data;
   const now = new Date();
 
   return (
@@ -42,6 +42,7 @@ async function ChapterAdmin({ params }: Pick<PageProps<'/admin/novels/[novelId]/
           updatedAt: chapter.updatedAt.toISOString(),
           publishedAt: chapter.publishedAt?.toISOString() ?? null,
           scheduled,
+          revisions,
         }}
       />
 
