@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물, 이메일).
+// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물, 이메일, 검색 결과).
 // 저장 형식: <div data-wn-block="종류" data-wn-data="JSON"></div>
 // 에디터(Tiptap 노드), 서버(저장할 때 검증), 열람 화면(렌더링)이 모두 이 파일을 같이 쓴다.
 //
@@ -124,6 +124,13 @@ const mailSchema = z.object({
   attachment: text(80), // 첨부 파일 이름. 비우면 안 보임
 });
 
+const searchSchema = z.object({
+  engine: text(40), // 검색 사이트 이름. 비우면 안 보임
+  query: text(100), // 검색어
+  count: text(40), // '검색 결과 약 1,230개'처럼 적은 그대로. 비우면 안 보임
+  script: text(LIMITS.script), // 결과 대본 (규칙은 parseSearchResults 위 설명)
+});
+
 /** 전화 화면 모드를 바꿀 때, 아직 고치지 않은 기본 문구는 새 모드에 맞게 바꿔 준다 */
 export const CALL_DETAIL_DEFAULT = { incoming: '휴대전화', active: '00:12' } as const;
 
@@ -140,6 +147,7 @@ export const storyBlockSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('note'), data: noteSchema }),
   z.object({ kind: z.literal('sns'), data: snsSchema }),
   z.object({ kind: z.literal('mail'), data: mailSchema }),
+  z.object({ kind: z.literal('search'), data: searchSchema }),
 ]);
 
 export type StoryBlock = z.infer<typeof storyBlockSchema>;
@@ -154,6 +162,7 @@ export type CallData = z.infer<typeof callSchema>;
 export type NoteData = z.infer<typeof noteSchema>;
 export type SnsData = z.infer<typeof snsSchema>;
 export type MailData = z.infer<typeof mailSchema>;
+export type SearchData = z.infer<typeof searchSchema>;
 
 /** 메일 보낸 사람 '김지은 <jieun@example.com>' → 이름과 주소. 꺾쇠가 없으면 적은 그대로 이름으로 */
 export function splitMailSender(from: string): { name: string; address: string } {
@@ -372,6 +381,33 @@ export function parseSystemScript(script: string): SystemLine[] {
   return lines;
 }
 
+// ─── 검색 결과 대본 ───────────────────────────────────
+// 빈 줄로 결과를 나눈다. 결과마다
+//   자정에만 여는 와플 가게 후기        ← 첫 줄: 제목 ([광고]로 시작하면 광고 표시)
+//   waffle.example.com/review         ← 둘째 줄이 주소처럼 보이면 주소 ('example.com › 후기'도 됨)
+//   골목 끝 그 가게, 가 보신 분?        ← 나머지 줄: 요약 (줄바꿈 그대로)
+
+export type SearchResult = { title: string; url: string; snippet: string; ad: boolean };
+
+const AD_PREFIX = /^\[광고\]\s*/;
+// 마지막 조각(.com, .kr …)은 글자로 시작해야 주소로 본다 ('1.5', 'v1.2' 같은 숫자 줄은 요약)
+const URL_LINE = /^(?:https?:\/\/)?(?:www\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z][a-z0-9-]*(?:[/:?#]\S*)?(?:\s+›.*)?$/i;
+
+export function parseSearchResults(script: string): SearchResult[] {
+  const results: SearchResult[] = [];
+  for (const chunk of script.split(/\r?\n\s*\r?\n/)) {
+    if (results.length >= LIMITS.lines) break;
+    const lines = chunk.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    if (lines.length === 0) continue;
+    const [first, ...rest] = lines;
+    const ad = AD_PREFIX.test(first);
+    const title = first.replace(AD_PREFIX, '');
+    const hasUrl = rest.length > 0 && URL_LINE.test(rest[0]);
+    results.push({ title, url: hasUrl ? rest[0] : '', snippet: (hasUrl ? rest.slice(1) : rest).join('\n'), ad });
+  }
+  return results;
+}
+
 /** 제목 옆·댓글 머리에 보일 댓글 수. 직접 적은 값이 먼저, 없으면 실제 댓글 개수 */
 export function postCommentCount(data: PostData, lines: CommentLine[]): string {
   return data.commentCount.trim() || String(lines.filter((line) => line.type === 'comment').length);
@@ -393,7 +429,8 @@ export type TemplateKey =
   | 'call-active'
   | 'note'
   | 'sns'
-  | 'mail';
+  | 'mail'
+  | 'search';
 
 export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }> = [
   { key: 'kakao-dm', label: '카톡 1:1 대화', hint: '두 사람의 메신저 대화' },
@@ -410,6 +447,7 @@ export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }>
   { key: 'note', label: '쪽지 · 메모', hint: '손글씨 느낌 종이 쪽지' },
   { key: 'sns', label: 'SNS 게시물', hint: '프로필 · 글 · 답글' },
   { key: 'mail', label: '이메일', hint: '보낸 사람 · 제목 · 본문 · 첨부' },
+  { key: 'search', label: '검색 결과', hint: '검색어 · 결과 목록' },
 ];
 
 export function templateLabel(block: StoryBlock): string {
@@ -529,6 +567,24 @@ export function createTemplate(key: TemplateKey): StoryBlock {
           reposts: '12',
           likes: '128',
           script: ['익명1: 답글은 이렇게 써요 [3분 전]', '익명2: 한 줄에 하나씩 [1분 전]'].join('\n'),
+        },
+      };
+    case 'search':
+      return {
+        kind: 'search',
+        data: {
+          engine: '와플 검색',
+          query: '검색어',
+          count: '검색 결과 약 1,230개',
+          script: [
+            '첫 번째 결과 제목',
+            'example.com/first',
+            '둘째 줄에 주소, 그다음 줄부터 요약을 적어요.',
+            '',
+            '[광고] 광고 결과는 제목 앞에 [광고]',
+            'ad.example.com',
+            '빈 줄로 결과를 나눠요.',
+          ].join('\n'),
         },
       };
     case 'mail':

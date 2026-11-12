@@ -10,6 +10,7 @@ import {
   kakaoTitle,
   parseComments,
   parseScript,
+  parseSearchResults,
   parseSystemScript,
   postCommentCount,
   renameSpeaker,
@@ -49,6 +50,7 @@ const KEYS: TemplateKey[] = [
   'note',
   'sns',
   'mail',
+  'search',
 ];
 
 function withTrickyText(block: StoryBlock): StoryBlock {
@@ -80,6 +82,8 @@ function withTrickyText(block: StoryBlock): StoryBlock {
         ...block,
         data: { ...block.data, from: `양띵 <yang@example.com> ${TRICKY}`, body: `${TRICKY}\n\n둘째 문단`, attachment: '보고서 "최종".pdf' },
       };
+    case 'search':
+      return { ...block, data: { ...block.data, query: TRICKY, script: `${block.data.script}\n\n${TRICKY}\nexample.com/?q="x"&y=<1>` } };
   }
 }
 
@@ -322,5 +326,47 @@ describe('이메일 보낸 사람', () => {
     if (block.kind !== 'mail') throw new Error('이메일 템플릿이 아니에요');
     expect(splitMailSender(block.data.from)).toEqual({ name: '보낸 사람', address: 'sender@example.com' });
     expect(block.data.attachment).toBe('');
+  });
+});
+
+describe('검색 결과 대본', () => {
+  it('빈 줄로 결과를 나누고 첫 줄 제목 · 둘째 줄 주소 · 나머지 요약', () => {
+    const script = ['와플 가게 후기', 'waffle.example.com/review', '골목 끝 그 가게,', '가 보신 분?', '', '', '자정 영업 안내', 'https://example.com/hours?day=fri', '금요일만 엽니다'].join('\n');
+    expect(parseSearchResults(script)).toEqual([
+      { title: '와플 가게 후기', url: 'waffle.example.com/review', snippet: '골목 끝 그 가게,\n가 보신 분?', ad: false },
+      { title: '자정 영업 안내', url: 'https://example.com/hours?day=fri', snippet: '금요일만 엽니다', ad: false },
+    ]);
+  });
+
+  it("둘째 줄이 주소처럼 안 보이면 요약으로, '주소 › 경로'도 주소로 읽는다", () => {
+    expect(parseSearchResults('제목만 있는 결과\n이건 주소가 아니라 요약이에요')).toEqual([
+      { title: '제목만 있는 결과', url: '', snippet: '이건 주소가 아니라 요약이에요', ad: false },
+    ]);
+    expect(parseSearchResults('맛집 지도\nwww.example.co.kr › 맛집 › 골목\n요약')[0].url).toBe('www.example.co.kr › 맛집 › 골목');
+    expect(parseSearchResults('제목\nv1.2 버전 안내')[0]).toEqual({ title: '제목', url: '', snippet: 'v1.2 버전 안내', ad: false });
+    expect(parseSearchResults('평점\n4.5')[0]).toEqual({ title: '평점', url: '', snippet: '4.5', ad: false });
+    expect(parseSearchResults('정부 안내\nwww.example.go.kr')[0].url).toBe('www.example.go.kr');
+  });
+
+  it('[광고]로 시작하면 광고 표시하고 제목에서는 뺀다', () => {
+    expect(parseSearchResults('[광고] 와플 반죽 할인\nshop.example.com')).toEqual([
+      { title: '와플 반죽 할인', url: 'shop.example.com', snippet: '', ad: true },
+    ]);
+  });
+
+  it('공백뿐인 줄도 결과를 나누고, 빈 대본은 결과 없음', () => {
+    expect(parseSearchResults('첫째\n   \n둘째').map((result) => result.title)).toEqual(['첫째', '둘째']);
+    expect(parseSearchResults('  \n\n ')).toEqual([]);
+  });
+
+  it('새 검색 결과 템플릿의 예시 대본은 결과 2개 (둘째는 광고)', () => {
+    const block = createTemplate('search');
+    if (block.kind !== 'search') throw new Error('검색 결과 템플릿이 아니에요');
+    const results = parseSearchResults(block.data.script);
+    expect(results).toHaveLength(2);
+    expect(results.map((result) => [result.url, result.ad])).toEqual([
+      ['example.com/first', false],
+      ['ad.example.com', true],
+    ]);
   });
 });

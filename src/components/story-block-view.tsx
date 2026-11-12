@@ -8,6 +8,7 @@ import {
   kakaoTitle,
   parseComments,
   parseScript,
+  parseSearchResults,
   parseSystemScript,
   postCommentCount,
   scriptSpeakers,
@@ -21,6 +22,7 @@ import {
   type NewsData,
   type NoteData,
   type PostData,
+  type SearchData,
   type SnsData,
   type StoryBlock,
   type SystemData,
@@ -71,6 +73,8 @@ export function StoryBlockView({ block }: { block: StoryBlock }) {
       return <SnsCard data={block.data} />;
     case 'mail':
       return <MailCard data={block.data} />;
+    case 'search':
+      return <SearchCard data={block.data} />;
   }
 }
 
@@ -740,6 +744,48 @@ export function MailCard({ data, field }: { data: MailData; field?: FieldRendere
           </svg>
           {editing ? null : <span className="sr-only">첨부 파일 </span>}
           {slot('attachment', '첨부 파일 이름 (비우면 안 보여요)', 80, editing ? 'max-w-full min-w-8' : 'min-w-0 truncate')}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** 검색 결과: 검색 사이트 이름 · 검색창(검색어) · 결과 수 · 결과 목록(주소 · 제목 · 요약). 글자만 그리고 링크는 아니다 */
+function SearchCard({ data }: { data: SearchData }) {
+  const results = parseSearchResults(data.script);
+
+  return (
+    <div className={cn(CARD, 'bg-(--wn-search-bg) px-5 pt-4 pb-2')}>
+      {data.engine.trim() ? <div className="text-[15px] font-extrabold tracking-tight text-(--wn-search-brand)">{data.engine}</div> : null}
+      <div className="mt-2.5 flex items-center gap-2.5 rounded-full border border-(--wn-border) bg-(--wn-search-box-bg) px-4 py-2.5">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true" className="size-4 shrink-0 text-(--wn-muted)">
+          <circle cx="11" cy="11" r="6.5" />
+          <path d="M20 20l-4.2-4.2" />
+        </svg>
+        <span className="min-w-0 flex-1 truncate text-[15px]">
+          <span className="sr-only">검색어 </span>
+          {data.query}
+        </span>
+      </div>
+      {data.count.trim() ? <div className="mt-2.5 px-1 text-xs text-(--wn-muted)">{data.count}</div> : null}
+      {results.length > 0 ? (
+        <div className="mt-1 divide-y divide-(--wn-line)">
+          {results.map((result, index) => (
+            <div key={index} className="py-3">
+              {result.url || result.ad ? (
+                <div className="flex min-w-0 items-center gap-1.5 text-xs text-(--wn-muted)">
+                  {result.ad ? (
+                    <span className="shrink-0 rounded border border-(--wn-border) px-1 text-[10px] leading-4 font-bold">광고</span>
+                  ) : null}
+                  <span className="min-w-0 truncate">{result.url}</span>
+                </div>
+              ) : null}
+              <div className="mt-0.5 text-[16px] leading-snug font-semibold break-keep text-(--wn-search-title)">{result.title}</div>
+              {result.snippet ? (
+                <div className="mt-1 text-[14px] leading-relaxed break-keep whitespace-pre-wrap text-(--wn-muted)">{result.snippet}</div>
+              ) : null}
+            </div>
+          ))}
         </div>
       ) : null}
     </div>

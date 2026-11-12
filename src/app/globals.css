@@ -85,6 +85,10 @@
   --wn-mail-avatar-bg: #dde7fb;
   --wn-mail-avatar-fg: #1d4ed8;
   --wn-mail-chip-bg: #f4f5f7;
+  --wn-search-bg: #ffffff;
+  --wn-search-box-bg: #f1f3f5;
+  --wn-search-brand: #2f5fd0;
+  --wn-search-title: #1a44b8;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -172,6 +176,10 @@
     --wn-mail-avatar-bg: #26314a;
     --wn-mail-avatar-fg: #bcd0fb;
     --wn-mail-chip-bg: rgb(255 255 255 / 0.06);
+    --wn-search-bg: #17191e;
+    --wn-search-box-bg: #23262d;
+    --wn-search-brand: #8fb0ff;
+    --wn-search-title: #9dbcff;
   }
 }
 
@@ -258,6 +266,10 @@
   --wn-mail-avatar-bg: #26314a;
   --wn-mail-avatar-fg: #bcd0fb;
   --wn-mail-chip-bg: rgb(255 255 255 / 0.06);
+  --wn-search-bg: #17191e;
+  --wn-search-box-bg: #23262d;
+  --wn-search-brand: #8fb0ff;
+  --wn-search-title: #9dbcff;
 }
 
 @theme inline {

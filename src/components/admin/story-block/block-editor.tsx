@@ -23,6 +23,7 @@ import {
   type ChatData,
   type KakaoData,
   type PostData,
+  type SearchData,
   type SnsData,
   type StoryBlock,
   type SystemData,
@@ -34,7 +35,7 @@ import { cn } from '@/lib/utils';
 const COMMIT_DELAY_MS = 300;
 
 type CardBlock = Extract<StoryBlock, { kind: 'live' | 'donation' | 'news' | 'call' | 'note' | 'mail' }>;
-type ConversationBlock = Extract<StoryBlock, { kind: 'kakao' | 'chat' | 'post' | 'system' | 'sns' }>;
+type ConversationBlock = Extract<StoryBlock, { kind: 'kakao' | 'chat' | 'post' | 'system' | 'sns' | 'search' }>;
 
 const TEXTAREA =
   'w-full resize-y rounded-2xl border border-line bg-surface px-4 py-3 text-base leading-relaxed text-fg field-sizing-content placeholder:text-muted/60 focus:border-accent focus:ring-3 focus:ring-accent/20 focus:outline-none';
@@ -45,6 +46,7 @@ const SCRIPT_PLACEHOLDER: Record<ConversationBlock['kind'], string> = {
   post: '익명1: 와 이거 진짜임? [20:31]\nㄴ 글쓴이: ㅇㅇ 방금 봄',
   system: '「잃어버린 기억을 찾아라」\n제한 시간: 24시간\n--- 보상 ---\n???',
   sns: '익명1: 어디예요?? [3분 전]\n익명2: 나도 가 봄 [1분 전]',
+  search: '자정에만 여는 와플 가게 후기\nwaffle.example.com/review\n골목 끝 그 가게, 가 보신 분?',
 };
 
 function useDraft<T extends StoryBlock>(block: T, onChange: (block: StoryBlock) => void) {
@@ -226,16 +228,22 @@ export function ConversationEditor({
   const lines = draft.kind === 'kakao' || draft.kind === 'chat' ? parseScript(draft.data.script) : [];
   // 게시글 댓글·SNS 답글은 같은 대본 규칙
   const comments = draft.kind === 'post' || draft.kind === 'sns' ? parseComments(draft.data.script) : [];
-  // 시스템 창은 말하는 사람이 없어서 등장인물 칩을 안 보여 준다
+  // 시스템 창·검색 결과는 말하는 사람이 없어서 등장인물 칩을 안 보여 준다
   const speakers =
-    draft.kind === 'post' || draft.kind === 'sns' ? commentSpeakers(comments) : draft.kind === 'system' ? [] : scriptSpeakers(lines);
+    draft.kind === 'post' || draft.kind === 'sns'
+      ? commentSpeakers(comments)
+      : draft.kind === 'system' || draft.kind === 'search'
+        ? []
+        : scriptSpeakers(lines);
 
-  function setData(patch: Partial<KakaoData> | Partial<ChatData> | Partial<PostData> | Partial<SystemData> | Partial<SnsData>) {
+  function setData(
+    patch: Partial<KakaoData> | Partial<ChatData> | Partial<PostData> | Partial<SystemData> | Partial<SnsData> | Partial<SearchData>,
+  ) {
     update({ ...draft, data: { ...draft.data, ...patch } } as ConversationBlock);
   }
 
   function rename(from: string, to: string) {
-    if (draft.kind === 'system') return;
+    if (draft.kind === 'system' || draft.kind === 'search') return;
     if (draft.kind === 'sns') {
       setData({ script: renameSpeaker(draft.data.script, from, to, { replies: true }) });
       return;
@@ -333,6 +341,33 @@ export function ConversationEditor({
             />
             <MiniInput label="재게시" value={draft.data.reposts} maxLength={20} onChange={(reposts) => setData({ reposts })} inputClassName="w-12" />
             <MiniInput label="좋아요" value={draft.data.likes} maxLength={20} onChange={(likes) => setData({ likes })} inputClassName="w-14" />
+          </>
+        ) : draft.kind === 'search' ? (
+          <>
+            <MiniInput
+              inputRef={titleRef}
+              label="검색어"
+              value={draft.data.query}
+              maxLength={100}
+              onChange={(query) => setData({ query })}
+              inputClassName="w-44"
+            />
+            <MiniInput
+              label="검색 사이트"
+              value={draft.data.engine}
+              maxLength={40}
+              placeholder="비우면 안 보여요"
+              onChange={(engine) => setData({ engine })}
+              inputClassName="w-28"
+            />
+            <MiniInput
+              label="결과 수"
+              value={draft.data.count}
+              maxLength={40}
+              placeholder="비우면 안 보여요"
+              onChange={(count) => setData({ count })}
+              inputClassName="w-40"
+            />
           </>
         ) : draft.kind === 'system' ? (
           <MiniInput
@@ -432,7 +467,7 @@ export function ConversationEditor({
             ref={scriptRef}
             value={draft.data.script}
             onChange={(e) => setData({ script: e.target.value })}
-            aria-label={draft.kind === 'post' ? '댓글 대본' : draft.kind === 'sns' ? '답글 대본' : '대본'}
+            aria-label={draft.kind === 'post' ? '댓글 대본' : draft.kind === 'sns' ? '답글 대본' : draft.kind === 'search' ? '검색 결과 대본' : '대본'}
             spellCheck={false}
             maxLength={LIMITS.script}
             placeholder={SCRIPT_PLACEHOLDER[draft.kind]}
@@ -538,6 +573,13 @@ const SCRIPT_HELP: Record<ConversationBlock['kind'], Array<[string, string]>> = 
     ['이름 없이 쓰기', '앞 답글에 줄바꿈'],
     ['[3분 전]', '줄 끝에 시간'],
     ['--- 안내 ---', '가운데 회색 줄'],
+  ],
+  search: [
+    ['빈 줄', '결과 나누기'],
+    ['첫 줄', '제목'],
+    ['example.com/…', '둘째 줄에 주소'],
+    ['나머지 줄', '요약'],
+    ['[광고] 제목', '광고 표시'],
   ],
   post: [
     ['닉네임: 댓글', '한 줄에 하나'],
