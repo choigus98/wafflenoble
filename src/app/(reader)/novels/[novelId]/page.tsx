@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import { NovelCover } from '@/components/novel-cover';
 import { CopyLinkButton } from '@/components/reader/copy-link-button';
+import { NovelBookmarks } from '@/components/reader/novel-bookmarks';
 import { TocList } from '@/components/reader/toc-list';
 import { TocOrderToggle } from '@/components/reader/toc-order-toggle';
 import { Badge, ButtonLink, Skeleton } from '@/components/ui';
@@ -101,6 +102,9 @@ async function NovelDetail({ params }: Pick<PageProps<'/novels/[novelId]'>, 'par
       ) : null}
 
       {characters.length > 0 ? <CharacterList characters={characters} /> : null}
+
+      {/* 이 기기에서 꽂은 책갈피 (없으면 안 보임) */}
+      <NovelBookmarks novelId={novel.id} />
 
       <section className="mt-10">
         <div className="mb-2 flex items-center justify-between gap-3">

@@ -8,6 +8,7 @@ import { ChapterKeyNav } from '@/components/reader/chapter-key-nav';
 import { LikeButton } from '@/components/reader/like-button';
 import { ReaderSettings } from '@/components/reader/reader-settings';
 import { BackToTop } from '@/components/reader/back-to-top';
+import { ChapterBookmark } from '@/components/reader/chapter-bookmark';
 import { ReadingProgress } from '@/components/reader/reading-progress';
 import { ViewTracker } from '@/components/reader/view-tracker';
 import { Badge, ButtonLink, Skeleton } from '@/components/ui';
@@ -168,6 +169,7 @@ async function ChapterView({ params }: Pick<PageProps<'/novels/[novelId]/[chapte
       {isReader && chapter.visibleNow ? <ViewTracker chapterId={chapter.id} /> : null}
       <ReadingProgress chapterId={chapter.id} />
       <BackToTop targetId="chapter-title" />
+      {chapter.contentHtml ? <ChapterBookmark novelId={novel.id} chapterId={chapter.id} position={chapter.position} title={chapter.title} /> : null}
       <ChapterKeyNav
         prevHref={prev ? `/novels/${novel.id}/${prev.id}` : null}
         nextHref={next ? `/novels/${novel.id}/${next.id}` : null}

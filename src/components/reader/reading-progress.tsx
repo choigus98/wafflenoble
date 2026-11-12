@@ -57,7 +57,9 @@ export function ReadingProgress({ chapterId }: { chapterId: number }) {
     const initial = requestAnimationFrame(() => {
       const result = measure();
       if (barRef.current && result) barRef.current.style.transform = `scaleX(${result.ratio})`;
-      if (saved !== null && saved > RESUME_MIN && saved < RESUME_MAX && (result?.ratio ?? 0) < RESUME_MIN) {
+      // 책갈피로 왔으면(#bm-순번) 그 문단으로 옮기므로 이어서 읽기는 권하지 않는다
+      const fromBookmark = window.location.hash.startsWith('#bm-');
+      if (!fromBookmark && saved !== null && saved > RESUME_MIN && saved < RESUME_MAX && (result?.ratio ?? 0) < RESUME_MIN) {
         setOffer(saved);
       }
     });

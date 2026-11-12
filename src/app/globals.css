@@ -777,6 +777,43 @@ body:has(article[data-reading]) :is(#main, [data-reader-bar]) {
 :root[data-align="justify"] .novel-body p {
   text-align: justify;
 }
+/* 열람 '책갈피': 꽂아 둔 문단은 왼쪽 여백에 강조색 줄, 책갈피로 오거나 꽂을 때 잠깐 칠한다 (인쇄에서는 줄 없음) */
+.novel-body .wn-bookmarked {
+  position: relative;
+}
+.novel-body .wn-bookmarked::before {
+  content: "";
+  position: absolute;
+  left: -11px;
+  top: 0.3em;
+  bottom: 0.3em;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--accent);
+}
+.novel-body .wn-bookmark-flash {
+  border-radius: 6px;
+  animation: wn-bookmark-flash 2s ease-out;
+}
+@keyframes wn-bookmark-flash {
+  from {
+    background-color: var(--accent-soft);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .novel-body .wn-bookmark-flash {
+    animation: none;
+    background-color: var(--accent-soft);
+  }
+}
+@media print {
+  .novel-body .wn-bookmarked::before {
+    display: none;
+  }
+}
 /* 빈 줄도 한 줄 높이를 차지하게 */
 .novel-body p:empty::after {
   content: "\00a0";
