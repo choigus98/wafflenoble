@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import { NovelCover } from '@/components/novel-cover';
+import { CopyLinkButton } from '@/components/reader/copy-link-button';
 import { TocList } from '@/components/reader/toc-list';
 import { TocOrderToggle } from '@/components/reader/toc-order-toggle';
 import { Badge, ButtonLink, Skeleton } from '@/components/ui';
@@ -51,11 +52,15 @@ async function NovelDetail({ params }: Pick<PageProps<'/novels/[novelId]'>, 'par
             {/* 연재 일정: 완결된 작품에는 안 보여 준다 */}
             {novel.scheduleNote && novel.serialStatus !== 'completed' ? <> · {novel.scheduleNote}</> : null}
           </p>
-          {viewer.kind === 'admin' ? (
-            <Link href={`/admin/novels/${novel.id}`} className="inline-block text-sm font-semibold text-accent hover:underline">
-              작품 관리
-            </Link>
-          ) : null}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            {/* 비공개 작품은 길드원이 못 들어오니 링크 복사를 숨긴다 */}
+            {novel.isPublished ? <CopyLinkButton path={`/novels/${novel.id}`} title={novel.title} /> : null}
+            {viewer.kind === 'admin' ? (
+              <Link href={`/admin/novels/${novel.id}`} className="inline-block text-sm font-semibold text-accent hover:underline">
+                작품 관리
+              </Link>
+            ) : null}
+          </div>
         </div>
       </header>
 
