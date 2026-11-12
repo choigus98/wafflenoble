@@ -5,7 +5,7 @@ import { splitStoryContent } from '@/lib/story-blocks';
 export function ChapterBody({ html }: { html: string }) {
   const segments = splitStoryContent(html);
   return (
-    <div className="novel-body py-9">
+    <div id="chapter-content" className="novel-body py-9">
       {segments.map((segment, index) =>
         segment.type === 'html' ? (
           <div key={index} className="contents" dangerouslySetInnerHTML={{ __html: segment.html }} />

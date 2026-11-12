@@ -2,8 +2,10 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import { ChapterBody } from '@/components/reader/chapter-body';
+import { ChapterKeyNav } from '@/components/reader/chapter-key-nav';
 import { LikeButton } from '@/components/reader/like-button';
 import { ReaderSettings } from '@/components/reader/reader-settings';
+import { ReadingProgress } from '@/components/reader/reading-progress';
 import { ViewTracker } from '@/components/reader/view-tracker';
 import { Badge, ButtonLink, Skeleton } from '@/components/ui';
 import { formatDate, formatNumber, formatSchedule } from '@/lib/format';
@@ -89,6 +91,11 @@ async function ChapterView({ params }: Pick<PageProps<'/novels/[novelId]/[chapte
       </footer>
 
       {isReader && chapter.visibleNow ? <ViewTracker chapterId={chapter.id} /> : null}
+      <ReadingProgress chapterId={chapter.id} />
+      <ChapterKeyNav
+        prevHref={prev ? `/novels/${novel.id}/${prev.id}` : null}
+        nextHref={next ? `/novels/${novel.id}/${next.id}` : null}
+      />
     </article>
   );
 }
