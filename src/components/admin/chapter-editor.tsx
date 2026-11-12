@@ -14,6 +14,7 @@ import {
 } from '@/components/admin/story-block/story-block-node';
 import { CharGoal } from '@/components/admin/char-goal';
 import { FindBar, FindReplace } from '@/components/admin/find-replace';
+import { ShortcutGuide } from '@/components/admin/shortcut-guide';
 import { TemplateMenu } from '@/components/admin/story-block/template-menu';
 import { SubmitButton } from '@/components/submit-button';
 import { Badge, Button, buttonClass } from '@/components/ui';
@@ -334,10 +335,10 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
     return () => window.clearTimeout(timer);
   }, [scheduled, publishAt]);
 
-  // Cmd/Ctrl + S → 저장
+  // Cmd/Ctrl + S → 저장 (Shift가 같이 눌리면 취소선 단축키라 저장하지 않는다)
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
+      if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && event.key.toLowerCase() === 's') {
         event.preventDefault();
         void saveRef.current();
       }
@@ -977,6 +978,7 @@ function Toolbar({
           )}
         </svg>
       </button>
+      <ShortcutGuide />
     </div>
   );
 }
