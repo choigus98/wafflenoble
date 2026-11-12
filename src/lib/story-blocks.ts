@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물, 이메일, 검색 결과, 휴대폰 알림).
+// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물, 이메일, 검색 결과, 휴대폰 알림, 문자 메시지).
 // 저장 형식: <div data-wn-block="종류" data-wn-data="JSON"></div>
 // 에디터(Tiptap 노드), 서버(저장할 때 검증), 열람 화면(렌더링)이 모두 이 파일을 같이 쓴다.
 //
@@ -137,6 +137,12 @@ const pushSchema = z.object({
   script: text(LIMITS.script), // 알림 대본 (규칙은 parsePushScript 위 설명)
 });
 
+const smsSchema = z.object({
+  contact: text(40), // 위쪽에 보일 상대 이름이나 번호. 비우면 대본의 첫 상대 이름
+  me: text(LIMITS.name), // 이 이름의 말도 오른쪽(파란) 말풍선 ('나:'는 항상 오른쪽)
+  script: text(LIMITS.script), // 카톡과 같은 대본 규칙 (parseScript)
+});
+
 /** 전화 화면 모드를 바꿀 때, 아직 고치지 않은 기본 문구는 새 모드에 맞게 바꿔 준다 */
 export const CALL_DETAIL_DEFAULT = { incoming: '휴대전화', active: '00:12' } as const;
 
@@ -155,6 +161,7 @@ export const storyBlockSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('mail'), data: mailSchema }),
   z.object({ kind: z.literal('search'), data: searchSchema }),
   z.object({ kind: z.literal('push'), data: pushSchema }),
+  z.object({ kind: z.literal('sms'), data: smsSchema }),
 ]);
 
 export type StoryBlock = z.infer<typeof storyBlockSchema>;
@@ -171,6 +178,7 @@ export type SnsData = z.infer<typeof snsSchema>;
 export type MailData = z.infer<typeof mailSchema>;
 export type SearchData = z.infer<typeof searchSchema>;
 export type PushData = z.infer<typeof pushSchema>;
+export type SmsData = z.infer<typeof smsSchema>;
 
 /** 메일 보낸 사람 '김지은 <jieun@example.com>' → 이름과 주소. 꺾쇠가 없으면 적은 그대로 이름으로 */
 export function splitMailSender(from: string): { name: string; address: string } {
@@ -263,6 +271,12 @@ export function kakaoTitle(data: KakaoData, lines: ScriptLine[]): string {
   if (data.title.trim()) return data.title;
   if (data.mode === 'dm') return scriptSpeakers(lines).find((name) => !isMine(name, data.me)) ?? '대화';
   return '단체방';
+}
+
+/** 문자 메시지 위쪽 이름: 직접 적은 값, 없으면 대본에서 내가 아닌 첫 사람 */
+export function smsContact(data: SmsData, lines: ScriptLine[]): string {
+  if (data.contact.trim()) return data.contact.trim();
+  return scriptSpeakers(lines).find((name) => !isMine(name, data.me)) ?? '문자';
 }
 
 export function chatColorKey(name: string, speakers: string[], colors: Record<string, ChatColor>): ChatColor {
@@ -481,7 +495,8 @@ export type TemplateKey =
   | 'sns'
   | 'mail'
   | 'search'
-  | 'push';
+  | 'push'
+  | 'sms';
 
 export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }> = [
   { key: 'kakao-dm', label: '카톡 1:1 대화', hint: '두 사람의 메신저 대화' },
@@ -500,6 +515,7 @@ export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }>
   { key: 'mail', label: '이메일', hint: '보낸 사람 · 제목 · 본문 · 첨부' },
   { key: 'search', label: '검색 결과', hint: '검색어 · 결과 목록' },
   { key: 'push', label: '휴대폰 알림', hint: '잠금화면에 쌓인 알림' },
+  { key: 'sms', label: '문자 메시지', hint: '회색·파란 말풍선 문자' },
 ];
 
 export function templateLabel(block: StoryBlock): string {
@@ -624,6 +640,15 @@ export function createTemplate(key: TemplateKey): StoryBlock {
           reposts: '12',
           likes: '128',
           script: ['익명1: 답글은 이렇게 써요 [3분 전]', '익명2: 한 줄에 하나씩 [1분 전]'].join('\n'),
+        },
+      };
+    case 'sms':
+      return {
+        kind: 'sms',
+        data: {
+          contact: '',
+          me: '나',
+          script: ['--- 오늘 오후 11:52 ---', '엄마: 어디야?', '엄마: 늦었는데 연락도 없고', '나: 가게 앞이에요 금방 가요 [오후 11:53]', '엄마: 조심히 와 [오후 11:54]'].join('\n'),
         },
       };
     case 'push':

@@ -18,6 +18,7 @@ import {
   postCommentCount,
   renameSpeaker,
   scriptSpeakers,
+  smsContact,
   templateLabel,
   type ChatColor,
   type ChatData,
@@ -25,6 +26,7 @@ import {
   type PostData,
   type PushData,
   type SearchData,
+  type SmsData,
   type SnsData,
   type StoryBlock,
   type SystemData,
@@ -36,7 +38,7 @@ import { cn } from '@/lib/utils';
 const COMMIT_DELAY_MS = 300;
 
 type CardBlock = Extract<StoryBlock, { kind: 'live' | 'donation' | 'news' | 'call' | 'note' | 'mail' }>;
-type ConversationBlock = Extract<StoryBlock, { kind: 'kakao' | 'chat' | 'post' | 'system' | 'sns' | 'search' | 'push' }>;
+type ConversationBlock = Extract<StoryBlock, { kind: 'kakao' | 'chat' | 'post' | 'system' | 'sns' | 'search' | 'push' | 'sms' }>;
 
 const TEXTAREA =
   'w-full resize-y rounded-2xl border border-line bg-surface px-4 py-3 text-base leading-relaxed text-fg field-sizing-content placeholder:text-muted/60 focus:border-accent focus:ring-3 focus:ring-accent/20 focus:outline-none';
@@ -49,6 +51,7 @@ const SCRIPT_PLACEHOLDER: Record<ConversationBlock['kind'], string> = {
   sns: '익명1: 어디예요?? [3분 전]\n익명2: 나도 가 봄 [1분 전]',
   search: '자정에만 여는 와플 가게 후기\nwaffle.example.com/review\n골목 끝 그 가게, 가 보신 분?',
   push: '카톡 · 엄마: 어디야? [방금]\n은행: 입금 10,000원 [3분 전]',
+  sms: '엄마: 어디야? [오후 11:52]\n나: 금방 가요',
 };
 
 function useDraft<T extends StoryBlock>(block: T, onChange: (block: StoryBlock) => void) {
@@ -227,7 +230,7 @@ export function ConversationEditor({
     }
   }, []);
 
-  const lines = draft.kind === 'kakao' || draft.kind === 'chat' ? parseScript(draft.data.script) : [];
+  const lines = draft.kind === 'kakao' || draft.kind === 'chat' || draft.kind === 'sms' ? parseScript(draft.data.script) : [];
   // 게시글 댓글·SNS 답글은 같은 대본 규칙
   const comments = draft.kind === 'post' || draft.kind === 'sns' ? parseComments(draft.data.script) : [];
   // 시스템 창·검색 결과는 말하는 사람이 없어서 등장인물 칩을 안 보여 준다
@@ -246,7 +249,8 @@ export function ConversationEditor({
       | Partial<SystemData>
       | Partial<SnsData>
       | Partial<SearchData>
-      | Partial<PushData>,
+      | Partial<PushData>
+      | Partial<SmsData>,
   ) {
     update({ ...draft, data: { ...draft.data, ...patch } } as ConversationBlock);
   }
@@ -255,6 +259,14 @@ export function ConversationEditor({
     if (draft.kind === 'system' || draft.kind === 'search' || draft.kind === 'push') return;
     if (draft.kind === 'sns') {
       setData({ script: renameSpeaker(draft.data.script, from, to, { replies: true }) });
+      return;
+    }
+    if (draft.kind === 'sms') {
+      setData({
+        script: renameSpeaker(draft.data.script, from, to),
+        me: draft.data.me === from ? to : draft.data.me,
+        contact: draft.data.contact.trim() === from ? to : draft.data.contact,
+      });
       return;
     }
     if (draft.kind === 'post') {
@@ -351,6 +363,15 @@ export function ConversationEditor({
             <MiniInput label="재게시" value={draft.data.reposts} maxLength={20} onChange={(reposts) => setData({ reposts })} inputClassName="w-12" />
             <MiniInput label="좋아요" value={draft.data.likes} maxLength={20} onChange={(likes) => setData({ likes })} inputClassName="w-14" />
           </>
+        ) : draft.kind === 'sms' ? (
+          <MiniInput
+            label="상대"
+            value={draft.data.contact}
+            maxLength={40}
+            placeholder={`${smsContact({ ...draft.data, contact: '' }, lines)} (비우면 대본의 상대)`}
+            onChange={(contact) => setData({ contact })}
+            inputClassName="w-56"
+          />
         ) : draft.kind === 'push' ? (
           <>
             <MiniInput
@@ -511,8 +532,8 @@ export function ConversationEditor({
       {speakers.length > 0 ? (
         <SpeakerChips
           speakers={speakers}
-          isRight={(name) => draft.kind === 'kakao' && isMine(name, draft.data.me)}
-          onSetRight={draft.kind === 'kakao' ? (name) => setData({ me: name }) : undefined}
+          isRight={(name) => (draft.kind === 'kakao' || draft.kind === 'sms') && isMine(name, draft.data.me)}
+          onSetRight={draft.kind === 'kakao' || draft.kind === 'sms' ? (name) => setData({ me: name }) : undefined}
           colorOf={draft.kind === 'chat' ? (name) => chatColorKey(name, speakers, draft.data.colors) : undefined}
           onCycleColor={draft.kind === 'chat' ? cycleColor : undefined}
           // '글쓴이:'로 쓴 사람은 이름이 이미 '글쓴이'라 따로 표시하지 않는다
@@ -601,6 +622,13 @@ const SCRIPT_HELP: Record<ConversationBlock['kind'], Array<[string, string]>> = 
     ['이름 없이 쓰기', '앞 답글에 줄바꿈'],
     ['[3분 전]', '줄 끝에 시간'],
     ['--- 안내 ---', '가운데 회색 줄'],
+  ],
+  sms: [
+    ['이름: 문자', '한 줄에 하나'],
+    ['나: …', '오른쪽 파란 말풍선'],
+    ['이름 없이 쓰기', '앞사람이 이어서'],
+    ['[오후 8:14]', '줄 끝에 시간'],
+    ['--- 오늘 ---', '가운데 날짜'],
   ],
   push: [
     ['앱 · 보낸 사람: 내용', '알림 하나'],
@@ -721,13 +749,14 @@ function SpeakerChips({
               right ? (
                 // '나'는 항상 오른쪽. 다른 사람을 오른쪽으로 바꿨다면 눌러서 되돌린다
                 name === '나' ? (
-                  <span className="px-1 text-xs text-muted">오른쪽</span>
+                  // 오른쪽 칩은 배경에 노란빛이 깔려서 흐린 글자 대신 본문 색 (어두운 화면 대비)
+                  <span className="px-1 text-xs text-fg">오른쪽</span>
                 ) : (
                   <button
                     type="button"
                     onClick={() => onSetRight('나')}
                     title="왼쪽으로 되돌리기"
-                    className="rounded-full px-1.5 text-xs text-muted transition hover:bg-surface-2 hover:text-fg"
+                    className="rounded-full px-1.5 text-xs text-fg transition hover:bg-surface-2"
                   >
                     오른쪽 ✓
                   </button>
@@ -747,7 +776,7 @@ function SpeakerChips({
               onClick={() => setRenaming(name)}
               title="이름 모두 바꾸기"
               aria-label={`${name} 이름 모두 바꾸기`}
-              className="grid size-6 place-items-center rounded-full text-muted transition hover:bg-surface-2 hover:text-fg"
+              className={cn('grid size-6 place-items-center rounded-full transition hover:bg-surface-2 hover:text-fg', right ? 'text-fg' : 'text-muted')}
             >
               ✎
             </button>

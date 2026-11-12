@@ -13,6 +13,7 @@ import {
   parseSystemScript,
   postCommentCount,
   scriptSpeakers,
+  smsContact,
   splitMailSender,
   type CallData,
   type ChatData,
@@ -25,6 +26,7 @@ import {
   type PostData,
   type PushData,
   type SearchData,
+  type SmsData,
   type SnsData,
   type StoryBlock,
   type SystemData,
@@ -79,6 +81,8 @@ export function StoryBlockView({ block }: { block: StoryBlock }) {
       return <SearchCard data={block.data} />;
     case 'push':
       return <PushCard data={block.data} />;
+    case 'sms':
+      return <SmsCard data={block.data} />;
   }
 }
 
@@ -837,6 +841,56 @@ function PushCard({ data }: { data: PushData }) {
           )}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/** 문자 메시지: 위쪽 상대 이름 · 받은 문자 회색 / 보낸 문자 파란 말풍선 (대본은 카톡과 같은 규칙). 상대가 둘 이상일 때만 이름을 붙인다 */
+function SmsCard({ data }: { data: SmsData }) {
+  const lines = parseScript(data.script);
+  const contact = smsContact(data, lines);
+  const others = scriptSpeakers(lines).filter((name) => !isMine(name, data.me));
+  const showNames = others.length > 1;
+
+  return (
+    <div className={cn(CARD, 'overflow-hidden bg-(--wn-sms-bg)')}>
+      <div className="flex flex-col items-center gap-1 border-b border-(--wn-line) px-4 pt-4 pb-3">
+        <span aria-hidden="true" className="grid size-11 place-items-center rounded-full bg-(--wn-sms-avatar-bg) text-lg font-semibold text-(--wn-sms-avatar-fg)">
+          {[...contact][0] ?? '?'}
+        </span>
+        <div className="max-w-full truncate text-[15px] font-semibold">{contact}</div>
+        <div className="text-[11px] text-(--wn-muted)">문자 메시지</div>
+      </div>
+      <div className="px-3.5 pt-1 pb-4">
+        {lines.map((line, index) => {
+          if (line.type === 'notice') {
+            return (
+              <div key={index} className="pt-4 pb-1 text-center text-[11px] font-medium text-(--wn-muted)">
+                {line.text}
+              </div>
+            );
+          }
+          const mine = isMine(line.name, data.me);
+          const previous = lines[index - 1];
+          const startsRun = !previous || previous.type !== 'message' || previous.name !== line.name;
+          return (
+            <div key={index} className={cn('flex flex-col', mine ? 'items-end' : 'items-start', startsRun ? 'mt-3' : 'mt-1')}>
+              {!mine && showNames && startsRun ? <span className="mb-1 ml-3 text-[11px] text-(--wn-muted)">{line.name}</span> : null}
+              <div
+                className={cn(
+                  'max-w-[78%] rounded-[20px] px-3.5 py-2 text-[15px] leading-snug whitespace-pre-wrap',
+                  mine ? 'bg-(--wn-sms-out-bg) text-(--wn-sms-out-fg)' : 'bg-(--wn-sms-in-bg) text-(--wn-sms-in-fg)',
+                )}
+              >
+                {/* 화면 낭독기: 누가 보낸 문자인지 */}
+                <span className="sr-only">{mine ? '보낸 문자: ' : `${line.name}: `}</span>
+                {line.text}
+              </div>
+              {line.time ? <span className="mx-2 mt-1 text-[11px] text-(--wn-muted)">{line.time}</span> : null}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

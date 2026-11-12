@@ -16,6 +16,7 @@ import {
   postCommentCount,
   renameSpeaker,
   scriptSpeakers,
+  smsContact,
   splitMailSender,
   splitStoryContent,
   type KakaoData,
@@ -53,12 +54,14 @@ const KEYS: TemplateKey[] = [
   'mail',
   'search',
   'push',
+  'sms',
 ];
 
 function withTrickyText(block: StoryBlock): StoryBlock {
   switch (block.kind) {
     case 'kakao':
     case 'chat':
+    case 'sms':
       return { ...block, data: { ...block.data, script: `${block.data.script}\n양띵: ${TRICKY}\n둘째 줄` } } as StoryBlock;
     case 'donation':
       return { ...block, data: { ...block.data, message: `감사합니다 ${TRICKY}\n(물론)` } };
@@ -414,5 +417,24 @@ describe('휴대폰 알림 대본', () => {
     expect(lines).toHaveLength(3);
     expect(lines[0]).toMatchObject({ app: '카톡', title: '엄마', body: '어디야? 늦었는데\n조심히 와', time: '방금' });
     expect(block.data.date).toMatch(/^\d{1,2}월 \d{1,2}일 [월화수목금토일]요일$/);
+  });
+});
+
+describe('문자 메시지', () => {
+  it('위쪽 이름: 적은 값이 먼저, 없으면 대본에서 내가 아닌 첫 사람', () => {
+    const lines = parseScript('나: 어디야?\n엄마: 집이지\n아빠: 나도');
+    expect(smsContact({ contact: '', me: '나', script: '' }, lines)).toBe('엄마');
+    expect(smsContact({ contact: ' 010-1234-5678 ', me: '나', script: '' }, lines)).toBe('010-1234-5678');
+    expect(smsContact({ contact: '', me: '엄마', script: '' }, lines)).toBe('아빠');
+    expect(smsContact({ contact: '', me: '나', script: '' }, parseScript('나: 혼잣말'))).toBe('문자');
+  });
+
+  it('새 문자 메시지 템플릿 예시: 날짜 줄 1개 + 문자 4개, 상대는 엄마', () => {
+    const block = createTemplate('sms');
+    if (block.kind !== 'sms') throw new Error('문자 메시지 템플릿이 아니에요');
+    const lines = parseScript(block.data.script);
+    expect(lines.filter((line) => line.type === 'notice')).toHaveLength(1);
+    expect(lines.filter((line) => line.type === 'message')).toHaveLength(4);
+    expect(smsContact(block.data, lines)).toBe('엄마');
   });
 });

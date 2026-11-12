@@ -97,6 +97,13 @@
   --wn-push-clock: #18202e;
   --wn-push-icon-bg: #2f5fd0;
   --wn-push-icon-fg: #ffffff;
+  --wn-sms-bg: #ffffff;
+  --wn-sms-in-bg: #e9e9eb;
+  --wn-sms-in-fg: #111111;
+  --wn-sms-out-bg: #1f6fe5;
+  --wn-sms-out-fg: #ffffff;
+  --wn-sms-avatar-bg: #c7ccd6;
+  --wn-sms-avatar-fg: #1f2430;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -196,6 +203,13 @@
     --wn-push-clock: #f5f7fb;
     --wn-push-icon-bg: #3a6fe0;
     --wn-push-icon-fg: #ffffff;
+    --wn-sms-bg: #111214;
+    --wn-sms-in-bg: #2c2c2e;
+    --wn-sms-in-fg: #f5f5f7;
+    --wn-sms-out-bg: #1f6fe5;
+    --wn-sms-out-fg: #ffffff;
+    --wn-sms-avatar-bg: #3a3f4b;
+    --wn-sms-avatar-fg: #e8eaf0;
   }
 }
 
@@ -294,6 +308,13 @@
   --wn-push-clock: #f5f7fb;
   --wn-push-icon-bg: #3a6fe0;
   --wn-push-icon-fg: #ffffff;
+  --wn-sms-bg: #111214;
+  --wn-sms-in-bg: #2c2c2e;
+  --wn-sms-in-fg: #f5f5f7;
+  --wn-sms-out-bg: #1f6fe5;
+  --wn-sms-out-fg: #ffffff;
+  --wn-sms-avatar-bg: #3a3f4b;
+  --wn-sms-avatar-fg: #e8eaf0;
 }
 
 @theme inline {
