@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Suspense } from 'react';
 import { Logo } from '@/components/logo';
 import { NicknameMenu } from '@/components/reader/nickname-menu';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { ButtonLink, Skeleton } from '@/components/ui';
 import { requireViewer } from '@/lib/auth/guards';
 
@@ -14,9 +15,12 @@ export default function ReaderLayout({ children }: { children: React.ReactNode }
           <Link href="/" className="rounded-lg focus-visible:outline-2 focus-visible:outline-accent">
             <Logo />
           </Link>
-          <Suspense fallback={<Skeleton className="h-8 w-24 rounded-full" />}>
-            <ViewerArea />
-          </Suspense>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <Suspense fallback={<Skeleton className="h-8 w-24 rounded-full" />}>
+              <ViewerArea />
+            </Suspense>
+          </div>
         </div>
       </header>
       <main id="main" tabIndex={-1} className="outline-none mx-auto w-full max-w-3xl flex-1 px-4 pb-20">{children}</main>

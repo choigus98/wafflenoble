@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { logoutAdmin } from '@/app/admin/actions';
 import { AdminNav } from '@/components/admin/admin-nav';
 import { Logo } from '@/components/logo';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { Badge, Button, ButtonLink } from '@/components/ui';
 
 export const metadata: Metadata = { title: '관리자' };
@@ -19,6 +20,7 @@ export default function AdminPanelLayout({ children }: { children: React.ReactNo
             <Badge tone="accent">작가</Badge>
           </Link>
           <div className="ml-auto flex items-center gap-1 sm:order-last">
+            <ThemeToggle />
             <ButtonLink href="/" variant="ghost" size="sm">
               열람 화면
             </ButtonLink>

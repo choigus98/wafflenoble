@@ -2,71 +2,21 @@
 
 import { useId, useRef, useState, useSyncExternalStore } from 'react';
 import { useDismiss } from '@/components/use-dismiss';
+import { parseReaderPrefs, readReaderPrefsRaw, saveReaderPrefs, subscribeReaderPrefs, type ReaderPrefs } from '@/lib/reader-prefs';
 import { cn } from '@/lib/utils';
 
-type Settings = {
-  size?: number; // 0~3
-  leading?: number; // 0~2
-  font?: 'sans' | 'serif';
-  theme?: 'light' | 'dark'; // 없으면 기기 설정을 따름
-};
-
-const STORAGE_KEY = 'wn:reader-settings';
-const CHANGE_EVENT = 'wn:reader-settings';
-const KEYS = ['theme', 'size', 'leading', 'font'] as const;
-
-function subscribe(callback: () => void) {
-  window.addEventListener('storage', callback);
-  window.addEventListener(CHANGE_EVENT, callback);
-  return () => {
-    window.removeEventListener('storage', callback);
-    window.removeEventListener(CHANGE_EVENT, callback);
-  };
-}
-
-function readRaw(): string {
-  try {
-    return localStorage.getItem(STORAGE_KEY) ?? '{}';
-  } catch {
-    return '{}';
-  }
-}
-
-function parse(raw: string | null): Settings {
-  if (!raw) return {};
-  try {
-    const value = JSON.parse(raw);
-    return value && typeof value === 'object' ? (value as Settings) : {};
-  } catch {
-    return {};
-  }
-}
-
-function save(settings: Settings) {
-  const root = document.documentElement;
-  for (const key of KEYS) {
-    const value = settings[key];
-    if (value === undefined) delete root.dataset[key];
-    else root.dataset[key] = String(value);
-  }
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-  } catch {
-    // 사파리 비공개 모드 등에서는 저장이 안 될 수 있다. 화면에는 이번 방문 동안만 적용
-  }
-  window.dispatchEvent(new Event(CHANGE_EVENT));
-}
+type Settings = ReaderPrefs;
 
 export function ReaderSettings() {
   // 서버에서는 null → 기본값으로 그리고, 브라우저에서 저장값으로 바꾼다 (하이드레이션 불일치 없음)
-  const raw = useSyncExternalStore(subscribe, readRaw, () => null);
-  const settings = parse(raw);
+  const raw = useSyncExternalStore(subscribeReaderPrefs, readReaderPrefsRaw, () => null);
+  const settings = parseReaderPrefs(raw);
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   useDismiss({ open, onClose: () => setOpen(false), rootRef, triggerRef });
 
-  const update = (patch: Settings) => save({ ...settings, ...patch });
+  const update = (patch: Settings) => saveReaderPrefs({ ...settings, ...patch });
 
   return (
     <div ref={rootRef} className="relative shrink-0">
