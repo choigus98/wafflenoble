@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import { NovelCover } from '@/components/novel-cover';
+import { ChapterReadStatus } from '@/components/reader/chapter-read-status';
 import { Badge, ButtonLink, Skeleton } from '@/components/ui';
 import { formatDate, formatSchedule } from '@/lib/format';
 import { getNovelDetail } from '@/lib/queries/reader';
@@ -120,14 +121,7 @@ async function NovelDetail({ params }: Pick<PageProps<'/novels/[novelId]'>, 'par
                       {chapter.likeCount > 0 ? <span className="text-like">♥ {chapter.likeCount}</span> : null}
                     </span>
                   </span>
-                  {chapter.readByMe ? (
-                    <span className="flex shrink-0 items-center gap-1 text-xs text-muted">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-3.5">
-                        <path d="M5 12.5l4.5 4.5L19 7.5" />
-                      </svg>
-                      읽음
-                    </span>
-                  ) : null}
+                  <ChapterReadStatus chapterId={chapter.id} readByMe={chapter.readByMe} />
                 </Link>
               </li>
             ))}

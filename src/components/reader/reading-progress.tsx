@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { scrollBehavior } from '@/lib/motion';
+import { RESUME_MAX, RESUME_MIN, positionKey as storageKey, readSavedRatio as readSaved } from '@/lib/reading-position';
 
 // 회차 읽기 진행 막대 + 읽던 위치 기억 (이 기기의 localStorage에만, 회차마다)
 // - 스크롤할 때마다 React를 다시 그리지 않도록 막대는 DOM 스타일만 직접 바꾼다
@@ -9,20 +10,7 @@ import { scrollBehavior } from '@/lib/motion';
 
 const CONTENT_ID = 'chapter-content';
 const SAVE_INTERVAL_MS = 700;
-const RESUME_MIN = 0.05; // 이보다 앞이면 처음부터 읽는 것과 같으니 권하지 않음
-const RESUME_MAX = 0.95; // 이보다 뒤면 다 읽은 것으로 봄
 const OFFER_TIMEOUT_MS = 10_000;
-
-const storageKey = (chapterId: number) => `wn:pos:${chapterId}`;
-
-function readSaved(chapterId: number): number | null {
-  try {
-    const value = JSON.parse(localStorage.getItem(storageKey(chapterId)) ?? 'null');
-    return typeof value?.ratio === 'number' ? value.ratio : null;
-  } catch {
-    return null;
-  }
-}
 
 /** 본문 영역 기준 진행률 0~1 (본문 끝이 화면 아래에 닿으면 1) */
 function measure(): { ratio: number; top: number; span: number } | null {
