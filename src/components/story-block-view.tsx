@@ -35,6 +35,7 @@ import {
   PARCEL_STEPS,
   parcelStep,
   parseParcelScript,
+  parseTicketDetails,
   todoProgress,
   weatherKind,
   type AlarmData,
@@ -62,6 +63,7 @@ import {
   type SnsData,
   type SubwayData,
   type ParcelData,
+  type TicketData,
   type StoryBlock,
   type SystemData,
   type TodoData,
@@ -150,6 +152,8 @@ export function StoryBlockView({ block }: { block: StoryBlock }) {
       return <SubwayCard data={block.data} />;
     case 'parcel':
       return <ParcelCard data={block.data} />;
+    case 'ticket':
+      return <TicketCard data={block.data} />;
   }
 }
 
@@ -2105,6 +2109,80 @@ function ParcelCard({ data }: { data: ParcelData }) {
           ))}
         </ol>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * 탑승권(비행기)·승차권(기차): 위 띠(항공편·열차 + 표 이름) · 출발/도착(크게) · 시각 · 날짜 · 승객 · 표 정보 칸 · 절취선 · 바코드 모양.
+ * 출발·도착은 낭독기에 '인천 ICN 14:05 출발, 제주 CJU 15:10 도착' 한 문장으로 읽어 주고 큰 글자 그림은 숨긴다. 바코드는 그림
+ */
+function TicketCard({ data }: { data: TicketData }) {
+  const train = data.mode === 'train';
+  const details = parseTicketDetails(data.script);
+  const style = { '--band': train ? 'var(--wn-ticket-train)' : 'var(--wn-ticket-plane)' } as CSSProperties;
+  const place = (code: string, name: string) => [name.trim(), code.trim()].filter(Boolean).join(' ');
+  const spoken = [
+    place(data.from, data.fromName) && `${place(data.from, data.fromName)} ${data.departs.trim()} 출발`.replace(/\s+출발$/, ' 출발'),
+    place(data.to, data.toName) && `${place(data.to, data.toName)} ${data.arrives.trim()} 도착`.replace(/\s+도착$/, ' 도착'),
+  ]
+    .filter(Boolean)
+    .join(', ');
+  const end = (code: string, name: string, time: string, right: boolean) => (
+    <div className={cn('min-w-0', right && 'text-right')}>
+      <div className="text-[min(2rem,11cqi)] leading-none font-bold tracking-tight break-all">{code || '\u00a0'}</div>
+      {name.trim() ? <div className="mt-1 text-xs break-keep text-(--wn-ticket-muted)">{name}</div> : null}
+      {time.trim() ? <div className="mt-1 text-base font-semibold tabular-nums">{time}</div> : null}
+    </div>
+  );
+  const cells = [
+    ...(data.date.trim() ? [{ label: '날짜', value: data.date }] : []),
+    ...(data.passenger.trim() ? [{ label: '승객', value: data.passenger }] : []),
+    ...details,
+  ];
+
+  return (
+    <div style={style} className="wn-block @container mx-auto w-full max-w-[400px] overflow-hidden rounded-[18px] border border-(--wn-border) bg-(--wn-ticket-bg) text-(--wn-fg) shadow-sm">
+      <div className="flex items-center justify-between gap-3 bg-(--band) px-5 py-2.5 text-(--wn-ticket-band-fg)">
+        <span className="min-w-0 text-sm font-bold break-keep">{data.carrier}</span>
+        <span className="shrink-0 text-xs font-semibold">{train ? '승차권' : '탑승권'}</span>
+      </div>
+      <div className="px-5 pt-4">
+        {spoken ? <p className="sr-only">{spoken}</p> : null}
+        {data.from.trim() || data.to.trim() ? (
+          <div aria-hidden="true" className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-2">
+            {end(data.from, data.fromName, data.departs, false)}
+            <div className="flex flex-col items-center gap-1 pt-1.5 text-(--wn-ticket-muted)">
+              {train ? (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-5">
+                  <path d="M8 3.1V7a4 4 0 0 0 8 0V3.1M9 15l-1-1M15 15l1-1M9 19c-2.8 0-5-2.2-5-5v-4a8 8 0 0 1 16 0v4c0 2.8-2.2 5-5 5ZM8 19l-2 3M16 19l2 3" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-5">
+                  <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z" />
+                </svg>
+              )}
+              <span className="w-10 border-t-2 border-dashed border-(--wn-ticket-line)" />
+            </div>
+            {end(data.to, data.toName, data.arrives, true)}
+          </div>
+        ) : null}
+        {cells.length > 0 ? (
+          <dl className="mt-4 grid grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))] gap-x-3 gap-y-2.5">
+            {cells.map((cell, index) => (
+              <div key={index} className="min-w-0">
+                {cell.label ? <dt className="text-[11px] text-(--wn-ticket-muted)">{cell.label}</dt> : null}
+                <dd className="text-sm font-semibold break-keep">{cell.value}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
+      </div>
+      {/* 절취선과 바코드 모양 (그림) */}
+      <div aria-hidden="true" className="mx-5 mt-4 border-t-2 border-dashed border-(--wn-ticket-line)" />
+      <div aria-hidden="true" className="px-5 pt-3 pb-4">
+        <div className="h-9 bg-[repeating-linear-gradient(90deg,var(--wn-ticket-bar)_0_2px,transparent_2px_4px,var(--wn-ticket-bar)_4px_5px,transparent_5px_7px,var(--wn-ticket-bar)_7px_10px,transparent_10px_11px,var(--wn-ticket-bar)_11px_12px,transparent_12px_15px)]" />
+      </div>
     </div>
   );
 }

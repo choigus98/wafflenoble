@@ -220,6 +220,14 @@
   --wn-parcel-muted: #5f6672;
   --wn-parcel-track: #e5e7eb;
   --wn-parcel-chip: #fff7ed;
+  /* 탑승권·승차권: 위 띠(비행기 파랑 · 기차 청록)는 흰 글씨 대비 4.5:1 이상, 바코드는 그림 */
+  --wn-ticket-bg: #ffffff;
+  --wn-ticket-plane: #1d4ed8;
+  --wn-ticket-train: #0f766e;
+  --wn-ticket-band-fg: #ffffff;
+  --wn-ticket-muted: #5f6672;
+  --wn-ticket-line: rgb(0 0 0 / 0.16);
+  --wn-ticket-bar: #17181c;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -434,6 +442,13 @@
     --wn-parcel-muted: rgb(255 255 255 / 0.62);
     --wn-parcel-track: rgb(255 255 255 / 0.16);
     --wn-parcel-chip: rgb(245 158 11 / 0.12);
+    --wn-ticket-bg: #17191e;
+    --wn-ticket-plane: #1d4ed8;
+    --wn-ticket-train: #0f766e;
+    --wn-ticket-band-fg: #ffffff;
+    --wn-ticket-muted: rgb(255 255 255 / 0.62);
+    --wn-ticket-line: rgb(255 255 255 / 0.2);
+    --wn-ticket-bar: #e5e7eb;
   }
 }
 
@@ -647,6 +662,13 @@
   --wn-parcel-muted: rgb(255 255 255 / 0.62);
   --wn-parcel-track: rgb(255 255 255 / 0.16);
   --wn-parcel-chip: rgb(245 158 11 / 0.12);
+  --wn-ticket-bg: #17191e;
+  --wn-ticket-plane: #1d4ed8;
+  --wn-ticket-train: #0f766e;
+  --wn-ticket-band-fg: #ffffff;
+  --wn-ticket-muted: rgb(255 255 255 / 0.62);
+  --wn-ticket-line: rgb(255 255 255 / 0.2);
+  --wn-ticket-bar: #e5e7eb;
 }
 
 @theme inline {

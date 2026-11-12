@@ -119,6 +119,16 @@ describe('회차 텍스트로 내보내기', () => {
         '11.12 15:31 와플상점: 접수',
       ].join('\n'),
     );
+    const plane = createTemplate('ticket-plane');
+    if (plane.kind !== 'ticket') throw new Error('탑승권 템플릿이 아니에요');
+    expect(storyBlockToText({ ...plane, data: { ...plane.data, date: '11월 13일 (금)' } })).toBe(
+      ['[탑승권]', '와플항공 WF801', 'ICN 인천 14:05 → CJU 제주 15:10', '11월 13일 (금)', '승객: 한도윤', '탑승구: 12 · 좌석: 23A · 탑승: 13:35'].join('\n'),
+    );
+    const train = createTemplate('ticket-train');
+    if (train.kind !== 'ticket') throw new Error('승차권 템플릿이 아니에요');
+    expect(storyBlockToText({ ...train, data: { ...train.data, date: '', passenger: '' } })).toBe(
+      ['[승차권]', 'KTX 101', '서울 09:00 → 부산 11:38', '호차: 5 · 좌석: 12A · 타는 곳: 3'].join('\n'),
+    );
     const subway = createTemplate('subway');
     if (subway.kind !== 'subway') throw new Error('지하철 안내 템플릿이 아니에요');
     expect(storyBlockToText({ ...subway, data: { ...subway.data, direction: '', next: '', message: '' } })).toBe(['[지하철 안내]', '2호선', '이번 역: 반죽', '이전 역: 버터'].join('\n'));
@@ -137,7 +147,7 @@ describe('회차 텍스트로 내보내기', () => {
   });
 
   it('모든 템플릿이 머리 한 줄 + 글로 풀린다 (빈 줄 없이)', () => {
-    const keys = ['kakao-dm', 'kakao-group', 'live', 'chat', 'donation', 'post', 'system-quest', 'system-status', 'news', 'call-incoming', 'call-active', 'note', 'sns', 'mail', 'search', 'push', 'sms', 'receipt', 'location', 'poll', 'transfer', 'alarm', 'event', 'item', 'music', 'rank', 'todo', 'namecard', 'weather', 'subway', 'parcel'] as const;
+    const keys = ['kakao-dm', 'kakao-group', 'live', 'chat', 'donation', 'post', 'system-quest', 'system-status', 'news', 'call-incoming', 'call-active', 'note', 'sns', 'mail', 'search', 'push', 'sms', 'receipt', 'location', 'poll', 'transfer', 'alarm', 'event', 'item', 'music', 'rank', 'todo', 'namecard', 'weather', 'subway', 'parcel', 'ticket-plane', 'ticket-train'] as const;
     for (const key of keys) {
       const text = storyBlockToText(createTemplate(key));
       const [head, ...rest] = text.split('\n');

@@ -9,6 +9,7 @@ import {
   CALL_DETAIL_DEFAULT,
   kakaoTitle,
   parseParcelScript,
+  parseTicketDetails,
   parsePollScript,
   parseRankScript,
   parseReceiptScript,
@@ -119,6 +120,15 @@ export function storyBlockToText(block: StoryBlock): string {
         const { data } = block;
         const around = [data.prev.trim() && `이전 역: ${data.prev.trim()}`, data.next.trim() && `다음 역: ${data.next.trim()}`].filter(Boolean).join(' · ');
         return lines([data.line, data.direction].map((value) => value.trim()).filter(Boolean).join(' · '), data.station.trim() && `이번 역: ${data.station.trim()}`, around, data.message);
+      }
+      case 'ticket': {
+        const { data } = block;
+        const end = (code: string, name: string, time: string) => [code, name, time].map((value) => value.trim()).filter(Boolean).join(' ');
+        const route = [end(data.from, data.fromName, data.departs), end(data.to, data.toName, data.arrives)].filter(Boolean).join(' → ');
+        const details = parseTicketDetails(data.script)
+          .map((detail) => (detail.label ? `${detail.label}: ${detail.value}` : detail.value))
+          .join(' · ');
+        return lines(data.carrier, route, data.date, data.passenger.trim() && `승객: ${data.passenger.trim()}`, details);
       }
       case 'parcel': {
         const { data } = block;

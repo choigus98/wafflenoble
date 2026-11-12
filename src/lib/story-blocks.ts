@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물, 이메일, 검색 결과, 휴대폰 알림, 문자 메시지, 영수증, 위치 공유, 투표, 송금 완료, 알람, 일정, 아이템 획득, 음악 재생, 실시간 순위, 할 일 목록, 명함, 날씨, 지하철 안내, 택배 배송 조회).
+// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물, 이메일, 검색 결과, 휴대폰 알림, 문자 메시지, 영수증, 위치 공유, 투표, 송금 완료, 알람, 일정, 아이템 획득, 음악 재생, 실시간 순위, 할 일 목록, 명함, 날씨, 지하철 안내, 택배 배송 조회, 탑승권·승차권).
 // 저장 형식: <div data-wn-block="종류" data-wn-data="JSON"></div>
 // 에디터(Tiptap 노드), 서버(저장할 때 검증), 열람 화면(렌더링)이 모두 이 파일을 같이 쓴다.
 //
@@ -221,6 +221,20 @@ const parcelSchema = z.object({
   script: text(LIMITS.script), // 배송 기록 대본 (규칙은 parseParcelScript 위 설명)
 });
 
+const ticketSchema = z.object({
+  mode: z.enum(['plane', 'train']), // 비행기 탑승권 / 기차 승차권 (메뉴에서 따로 고른다)
+  carrier: text(30), // 항공편·열차 ('와플항공 WF801', 'KTX 101')
+  from: text(12), // 출발 (공항 코드나 역 이름, 크게)
+  fromName: text(20), // 출발 도시 (작게). 비우면 안 보임
+  to: text(12), // 도착
+  toName: text(20), // 도착 도시. 비우면 안 보임
+  date: text(30), // 날짜 ('11월 13일 (금)'). 비우면 안 보임
+  departs: text(10), // 출발 시각
+  arrives: text(10), // 도착 시각. 비우면 안 보임
+  passenger: text(30), // 승객. 비우면 안 보임
+  script: text(300), // 표 정보 대본: '탑승구: 12'처럼 한 줄에 한 칸 (parseTicketDetails)
+});
+
 const weatherSchema = z.object({
   place: text(40), // 장소 ('와플시 반죽구')
   temp: text(10), // 지금 기온 ('12°')
@@ -293,6 +307,7 @@ export const storyBlockSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('weather'), data: weatherSchema }),
   z.object({ kind: z.literal('subway'), data: subwaySchema }),
   z.object({ kind: z.literal('parcel'), data: parcelSchema }),
+  z.object({ kind: z.literal('ticket'), data: ticketSchema }),
 ]);
 
 export type StoryBlock = z.infer<typeof storyBlockSchema>;
@@ -324,6 +339,7 @@ export type NamecardData = z.infer<typeof namecardSchema>;
 export type WeatherData = z.infer<typeof weatherSchema>;
 export type SubwayData = z.infer<typeof subwaySchema>;
 export type ParcelData = z.infer<typeof parcelSchema>;
+export type TicketData = z.infer<typeof ticketSchema>;
 
 /** 메일 보낸 사람 '김지은 <jieun@example.com>' → 이름과 주소. 꺾쇠가 없으면 적은 그대로 이름으로 */
 export function splitMailSender(from: string): { name: string; address: string } {
@@ -855,6 +871,27 @@ export function parseParcelScript(script: string): ParcelRecord[] {
   return records;
 }
 
+// ─── 탑승권·승차권 표 정보 ──────────────────────────────────────
+// 한 줄에 한 칸: '탑승구: 12', '좌석:23A', '탑승: 13:35', 이름 없이 '13:35'만 써도 됨. 여덟 칸까지
+// 숫자 사이의 쌍점(13:35 · 오후 2:05)은 시각이라 나누지 않는다
+
+export type TicketDetail = { label: string; value: string };
+
+export function parseTicketDetails(script: string): TicketDetail[] {
+  const details: TicketDetail[] = [];
+  for (const raw of script.split(/\r?\n/)) {
+    if (details.length >= 8) break;
+    const line = raw.trim();
+    if (!line) continue;
+    const split = [...line.matchAll(/[:：]/g)].find((found) => !(/\d/.test(line[found.index - 1] ?? '') && /\d/.test(line[found.index + 1] ?? '')));
+    const label = split ? line.slice(0, split.index).trim() : '';
+    const value = (split ? line.slice(split.index + 1) : line).trim();
+    if (!label && !value) continue;
+    details.push({ label, value });
+  }
+  return details;
+}
+
 // ─── 날씨 ──────────────────────────────────────
 // 날씨 말로 그림·바탕색을 고른다: 천둥·번개 → 뇌우, 눈(눈부신은 빼고) → 눈, 비·소나기 → 비, 안개·미세먼지·황사 → 안개,
 // 흐림·구름 많음 → 흐림, 구름 → 구름 조금, '밤'과 맑음 → 달, 맑음·화창·해·햇살 → 해. 모르는 말이면 구름 조금
@@ -1056,7 +1093,9 @@ export type TemplateKey =
   | 'namecard'
   | 'weather'
   | 'subway'
-  | 'parcel';
+  | 'parcel'
+  | 'ticket-plane'
+  | 'ticket-train';
 
 export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }> = [
   { key: 'kakao-dm', label: '카톡 1:1 대화', hint: '두 사람의 메신저 대화' },
@@ -1090,17 +1129,25 @@ export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }>
   { key: 'weather', label: '날씨', hint: '날씨 앱 · 지금 기온 · 최고/최저 · 시간별' },
   { key: 'subway', label: '지하철 안내', hint: '노선 색 · 이번 역 · 이전/다음 역 · 안내 방송' },
   { key: 'parcel', label: '택배 배송 조회', hint: '택배사 · 운송장 · 배송 단계 · 배송 기록' },
+  { key: 'ticket-plane', label: '탑승권 · 비행기', hint: '출발/도착 · 시각 · 좌석 · 탑승구 · 바코드' },
+  { key: 'ticket-train', label: '승차권 · 기차', hint: 'KTX · 출발/도착 · 시각 · 호차 · 좌석' },
 ];
 
 export function templateLabel(block: StoryBlock): string {
   if (block.kind === 'system') return '시스템 창';
   if (block.kind === 'call') return '전화 화면';
+  if (block.kind === 'ticket') return block.data.mode === 'train' ? '승차권' : '탑승권';
   const key: TemplateKey = block.kind === 'kakao' ? (block.data.mode === 'dm' ? 'kakao-dm' : 'kakao-group') : block.kind;
   return TEMPLATES.find((template) => template.key === key)?.label ?? '템플릿';
 }
 
 export function newId(): string {
   return Math.random().toString(36).slice(2, 10) || 'id';
+}
+
+/** 표 날짜 '11월 13일 (금)' */
+function ticketDate(): string {
+  return new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric', weekday: 'short', timeZone: 'Asia/Seoul' }).format(new Date());
 }
 
 function todayLabel(): string {
@@ -1220,6 +1267,40 @@ export function createTemplate(key: TemplateKey): StoryBlock {
       return {
         kind: 'location',
         data: { badge: '위치 공유', place: '골목 끝 와플 가게', address: '와플시 반죽구 시럽로 12, 1층', note: '여기서 기다릴게' },
+      };
+    case 'ticket-plane':
+      return {
+        kind: 'ticket',
+        data: {
+          mode: 'plane',
+          carrier: '와플항공 WF801',
+          from: 'ICN',
+          fromName: '인천',
+          to: 'CJU',
+          toName: '제주',
+          date: ticketDate(),
+          departs: '14:05',
+          arrives: '15:10',
+          passenger: '한도윤',
+          script: ['탑승구: 12', '좌석: 23A', '탑승: 13:35'].join('\n'),
+        },
+      };
+    case 'ticket-train':
+      return {
+        kind: 'ticket',
+        data: {
+          mode: 'train',
+          carrier: 'KTX 101',
+          from: '서울',
+          fromName: '',
+          to: '부산',
+          toName: '',
+          date: ticketDate(),
+          departs: '09:00',
+          arrives: '11:38',
+          passenger: '한도윤',
+          script: ['호차: 5', '좌석: 12A', '타는 곳: 3'].join('\n'),
+        },
       };
     case 'parcel':
       return {

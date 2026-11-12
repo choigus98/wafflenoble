@@ -16,6 +16,8 @@ describe('템플릿 찾기', () => {
     expect(labels('카톡단체')).toEqual(['카톡 단체방']);
     expect(labels('sns')).toEqual(['SNS 게시물']);
     expect(labels('1:1')).toEqual(['카톡 1:1 대화']);
+    // 설명에만 있는 말(영문 대소문자 무시)로도: 'ktx' → 승차권
+    expect(labels('ktx')).toEqual(['승차권 · 기차']);
   });
 
   it('초성, 초성과 글자 섞기', () => {

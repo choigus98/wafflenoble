@@ -18,6 +18,7 @@ import {
   parseWeatherScript,
   parcelStep,
   parseParcelScript,
+  parseTicketDetails,
   subwayLineKey,
   todoProgress,
   weatherKind,
@@ -89,6 +90,8 @@ const KEYS: TemplateKey[] = [
   'weather',
   'subway',
   'parcel',
+  'ticket-plane',
+  'ticket-train',
 ];
 
 function withTrickyText(block: StoryBlock): StoryBlock {
@@ -145,6 +148,8 @@ function withTrickyText(block: StoryBlock): StoryBlock {
       return { ...block, data: { ...block.data, name: '한<b>도윤</b> & 😀', email: '"doyun" <a@b.example>', memo: '<script>x</script> & "밤 9시"' } };
     case 'weather':
       return { ...block, data: { ...block.data, place: '와플<b>시</b> & "골목"', script: `${block.data.script}\n${TRICKY}: 비 3°` } };
+    case 'ticket':
+      return { ...block, data: { ...block.data, carrier: '<b>와플</b>항공 & "WF"', passenger: '한<i>도윤</i> 😀', script: `${block.data.script}\n${TRICKY.slice(0, 40)}: 1` } };
     case 'parcel':
       return { ...block, data: { ...block.data, item: '<b>시럽</b> & "세트" 😀', script: `${block.data.script}\n11.13 15:00 ${TRICKY}: 배송 <i>완료</i>` } };
     case 'subway':
@@ -788,5 +793,19 @@ describe('택배 배송 조회', () => {
       { time: '14:05', place: '', detail: '문 앞' },
       { time: '', place: '', detail: '그냥 한 줄' },
     ]);
+  });
+});
+
+describe('탑승권 표 정보', () => {
+  it("한 줄에 한 칸 '이름: 값', 숫자 사이 쌍점(시각)은 안 나눔, 값만 써도 되고 여덟 칸까지", () => {
+    expect(parseTicketDetails(['탑승구: 12', '탑승: 13:35', '13:35', '좌석：23A', '', '타는 곳:3', '오후 2:05'].join('\n'))).toEqual([
+      { label: '탑승구', value: '12' },
+      { label: '탑승', value: '13:35' },
+      { label: '', value: '13:35' },
+      { label: '좌석', value: '23A' },
+      { label: '타는 곳', value: '3' },
+      { label: '', value: '오후 2:05' },
+    ]);
+    expect(parseTicketDetails(Array.from({ length: 12 }, (_, i) => `칸${i}: ${i}`).join('\n'))).toHaveLength(8);
   });
 });
