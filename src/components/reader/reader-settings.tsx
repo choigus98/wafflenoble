@@ -1,13 +1,15 @@
 'use client';
 
 import { useId, useRef, useState, useSyncExternalStore } from 'react';
+import { CopyLinkButton } from '@/components/reader/copy-link-button';
 import { useDismiss } from '@/components/use-dismiss';
 import { parseReaderPrefs, readReaderPrefsRaw, saveReaderPrefs, subscribeReaderPrefs, type ReaderPrefs } from '@/lib/reader-prefs';
 import { cn } from '@/lib/utils';
 
 type Settings = ReaderPrefs;
 
-export function ReaderSettings() {
+/** share: 길드원이 들어올 수 있는 회차일 때만 넘긴다 (임시저장·예약·비공개 작품이면 링크 복사를 안 보여 줌) */
+export function ReaderSettings({ share }: { share?: { path: string; title: string; chapterLabel: string } }) {
   // 서버에서는 null → 기본값으로 그리고, 브라우저에서 저장값으로 바꾼다 (하이드레이션 불일치 없음)
   const raw = useSyncExternalStore(subscribeReaderPrefs, readReaderPrefsRaw, () => null);
   const settings = parseReaderPrefs(raw);
@@ -56,6 +58,7 @@ export function ReaderSettings() {
             selected={settings.theme === 'light' ? 1 : settings.theme === 'dark' ? 2 : 0}
             onSelect={(index) => update({ theme: index === 1 ? 'light' : index === 2 ? 'dark' : undefined })}
           />
+          {share ? <CopyLinkButton path={share.path} title={share.title} chapterLabel={share.chapterLabel} variant="block" label="이 회차 링크 복사" /> : null}
           {/* 인쇄·PDF로 저장: 머리 메뉴·단추는 빠지고 제목·본문·작가의 말만 (globals.css의 인쇄 모양) */}
           <button
             type="button"

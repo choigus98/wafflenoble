@@ -268,7 +268,7 @@ export async function getChapterView(novelId: number, chapterId: number) {
 
   return {
     viewer,
-    novel: { id: row.novel.id, title: row.novel.title },
+    novel: { id: row.novel.id, title: row.novel.title, isPublished: row.novel.isPublished },
     chapter,
     prev,
     next,

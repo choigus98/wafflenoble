@@ -89,7 +89,17 @@ async function ChapterView({ params }: Pick<PageProps<'/novels/[novelId]/[chapte
               }))}
             />
           ) : null}
-          <ReaderSettings />
+          <ReaderSettings
+            share={
+              novel.isPublished && chapter.visibleNow
+                ? {
+                    path: `/novels/${novel.id}/${chapter.id}`,
+                    title: novel.title,
+                    chapterLabel: chapter.title ? `${chapter.position}화 「${chapter.title}」` : `${chapter.position}화`,
+                  }
+                : undefined
+            }
+          />
         </div>
       </header>
 
