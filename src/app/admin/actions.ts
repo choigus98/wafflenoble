@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { requireAdmin } from '@/lib/auth/guards';
 import { hashPassword } from '@/lib/auth/password';
 import { ADMIN_COOKIE } from '@/lib/auth/session';
+import { copyTitle } from '@/lib/chapter-copy';
 import { MAX_POSITION, planChapterMove } from '@/lib/chapter-order';
 import { countCharacters, sanitizeChapterHtml } from '@/lib/content';
 import { COVER_COLOR_KEYS } from '@/lib/cover';
@@ -339,6 +340,34 @@ export async function scheduleChapter(chapterId: number, publishAt: string): Pro
 
   refresh();
   return { ok: true, status: 'published', publishedAt: updated.publishedAt?.toISOString() ?? null, scheduled: true };
+}
+
+/**
+ * 회차 복제: 제목·본문(템플릿 포함)·작가의 말을 그대로 새 임시저장 회차로 만들어 목록 맨 뒤에 둔다.
+ * 좋아요·열람 기록·발행본 기록은 복사하지 않는다. 만든 뒤 새 회차 에디터로 이동
+ */
+export async function duplicateChapter(novelId: number, chapterId: number): Promise<void> {
+  await requireAdmin();
+  if (!idSchema.safeParse(novelId).success || !idSchema.safeParse(chapterId).success) return;
+  const source = await db.query.chapters.findFirst({ where: and(eq(chapters.id, chapterId), eq(chapters.novelId, novelId)) });
+  if (!source) redirect(`/admin/novels/${novelId}`);
+
+  const [{ nextPosition }] = await db
+    .select({ nextPosition: sql<number>`coalesce(max(${chapters.position}), 0)::int + 1` })
+    .from(chapters)
+    .where(eq(chapters.novelId, novelId));
+  const [created] = await db
+    .insert(chapters)
+    .values({
+      novelId,
+      position: Math.min(nextPosition, MAX_POSITION),
+      title: copyTitle(source.title, source.position),
+      contentHtml: source.contentHtml,
+      authorNote: source.authorNote,
+      charCount: source.charCount,
+    })
+    .returning({ id: chapters.id });
+  redirect(`/admin/novels/${novelId}/chapters/${created.id}`);
 }
 
 export async function deleteChapter(novelId: number, chapterId: number): Promise<void> {

@@ -6,7 +6,7 @@ import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/r
 import StarterKit from '@tiptap/starter-kit';
 import Link from 'next/link';
 import { useEffect, useRef, useState, useTransition, type ReactNode, type RefObject } from 'react';
-import { deleteChapter, restoreRevision, saveChapter, scheduleChapter, setChapterStatus } from '@/app/admin/actions';
+import { deleteChapter, duplicateChapter, restoreRevision, saveChapter, scheduleChapter, setChapterStatus } from '@/app/admin/actions';
 import {
   StoryBlockNode,
   createTemplateEditingStore,
@@ -716,14 +716,31 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
       ) : null}
 
       <div data-focus-hide="" className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-6">
-        <a
-          href={`/novels/${chapter.novelId}/${chapter.id}`}
-          target="_blank"
-          rel="noreferrer"
-          className={buttonClass('secondary', 'sm')}
-        >
-          열람 화면으로 미리보기 ↗
-        </a>
+        <div className="flex flex-wrap items-center gap-2">
+          <a
+            href={`/novels/${chapter.novelId}/${chapter.id}`}
+            target="_blank"
+            rel="noreferrer"
+            className={buttonClass('secondary', 'sm')}
+          >
+            열람 화면으로 미리보기 ↗
+          </a>
+          {/* 복제: 서버에 저장된 내용으로 새 임시저장 회차를 만든다 */}
+          <form
+            action={duplicateChapter.bind(null, chapter.novelId, chapter.id)}
+            onSubmit={(event) => {
+              const question =
+                saveState === 'saved'
+                  ? '이 회차를 복제해서 새 임시저장 회차를 만들까요? 목록 맨 뒤에 생겨요.'
+                  : '아직 저장하지 않은 수정은 복제되지 않아요. 마지막으로 저장된 내용으로 새 회차를 만들까요?';
+              if (!window.confirm(question)) event.preventDefault();
+            }}
+          >
+            <SubmitButton variant="secondary" size="sm" pendingText="복제하는 중…">
+              복제해서 새 회차로
+            </SubmitButton>
+          </form>
+        </div>
         <form
           action={deleteChapter.bind(null, chapter.novelId, chapter.id)}
           onSubmit={(event) => {
