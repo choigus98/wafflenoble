@@ -19,6 +19,8 @@ import {
   parcelStep,
   parseParcelScript,
   parseTicketDetails,
+  matchOutcome,
+  parseMatchScript,
   subwayLineKey,
   todoProgress,
   weatherKind,
@@ -92,6 +94,7 @@ const KEYS: TemplateKey[] = [
   'parcel',
   'ticket-plane',
   'ticket-train',
+  'match',
 ];
 
 function withTrickyText(block: StoryBlock): StoryBlock {
@@ -148,6 +151,8 @@ function withTrickyText(block: StoryBlock): StoryBlock {
       return { ...block, data: { ...block.data, name: '한<b>도윤</b> & 😀', email: '"doyun" <a@b.example>', memo: '<script>x</script> & "밤 9시"' } };
     case 'weather':
       return { ...block, data: { ...block.data, place: '와플<b>시</b> & "골목"', script: `${block.data.script}\n${TRICKY}: 비 3°` } };
+    case 'match':
+      return { ...block, data: { ...block.data, mvp: '<b>하연화</b> & 😀', script: `${block.data.script}\n* ${TRICKY}: 1 / 2 / 3` } };
     case 'ticket':
       return { ...block, data: { ...block.data, carrier: '<b>와플</b>항공 & "WF"', passenger: '한<i>도윤</i> 😀', script: `${block.data.script}\n${TRICKY.slice(0, 40)}: 1` } };
     case 'parcel':
@@ -807,5 +812,24 @@ describe('탑승권 표 정보', () => {
       { label: '', value: '오후 2:05' },
     ]);
     expect(parseTicketDetails(Array.from({ length: 12 }, (_, i) => `칸${i}: ${i}`).join('\n'))).toHaveLength(8);
+  });
+});
+
+describe('게임 결과', () => {
+  it("'결과' 말로 띠 색 (무승부의 '승'은 승리가 아님, 모르면 회색)", () => {
+    expect(['승리', 'VICTORY', '이겼다!', '우승', '스테이지 클리어', '패배', 'Defeat', '졌다', '무승부', 'Draw', '경기 종료', ''].map(matchOutcome)).toEqual([
+      'win', 'win', 'win', 'win', 'win', 'lose', 'lose', 'lose', 'draw', 'draw', 'draw', 'draw',
+    ]);
+  });
+
+  it('기록 대본: 이름: 기록, * 강조, --- 묶음 제목, 기록 안 시각은 안 나눔', () => {
+    expect(parseMatchScript(['--- 우리 팀 ---', '* 하연화: 12 / 3 / 7', '밥알: 8/5/10', '', '---', '기록 없이', '첫 킬: 03:12'].join('\n'))).toEqual([
+      { kind: 'divider', label: '우리 팀' },
+      { kind: 'row', name: '하연화', record: '12 / 3 / 7', mine: true },
+      { kind: 'row', name: '밥알', record: '8/5/10', mine: false },
+      { kind: 'divider', label: '' },
+      { kind: 'row', name: '기록 없이', record: '', mine: false },
+      { kind: 'row', name: '첫 킬', record: '03:12', mine: false },
+    ]);
   });
 });

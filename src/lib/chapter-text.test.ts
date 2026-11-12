@@ -119,6 +119,9 @@ describe('회차 텍스트로 내보내기', () => {
         '11.12 15:31 와플상점: 접수',
       ].join('\n'),
     );
+    expect(storyBlockToText(createTemplate('match'))).toBe(
+      ['[게임 결과]', '승리 · 랭크 게임 · 5대5', '32 : 28 · 28:41', 'MVP: 하연화', '— 우리 팀 —', '* 하연화: 12 / 3 / 7', '밥알: 8 / 5 / 10', '감자도리: 4 / 6 / 15', '— 상대 팀 —', '초코우유: 9 / 7 / 4', '버터칼: 6 / 9 / 8'].join('\n'),
+    );
     const plane = createTemplate('ticket-plane');
     if (plane.kind !== 'ticket') throw new Error('탑승권 템플릿이 아니에요');
     expect(storyBlockToText({ ...plane, data: { ...plane.data, date: '11월 13일 (금)' } })).toBe(
@@ -147,7 +150,7 @@ describe('회차 텍스트로 내보내기', () => {
   });
 
   it('모든 템플릿이 머리 한 줄 + 글로 풀린다 (빈 줄 없이)', () => {
-    const keys = ['kakao-dm', 'kakao-group', 'live', 'chat', 'donation', 'post', 'system-quest', 'system-status', 'news', 'call-incoming', 'call-active', 'note', 'sns', 'mail', 'search', 'push', 'sms', 'receipt', 'location', 'poll', 'transfer', 'alarm', 'event', 'item', 'music', 'rank', 'todo', 'namecard', 'weather', 'subway', 'parcel', 'ticket-plane', 'ticket-train'] as const;
+    const keys = ['kakao-dm', 'kakao-group', 'live', 'chat', 'donation', 'post', 'system-quest', 'system-status', 'news', 'call-incoming', 'call-active', 'note', 'sns', 'mail', 'search', 'push', 'sms', 'receipt', 'location', 'poll', 'transfer', 'alarm', 'event', 'item', 'music', 'rank', 'todo', 'namecard', 'weather', 'subway', 'parcel', 'ticket-plane', 'ticket-train', 'match'] as const;
     for (const key of keys) {
       const text = storyBlockToText(createTemplate(key));
       const [head, ...rest] = text.split('\n');

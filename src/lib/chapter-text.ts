@@ -8,6 +8,7 @@
 import {
   CALL_DETAIL_DEFAULT,
   kakaoTitle,
+  parseMatchScript,
   parseParcelScript,
   parseTicketDetails,
   parsePollScript,
@@ -120,6 +121,18 @@ export function storyBlockToText(block: StoryBlock): string {
         const { data } = block;
         const around = [data.prev.trim() && `이전 역: ${data.prev.trim()}`, data.next.trim() && `다음 역: ${data.next.trim()}`].filter(Boolean).join(' · ');
         return lines([data.line, data.direction].map((value) => value.trim()).filter(Boolean).join(' · '), data.station.trim() && `이번 역: ${data.station.trim()}`, around, data.message);
+      }
+      case 'match': {
+        const { data } = block;
+        const records = parseMatchScript(data.script)
+          .map((line) => (line.kind === 'divider' ? (line.label ? `— ${line.label} —` : '—') : line.record ? `${line.mine ? '* ' : ''}${line.name}: ${line.record}` : `${line.mine ? '* ' : ''}${line.name}`))
+          .join('\n');
+        return lines(
+          [data.result, data.game].map((value) => value.trim()).filter(Boolean).join(' · '),
+          [data.score, data.time].map((value) => value.trim()).filter(Boolean).join(' · '),
+          data.mvp.trim() && `MVP: ${data.mvp.trim()}`,
+          records,
+        );
       }
       case 'ticket': {
         const { data } = block;

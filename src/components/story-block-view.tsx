@@ -36,6 +36,8 @@ import {
   parcelStep,
   parseParcelScript,
   parseTicketDetails,
+  matchOutcome,
+  parseMatchScript,
   todoProgress,
   weatherKind,
   type AlarmData,
@@ -64,6 +66,7 @@ import {
   type SubwayData,
   type ParcelData,
   type TicketData,
+  type MatchData,
   type StoryBlock,
   type SystemData,
   type TodoData,
@@ -154,6 +157,8 @@ export function StoryBlockView({ block }: { block: StoryBlock }) {
       return <ParcelCard data={block.data} />;
     case 'ticket':
       return <TicketCard data={block.data} />;
+    case 'match':
+      return <MatchCard data={block.data} />;
   }
 }
 
@@ -2183,6 +2188,81 @@ function TicketCard({ data }: { data: TicketData }) {
       <div aria-hidden="true" className="px-5 pt-3 pb-4">
         <div className="h-9 bg-[repeating-linear-gradient(90deg,var(--wn-ticket-bar)_0_2px,transparent_2px_4px,var(--wn-ticket-bar)_4px_5px,transparent_5px_7px,var(--wn-ticket-bar)_7px_10px,transparent_10px_11px,var(--wn-ticket-bar)_11px_12px,transparent_12px_15px)]" />
       </div>
+    </div>
+  );
+}
+
+/**
+ * 게임 결과: 결과 띠(승리 파랑 · 패배 빨강 · 무승부 회색, 흰 글씨) · 게임 · 점수(크게) · 경기 시간 · MVP · 기록 목록(묶음 제목·강조 줄).
+ * 띠 색은 '결과' 말로 고른다 (matchOutcome). 강조 줄은 낭독기에 '강조'로 알려 준다
+ */
+function MatchCard({ data }: { data: MatchData }) {
+  const outcome = matchOutcome(data.result);
+  const lines = parseMatchScript(data.script);
+  const style = { '--band': `var(--wn-match-${outcome})` } as CSSProperties;
+
+  return (
+    // @container: 긴 점수 글씨를 카드 너비에 맞춰 줄인다 (좁은 화면에서 두 줄로 쪼개지지 않게)
+    <div style={style} className="wn-block @container mx-auto w-full max-w-[420px] overflow-hidden rounded-[18px] border border-(--wn-border) bg-(--wn-match-bg) text-(--wn-fg) shadow-sm">
+      <div className="bg-(--band) px-5 py-3.5 text-(--wn-match-band-fg)">
+        {data.result.trim() ? <div className="text-[26px] leading-tight font-black tracking-tight break-keep">{data.result}</div> : null}
+        {data.game.trim() ? <div className="mt-0.5 text-[13px] font-medium break-keep">{data.game}</div> : null}
+      </div>
+      {data.score.trim() || data.time.trim() || data.mvp.trim() ? (
+        <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2 px-5 pt-3.5">
+          <div className="min-w-0">
+            {data.score.trim() ? (
+              // 짧은 점수('32 : 28')는 늘 30px, 긴 점수만 카드 너비에 맞춰 줄인다
+              <div className={cn('leading-none font-bold tracking-tight break-keep tabular-nums', [...data.score.trim()].length > 9 ? 'text-[min(1.875rem,9cqi)]' : 'text-3xl')}>
+                {data.score}
+              </div>
+            ) : null}
+            {data.time.trim() ? (
+              <div className="mt-1 text-xs text-(--wn-match-muted) tabular-nums">
+                <span className="sr-only">경기 시간 </span>
+                {data.time}
+              </div>
+            ) : null}
+          </div>
+          {data.mvp.trim() ? (
+            <div className="flex min-w-0 items-center gap-1.5 text-sm font-semibold">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="size-4 shrink-0 text-(--wn-match-mvp)">
+                <path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z" />
+              </svg>
+              <span className="shrink-0 text-xs font-bold text-(--wn-match-mvp)">MVP</span>
+              <span className="min-w-0 break-keep">{data.mvp}</span>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+      {lines.length > 0 ? (
+        <ul aria-label="경기 기록" className="mt-3 border-t border-(--wn-match-line) px-3 pt-2 pb-3">
+          {lines.map((line, index) =>
+            line.kind === 'divider' ? (
+              <li key={index} className="px-2 pt-2 pb-1 text-[11px] font-semibold text-(--wn-match-muted)">
+                {line.label || <span aria-hidden="true" className="block border-t border-(--wn-match-line)" />}
+              </li>
+            ) : (
+              // 이름은 적어도 6rem, 기록이 길어 한 줄에 안 들어가면 기록이 다음 줄 오른쪽으로 (이름이 한 글자씩 찌그러지지 않게)
+              <li
+                key={index}
+                className={cn(
+                  'flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 rounded-lg px-2 py-1.5 text-sm',
+                  line.mine && 'bg-(--wn-match-mine) font-bold',
+                )}
+              >
+                <span className="min-w-0 flex-[1_1_6rem] break-keep">
+                  {line.mine ? <span className="sr-only">강조, </span> : null}
+                  {line.name}
+                </span>
+                {line.record ? <span className="ml-auto min-w-0 text-right break-keep tabular-nums">{line.record}</span> : null}
+              </li>
+            ),
+          )}
+        </ul>
+      ) : (
+        <div className="h-3.5" />
+      )}
     </div>
   );
 }

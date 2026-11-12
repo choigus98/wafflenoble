@@ -228,6 +228,16 @@
   --wn-ticket-muted: #5f6672;
   --wn-ticket-line: rgb(0 0 0 / 0.16);
   --wn-ticket-bar: #17181c;
+  /* 게임 결과: 결과 띠(승리 파랑 · 패배 빨강 · 무승부 회색)는 흰 글씨 대비 6.4:1 이상, MVP 별·글자 4.5:1 이상 */
+  --wn-match-bg: #ffffff;
+  --wn-match-win: #1d4ed8;
+  --wn-match-lose: #b91c1c;
+  --wn-match-draw: #4b5563;
+  --wn-match-band-fg: #ffffff;
+  --wn-match-muted: #5f6672;
+  --wn-match-line: rgb(0 0 0 / 0.08);
+  --wn-match-mine: #eff6ff;
+  --wn-match-mvp: #b45309;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -449,6 +459,15 @@
     --wn-ticket-muted: rgb(255 255 255 / 0.62);
     --wn-ticket-line: rgb(255 255 255 / 0.2);
     --wn-ticket-bar: #e5e7eb;
+    --wn-match-bg: #17191e;
+    --wn-match-win: #1d4ed8;
+    --wn-match-lose: #b91c1c;
+    --wn-match-draw: #4b5563;
+    --wn-match-band-fg: #ffffff;
+    --wn-match-muted: rgb(255 255 255 / 0.62);
+    --wn-match-line: rgb(255 255 255 / 0.1);
+    --wn-match-mine: rgb(59 130 246 / 0.16);
+    --wn-match-mvp: #f59e0b;
   }
 }
 
@@ -669,6 +688,15 @@
   --wn-ticket-muted: rgb(255 255 255 / 0.62);
   --wn-ticket-line: rgb(255 255 255 / 0.2);
   --wn-ticket-bar: #e5e7eb;
+  --wn-match-bg: #17191e;
+  --wn-match-win: #1d4ed8;
+  --wn-match-lose: #b91c1c;
+  --wn-match-draw: #4b5563;
+  --wn-match-band-fg: #ffffff;
+  --wn-match-muted: rgb(255 255 255 / 0.62);
+  --wn-match-line: rgb(255 255 255 / 0.1);
+  --wn-match-mine: rgb(59 130 246 / 0.16);
+  --wn-match-mvp: #f59e0b;
 }
 
 @theme inline {

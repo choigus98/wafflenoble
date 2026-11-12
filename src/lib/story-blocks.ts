@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물, 이메일, 검색 결과, 휴대폰 알림, 문자 메시지, 영수증, 위치 공유, 투표, 송금 완료, 알람, 일정, 아이템 획득, 음악 재생, 실시간 순위, 할 일 목록, 명함, 날씨, 지하철 안내, 택배 배송 조회, 탑승권·승차권).
+// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물, 이메일, 검색 결과, 휴대폰 알림, 문자 메시지, 영수증, 위치 공유, 투표, 송금 완료, 알람, 일정, 아이템 획득, 음악 재생, 실시간 순위, 할 일 목록, 명함, 날씨, 지하철 안내, 택배 배송 조회, 탑승권·승차권, 게임 결과).
 // 저장 형식: <div data-wn-block="종류" data-wn-data="JSON"></div>
 // 에디터(Tiptap 노드), 서버(저장할 때 검증), 열람 화면(렌더링)이 모두 이 파일을 같이 쓴다.
 //
@@ -235,6 +235,15 @@ const ticketSchema = z.object({
   script: text(300), // 표 정보 대본: '탑승구: 12'처럼 한 줄에 한 칸 (parseTicketDetails)
 });
 
+const matchSchema = z.object({
+  result: text(20), // 결과 ('승리' · '패배' · '무승부'). 말로 띠 색을 고른다 (matchOutcome)
+  game: text(40), // 게임·모드 ('랭크 게임 · 5대5'). 비우면 안 보임
+  score: text(20), // 점수 ('32 : 28'). 비우면 안 보임
+  time: text(20), // 경기 시간 ('28:41'). 비우면 안 보임
+  mvp: text(30), // MVP. 비우면 안 보임
+  script: text(LIMITS.script), // 기록 대본 (규칙은 parseMatchScript 위 설명)
+});
+
 const weatherSchema = z.object({
   place: text(40), // 장소 ('와플시 반죽구')
   temp: text(10), // 지금 기온 ('12°')
@@ -308,6 +317,7 @@ export const storyBlockSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('subway'), data: subwaySchema }),
   z.object({ kind: z.literal('parcel'), data: parcelSchema }),
   z.object({ kind: z.literal('ticket'), data: ticketSchema }),
+  z.object({ kind: z.literal('match'), data: matchSchema }),
 ]);
 
 export type StoryBlock = z.infer<typeof storyBlockSchema>;
@@ -340,6 +350,7 @@ export type WeatherData = z.infer<typeof weatherSchema>;
 export type SubwayData = z.infer<typeof subwaySchema>;
 export type ParcelData = z.infer<typeof parcelSchema>;
 export type TicketData = z.infer<typeof ticketSchema>;
+export type MatchData = z.infer<typeof matchSchema>;
 
 /** 메일 보낸 사람 '김지은 <jieun@example.com>' → 이름과 주소. 꺾쇠가 없으면 적은 그대로 이름으로 */
 export function splitMailSender(from: string): { name: string; address: string } {
@@ -871,6 +882,49 @@ export function parseParcelScript(script: string): ParcelRecord[] {
   return records;
 }
 
+// ─── 게임 결과 ──────────────────────────────────────
+// '결과' 말로 띠 색: 승리·이김·WIN·VICTORY·우승·클리어 → 승리(파랑), 패배·짐·LOSE·DEFEAT·실패 → 패배(빨강), 무승부·비김·DRAW → 무승부(회색), 그 밖은 회색
+// 기록 대본은 한 줄에 한 사람
+//   밥알: 12 / 3 / 7      ← 이름: 기록 (기록 안의 시각 '12:30'은 나누지 않는다)
+//   * 하연화: 12 / 3 / 7   ← 강조 (주인공 자리)
+//   --- 우리 팀 ---        ← 묶음 제목 ('---'만 쓰면 구분선)
+//   그냥 쓰기              ← 이름만 (기록 없이)
+
+export type MatchOutcome = 'win' | 'lose' | 'draw';
+
+export function matchOutcome(result: string): MatchOutcome {
+  const value = result.replace(/\s+/g, '').toLowerCase();
+  if (/무승부|비김|비겼|draw|tie/.test(value)) return 'draw';
+  if (/패배|졌|lose|lost|defeat|실패|탈락/.test(value)) return 'lose';
+  if (/승리|이김|이겼|win|victory|우승|클리어|clear|성공/.test(value)) return 'win';
+  return 'draw';
+}
+
+export type MatchLine = { kind: 'row'; name: string; record: string; mine: boolean } | { kind: 'divider'; label: string };
+
+export function parseMatchScript(script: string): MatchLine[] {
+  const lines: MatchLine[] = [];
+  for (const raw of script.split(/\r?\n/)) {
+    if (lines.length >= LIMITS.lines) break;
+    let line = raw.trim();
+    if (!line) continue;
+    const divider = line.match(/^-{3,}\s*(.*?)\s*-*$/);
+    if (divider) {
+      lines.push({ kind: 'divider', label: divider[1] });
+      continue;
+    }
+    const mine = /^[*＊]\s*/.test(line);
+    if (mine) line = line.replace(/^[*＊]\s*/, '');
+    // 이름과 기록은 첫 쌍점에서 (숫자 사이 쌍점은 시각이라 안 나눔)
+    const split = [...line.matchAll(/[:：]/g)].find((found) => !(/\d/.test(line[found.index - 1] ?? '') && /\d/.test(line[found.index + 1] ?? '')));
+    const name = (split ? line.slice(0, split.index) : line).trim();
+    const record = split ? line.slice(split.index + 1).trim() : '';
+    if (!name && !record) continue;
+    lines.push({ kind: 'row', name, record, mine });
+  }
+  return lines;
+}
+
 // ─── 탑승권·승차권 표 정보 ──────────────────────────────────────
 // 한 줄에 한 칸: '탑승구: 12', '좌석:23A', '탑승: 13:35', 이름 없이 '13:35'만 써도 됨. 여덟 칸까지
 // 숫자 사이의 쌍점(13:35 · 오후 2:05)은 시각이라 나누지 않는다
@@ -1095,7 +1149,8 @@ export type TemplateKey =
   | 'subway'
   | 'parcel'
   | 'ticket-plane'
-  | 'ticket-train';
+  | 'ticket-train'
+  | 'match';
 
 export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }> = [
   { key: 'kakao-dm', label: '카톡 1:1 대화', hint: '두 사람의 메신저 대화' },
@@ -1131,6 +1186,7 @@ export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }>
   { key: 'parcel', label: '택배 배송 조회', hint: '택배사 · 운송장 · 배송 단계 · 배송 기록' },
   { key: 'ticket-plane', label: '탑승권 · 비행기', hint: '출발/도착 · 시각 · 좌석 · 탑승구 · 바코드' },
   { key: 'ticket-train', label: '승차권 · 기차', hint: 'KTX · 출발/도착 · 시각 · 호차 · 좌석' },
+  { key: 'match', label: '게임 결과', hint: '승리/패배 · 점수 · MVP · 경기 기록' },
 ];
 
 export function templateLabel(block: StoryBlock): string {
@@ -1267,6 +1323,18 @@ export function createTemplate(key: TemplateKey): StoryBlock {
       return {
         kind: 'location',
         data: { badge: '위치 공유', place: '골목 끝 와플 가게', address: '와플시 반죽구 시럽로 12, 1층', note: '여기서 기다릴게' },
+      };
+    case 'match':
+      return {
+        kind: 'match',
+        data: {
+          result: '승리',
+          game: '랭크 게임 · 5대5',
+          score: '32 : 28',
+          time: '28:41',
+          mvp: '하연화',
+          script: ['--- 우리 팀 ---', '* 하연화: 12 / 3 / 7', '밥알: 8 / 5 / 10', '감자도리: 4 / 6 / 15', '--- 상대 팀 ---', '초코우유: 9 / 7 / 4', '버터칼: 6 / 9 / 8'].join('\n'),
+        },
       };
     case 'ticket-plane':
       return {
