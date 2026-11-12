@@ -85,7 +85,7 @@ describe('회차 텍스트로 내보내기', () => {
   });
 
   it('모든 템플릿이 머리 한 줄 + 글로 풀린다 (빈 줄 없이)', () => {
-    const keys = ['kakao-dm', 'kakao-group', 'live', 'chat', 'donation', 'post', 'system-quest', 'system-status', 'news', 'call-incoming', 'call-active', 'note', 'sns', 'mail', 'search', 'push', 'sms', 'receipt', 'location', 'poll', 'transfer', 'alarm'] as const;
+    const keys = ['kakao-dm', 'kakao-group', 'live', 'chat', 'donation', 'post', 'system-quest', 'system-status', 'news', 'call-incoming', 'call-active', 'note', 'sns', 'mail', 'search', 'push', 'sms', 'receipt', 'location', 'poll', 'transfer', 'alarm', 'event'] as const;
     for (const key of keys) {
       const text = storyBlockToText(createTemplate(key));
       const [head, ...rest] = text.split('\n');

@@ -132,6 +132,9 @@
   --wn-alarm-accent: #c2410c;
   --wn-alarm-accent-fg: #ffffff;
   --wn-alarm-chip-bg: rgb(0 0 0 / 0.07);
+  --wn-event-bg: #ffffff;
+  --wn-event-accent: #7c3aed; /* 흰 바탕 대비 5.7:1 */
+  --wn-event-tile-bg: #f3effd;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -266,6 +269,9 @@
     --wn-alarm-accent: #ff9f6b;
     --wn-alarm-accent-fg: #1b1020;
     --wn-alarm-chip-bg: rgb(255 255 255 / 0.12);
+    --wn-event-bg: #17191e;
+    --wn-event-accent: #b79cff;
+    --wn-event-tile-bg: rgb(183 156 255 / 0.14);
   }
 }
 
@@ -399,6 +405,9 @@
   --wn-alarm-accent: #ff9f6b;
   --wn-alarm-accent-fg: #1b1020;
   --wn-alarm-chip-bg: rgb(255 255 255 / 0.12);
+  --wn-event-bg: #17191e;
+  --wn-event-accent: #b79cff;
+  --wn-event-tile-bg: rgb(183 156 255 / 0.14);
 }
 
 @theme inline {

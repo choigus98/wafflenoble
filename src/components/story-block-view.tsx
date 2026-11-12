@@ -4,6 +4,7 @@ import {
   WEEKDAYS,
   alarmDays,
   chatColorKey,
+  eventDateParts,
   commentDisplayName,
   isMine,
   isPostAuthor,
@@ -27,6 +28,7 @@ import {
   type CallData,
   type ChatData,
   type DonationData,
+  type EventData,
   type KakaoData,
   type LiveData,
   type LocationData,
@@ -107,6 +109,8 @@ export function StoryBlockView({ block }: { block: StoryBlock }) {
       return <TransferCard data={block.data} />;
     case 'alarm':
       return <AlarmCard data={block.data} />;
+    case 'event':
+      return <EventCard data={block.data} />;
   }
 }
 
@@ -1246,6 +1250,82 @@ export function AlarmCard({ data, field }: { data: AlarmData; field?: FieldRende
       <div className="mt-7 flex gap-3 text-[15px] font-semibold">
         <span className="flex-1 rounded-full bg-(--wn-alarm-chip-bg) py-3">다시 알림</span>
         <span className="flex-1 rounded-full bg-(--wn-alarm-accent) py-3 text-(--wn-alarm-accent-fg)">중지</span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 일정: 캘린더 앱 일정 카드. 날짜가 '11월 14일 토요일'처럼 읽히면 왼쪽에 달 · 큰 날 · 요일 타일(그림이라 낭독기는 날짜 글을 읽음),
+ * 오른쪽에 제목 · 시간 · 장소 · 알림 · 메모. 에디터에서는 field로 카드 위에서 바로 고친다
+ */
+export function EventCard({ data, field }: { data: EventData; field?: FieldRenderer }) {
+  const editing = Boolean(field);
+  const slot = (name: keyof EventData, label: string, maxLength: number, className: string, wrap = false, multiline = false) =>
+    field ? (
+      field({ name, value: data[name], label, placeholder: label, maxLength, className, wrap, multiline })
+    ) : (
+      <span className={className}>{data[name]}</span>
+    );
+  const parts = eventDateParts(data.date);
+  const icon = 'mt-0.5 size-4 shrink-0 text-(--wn-event-accent)';
+
+  return (
+    <div className="wn-block mx-auto w-full max-w-[420px] rounded-[22px] border border-(--wn-border) bg-(--wn-event-bg) p-4 text-(--wn-fg) shadow-sm">
+      {editing || data.calendar.trim() ? (
+        <div className="mb-3 flex items-center gap-1.5 text-xs font-semibold text-(--wn-muted)">
+          <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full bg-(--wn-event-accent)" />
+          {slot('calendar', '캘린더 이름 (비우면 안 보여요)', 30, 'max-w-full')}
+        </div>
+      ) : null}
+      <div className="flex gap-3.5">
+        {parts ? (
+          <div aria-hidden="true" className="flex w-16 shrink-0 flex-col items-center self-start rounded-2xl bg-(--wn-event-tile-bg) py-2.5">
+            <span className="text-xs font-semibold text-(--wn-event-accent)">{parts.month}월</span>
+            <span className="text-[28px] leading-tight font-bold tabular-nums">{parts.day}</span>
+            {parts.weekday ? <span className="text-xs text-(--wn-muted)">{parts.weekday}요일</span> : null}
+          </div>
+        ) : null}
+        <div className="min-w-0 flex-1 space-y-1.5 border-l-[3px] border-(--wn-event-accent) pl-3">
+          <div className="text-[17px] leading-snug font-bold break-keep">{slot('title', '일정 제목', 80, 'block w-full', true)}</div>
+          {/* 날짜: 타일로 보여도 낭독기에는 글로 읽어 주고, 타일로 못 읽으면 글 그대로 보여 준다 */}
+          {editing ? (
+            <div className="text-[13px] text-(--wn-muted)">{slot('date', '날짜 (예: 11월 14일 토요일)', 40, 'block w-full', true)}</div>
+          ) : data.date.trim() ? (
+            <div className={parts ? 'sr-only' : 'text-[13px] text-(--wn-muted)'}>{data.date}</div>
+          ) : null}
+          {editing || data.time.trim() ? (
+            <div className="flex items-start gap-1.5 text-sm">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true" className={icon}>
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 7v5l3 2" />
+              </svg>
+              {slot('time', '시간 (비우면 안 보여요)', 40, 'block w-full', true)}
+            </div>
+          ) : null}
+          {editing || data.place.trim() ? (
+            <div className="flex items-start gap-1.5 text-sm">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={icon}>
+                <path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z" />
+              </svg>
+              {editing ? null : <span className="sr-only">장소 </span>}
+              {slot('place', '장소 (비우면 안 보여요)', 80, 'block w-full break-keep', true)}
+            </div>
+          ) : null}
+          {editing || data.alert.trim() ? (
+            <div className="flex items-start gap-1.5 text-sm">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={icon}>
+                <path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+                <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+              </svg>
+              {editing ? null : <span className="sr-only">알림 </span>}
+              {slot('alert', '알림 (비우면 안 보여요)', 40, 'block w-full', true)}
+            </div>
+          ) : null}
+          {editing || data.note.trim() ? (
+            <div className="pt-1 text-[13px] whitespace-pre-wrap text-(--wn-muted)">{slot('note', '메모 (비우면 안 보여요)', 200, 'block w-full whitespace-pre-wrap', false, true)}</div>
+          ) : null}
+        </div>
       </div>
     </div>
   );

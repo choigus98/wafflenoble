@@ -109,6 +109,18 @@ export function storyBlockToText(block: StoryBlock): string {
           data.date.trim() && `일시: ${data.date.trim()}`,
         );
       }
+      case 'event': {
+        const { data } = block;
+        return lines(
+          data.calendar,
+          data.title,
+          data.date,
+          data.time,
+          data.place.trim() && `장소: ${data.place.trim()}`,
+          data.alert.trim() && `알림: ${data.alert.trim()}`,
+          data.note,
+        );
+      }
       case 'alarm': {
         const { data } = block;
         return lines(data.date, [data.period, data.time].map((value) => value.trim()).filter(Boolean).join(' '), data.label, data.days.trim() && `반복: ${data.days.trim()}`);

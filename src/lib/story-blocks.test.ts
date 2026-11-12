@@ -3,6 +3,7 @@ import { sanitizeChapterHtml } from '@/lib/content';
 import {
   alarmDays,
   chatColorKey,
+  eventDateParts,
   commentDisplayName,
   commentSpeakers,
   createTemplate,
@@ -68,6 +69,7 @@ const KEYS: TemplateKey[] = [
   'poll',
   'transfer',
   'alarm',
+  'event',
 ];
 
 function withTrickyText(block: StoryBlock): StoryBlock {
@@ -110,6 +112,8 @@ function withTrickyText(block: StoryBlock): StoryBlock {
       return { ...block, data: { ...block.data, to: '김<b>수진</b> & "친구"', memo: '밥값 <script>x</script> & "😀"' } };
     case 'alarm':
       return { ...block, data: { ...block.data, label: '<b>일어나</b> & "지각" 😀', days: '월 <수> & 금' } };
+    case 'event':
+      return { ...block, data: { ...block.data, title: TRICKY, note: `${TRICKY}\n둘째 줄` } };
     case 'receipt':
       return { ...block, data: { ...block.data, store: '가게 <b>&</b> "따옴표"', script: `${block.data.script}\n${TRICKY}: 1,000원` } };
     case 'push':
@@ -581,5 +585,20 @@ describe('알람 반복 요일', () => {
     expect(alarmDays('격주 월요일')).toBeNull();
     expect(alarmDays('')).toBeNull();
     expect(alarmDays('   ')).toBeNull();
+  });
+});
+
+describe('일정 날짜 타일', () => {
+  it("'11월 14일 토요일'·'2026년 11월 14일 (토)'는 달 · 날 · 요일로", () => {
+    expect(eventDateParts('11월 14일 토요일')).toEqual({ month: '11', day: '14', weekday: '토' });
+    expect(eventDateParts('2026년 11월 14일 (토)')).toEqual({ month: '11', day: '14', weekday: '토' });
+    expect(eventDateParts('3월 1일')).toEqual({ month: '3', day: '1', weekday: '' });
+    expect(eventDateParts('03월 09일 (월)')).toEqual({ month: '3', day: '9', weekday: '월' });
+  });
+
+  it('날짜로 못 읽으면 null (글 그대로)', () => {
+    expect(eventDateParts('내일')).toBeNull();
+    expect(eventDateParts('13월 40일')).toBeNull();
+    expect(eventDateParts('')).toBeNull();
   });
 });

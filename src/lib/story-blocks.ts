@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물, 이메일, 검색 결과, 휴대폰 알림, 문자 메시지, 영수증, 위치 공유, 투표, 송금 완료, 알람).
+// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물, 이메일, 검색 결과, 휴대폰 알림, 문자 메시지, 영수증, 위치 공유, 투표, 송금 완료, 알람, 일정).
 // 저장 형식: <div data-wn-block="종류" data-wn-data="JSON"></div>
 // 에디터(Tiptap 노드), 서버(저장할 때 검증), 열람 화면(렌더링)이 모두 이 파일을 같이 쓴다.
 //
@@ -184,6 +184,16 @@ const alarmSchema = z.object({
   days: text(40), // 반복 요일 ('월 화 수 목 금', '매일', '평일', '주말'). 비우면 안 보임 (규칙은 alarmDays 위 설명)
 });
 
+const eventSchema = z.object({
+  calendar: text(30), // 위쪽 캘린더 이름 ('가게 일정'). 비우면 안 보임
+  date: text(40), // '11월 14일 토요일'. 날짜로 읽히면 왼쪽 날짜 타일로 (eventDateParts)
+  time: text(40), // '오후 2:00 – 4:00', '하루 종일'. 비우면 안 보임
+  title: text(80), // 일정 제목
+  place: text(80), // 장소. 비우면 안 보임
+  alert: text(40), // 알림 ('30분 전'). 비우면 안 보임
+  note: text(200), // 메모. 비우면 안 보임
+});
+
 /** 전화 화면 모드를 바꿀 때, 아직 고치지 않은 기본 문구는 새 모드에 맞게 바꿔 준다 */
 export const CALL_DETAIL_DEFAULT = { incoming: '휴대전화', active: '00:12' } as const;
 
@@ -208,6 +218,7 @@ export const storyBlockSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('poll'), data: pollSchema }),
   z.object({ kind: z.literal('transfer'), data: transferSchema }),
   z.object({ kind: z.literal('alarm'), data: alarmSchema }),
+  z.object({ kind: z.literal('event'), data: eventSchema }),
 ]);
 
 export type StoryBlock = z.infer<typeof storyBlockSchema>;
@@ -230,6 +241,7 @@ export type LocationData = z.infer<typeof locationSchema>;
 export type PollData = z.infer<typeof pollSchema>;
 export type TransferData = z.infer<typeof transferSchema>;
 export type AlarmData = z.infer<typeof alarmSchema>;
+export type EventData = z.infer<typeof eventSchema>;
 
 /** 메일 보낸 사람 '김지은 <jieun@example.com>' → 이름과 주소. 꺾쇠가 없으면 적은 그대로 이름으로 */
 export function splitMailSender(from: string): { name: string; address: string } {
@@ -671,6 +683,19 @@ export function alarmDays(text: string): { days: boolean[]; spoken: string } | n
   return { days, spoken };
 }
 
+// ─── 일정 날짜 타일 ──────────────────────────────────────
+// '11월 14일 토요일'·'2026년 11월 14일 (토)'처럼 적으면 왼쪽에 달 · 큰 날 · 요일 타일. 날짜로 못 읽으면('내일') 글 그대로
+const EVENT_DATE = /(\d{1,2})\s*월\s*(\d{1,2})\s*일(?:\s*\(?\s*([일월화수목금토])(?:요일)?\s*\)?)?/;
+
+export function eventDateParts(text: string): { month: string; day: string; weekday: string } | null {
+  const match = text.match(EVENT_DATE);
+  if (!match) return null;
+  const month = Number(match[1]);
+  const day = Number(match[2]);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  return { month: String(month), day: String(day), weekday: match[3] ?? '' };
+}
+
 /** 제목 옆·댓글 머리에 보일 댓글 수. 직접 적은 값이 먼저, 없으면 실제 댓글 개수 */
 export function postCommentCount(data: PostData, lines: CommentLine[]): string {
   return data.commentCount.trim() || String(lines.filter((line) => line.type === 'comment').length);
@@ -700,7 +725,8 @@ export type TemplateKey =
   | 'location'
   | 'poll'
   | 'transfer'
-  | 'alarm';
+  | 'alarm'
+  | 'event';
 
 export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }> = [
   { key: 'kakao-dm', label: '카톡 1:1 대화', hint: '두 사람의 메신저 대화' },
@@ -725,6 +751,7 @@ export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }>
   { key: 'poll', label: '투표', hint: '질문 · 선택지 · 표 수 막대' },
   { key: 'transfer', label: '송금 완료', hint: '은행 앱 송금 결과 · 금액 · 받는 분' },
   { key: 'alarm', label: '알람', hint: '큰 시각 · 알람 이름 · 반복 요일' },
+  { key: 'event', label: '일정', hint: '캘린더 일정 · 날짜 · 시간 · 장소' },
 ];
 
 export function templateLabel(block: StoryBlock): string {
@@ -855,6 +882,11 @@ export function createTemplate(key: TemplateKey): StoryBlock {
       return {
         kind: 'location',
         data: { badge: '위치 공유', place: '골목 끝 와플 가게', address: '와플시 반죽구 시럽로 12, 1층', note: '여기서 기다릴게' },
+      };
+    case 'event':
+      return {
+        kind: 'event',
+        data: { calendar: '가게 일정', date: lockScreenDate(), time: '오후 2:00 – 4:00', title: '와플 가게 재오픈 준비', place: '골목 끝 와플 가게', alert: '30분 전', note: '' },
       };
     case 'alarm':
       return {
