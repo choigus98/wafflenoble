@@ -45,6 +45,7 @@ const KEYS: TemplateKey[] = [
   'news',
   'call-incoming',
   'call-active',
+  'note',
 ];
 
 function withTrickyText(block: StoryBlock): StoryBlock {
@@ -67,6 +68,8 @@ function withTrickyText(block: StoryBlock): StoryBlock {
       return { ...block, data: { ...block.data, title: TRICKY, body: `${TRICKY}\n\n둘째 문단 <b>굵게?</b>` } };
     case 'call':
       return { ...block, data: { ...block.data, name: '엄마 <3 & "아빠"' } };
+    case 'note':
+      return { ...block, data: { ...block.data, body: `${TRICKY}\n둘째 줄` } };
   }
 }
 

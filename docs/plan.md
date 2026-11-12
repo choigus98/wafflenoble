@@ -300,7 +300,7 @@ on conflict (chapter_id, reader_id) do update
 
 **파일**: `src/lib/story-blocks.ts` (데이터 형식·검증·저장/읽기), `src/components/story-block-view.tsx` (카드 화면, 열람·에디터 공용), `src/components/admin/story-block/story-block-node.tsx` (Tiptap 노드), `src/components/admin/story-block/block-editor.tsx` (편집 폼), `src/components/admin/story-block/template-menu.tsx` (툴바 메뉴), `src/components/reader/chapter-body.tsx` (열람 화면)
 
-- 종류: 카톡 1:1 대화, 카톡 단체방, 라이브 방송창, 실시간 채팅창, 후원 알림, 커뮤니티 게시글, 시스템 창(퀘스트·상태창), 뉴스 기사, 전화 화면(걸려 오는 전화·통화 중)
+- 종류: 카톡 1:1 대화, 카톡 단체방, 라이브 방송창, 실시간 채팅창, 후원 알림, 커뮤니티 게시글, 시스템 창(퀘스트·상태창), 뉴스 기사, 전화 화면(걸려 오는 전화·통화 중), 쪽지·메모
   - 새 종류는 스키마 끝에 덧붙이기만 한다 (이미 저장된 블록의 종류·필드는 바꾸지 않음)
 - 저장 형식: 본문 HTML 안에 `<div data-wn-block="종류" data-wn-data="JSON"></div>` 한 줄
   - 저장할 때 서버가 zod 스키마로 다시 검증하고, 형식이 틀린 블록은 지운다. 모르는 필드는 버린다

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면).
+// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지).
 // 저장 형식: <div data-wn-block="종류" data-wn-data="JSON"></div>
 // 에디터(Tiptap 노드), 서버(저장할 때 검증), 열람 화면(렌더링)이 모두 이 파일을 같이 쓴다.
 //
@@ -98,6 +98,12 @@ const callSchema = z.object({
   detail: text(40), // 걸려 오는 전화: '휴대전화' 같은 번호 종류, 통화 중: '03:12' 같은 통화 시간
 });
 
+const noteSchema = z.object({
+  to: text(40), // 받는 사람. 비우면 안 보임
+  body: text(LIMITS.message), // 줄바꿈 그대로
+  from: text(40), // 보낸 사람. 비우면 안 보임
+});
+
 /** 전화 화면 모드를 바꿀 때, 아직 고치지 않은 기본 문구는 새 모드에 맞게 바꿔 준다 */
 export const CALL_DETAIL_DEFAULT = { incoming: '휴대전화', active: '00:12' } as const;
 
@@ -111,6 +117,7 @@ export const storyBlockSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('system'), data: systemSchema }),
   z.object({ kind: z.literal('news'), data: newsSchema }),
   z.object({ kind: z.literal('call'), data: callSchema }),
+  z.object({ kind: z.literal('note'), data: noteSchema }),
 ]);
 
 export type StoryBlock = z.infer<typeof storyBlockSchema>;
@@ -122,6 +129,7 @@ export type PostData = z.infer<typeof postSchema>;
 export type SystemData = z.infer<typeof systemSchema>;
 export type NewsData = z.infer<typeof newsSchema>;
 export type CallData = z.infer<typeof callSchema>;
+export type NoteData = z.infer<typeof noteSchema>;
 
 // ─── 대본 읽기 ─────────────────────────────────────────
 
@@ -348,7 +356,8 @@ export type TemplateKey =
   | 'system-status'
   | 'news'
   | 'call-incoming'
-  | 'call-active';
+  | 'call-active'
+  | 'note';
 
 export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }> = [
   { key: 'kakao-dm', label: '카톡 1:1 대화', hint: '두 사람의 메신저 대화' },
@@ -362,6 +371,7 @@ export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }>
   { key: 'news', label: '뉴스 기사', hint: '언론사 · 제목 · 기자 · 본문' },
   { key: 'call-incoming', label: '전화 · 걸려 오는 전화', hint: '이름 · 거절/응답' },
   { key: 'call-active', label: '전화 · 통화 중', hint: '이름 · 통화 시간' },
+  { key: 'note', label: '쪽지 · 메모', hint: '손글씨 느낌 종이 쪽지' },
 ];
 
 export function templateLabel(block: StoryBlock): string {
@@ -468,6 +478,11 @@ export function createTemplate(key: TemplateKey): StoryBlock {
           title: '퀘스트 발생!',
           script: ['「잃어버린 기억을 찾아라」', '제한 시간: 24시간', '보상: ???', '--- 실패 시 ---', '기억이 하나 사라집니다.'].join('\n'),
         },
+      };
+    case 'note':
+      return {
+        kind: 'note',
+        data: { to: '○○에게', body: '여기에 쪽지 내용을 적어 주세요.\n줄을 바꾸면 그대로 보여요.', from: '○○가' },
       };
     case 'call-incoming':
       return { kind: 'call', data: { mode: 'incoming', name: '상대', detail: CALL_DETAIL_DEFAULT.incoming } };

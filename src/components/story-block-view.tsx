@@ -17,6 +17,7 @@ import {
   type KakaoData,
   type LiveData,
   type NewsData,
+  type NoteData,
   type PostData,
   type StoryBlock,
   type SystemData,
@@ -61,6 +62,8 @@ export function StoryBlockView({ block }: { block: StoryBlock }) {
       return <NewsCard data={block.data} />;
     case 'call':
       return <CallCard data={block.data} />;
+    case 'note':
+      return <NoteCard data={block.data} />;
   }
 }
 
@@ -538,6 +541,40 @@ export function CallCard({ data, field }: { data: CallData; field?: FieldRendere
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+/** 쪽지·메모: 손글씨 글꼴, 줄 쳐진 종이에 테이프. 고칠 때는 기울이지 않는다 (입력하기 편하게) */
+export function NoteCard({ data, field }: { data: NoteData; field?: FieldRenderer }) {
+  const editing = Boolean(field);
+  const slot = (name: keyof NoteData, label: string, maxLength: number, className: string, multiline = false) =>
+    field ? (
+      field({ name, value: data[name], label, placeholder: label, maxLength, className, multiline })
+    ) : (
+      <span className={className}>{data[name]}</span>
+    );
+
+  return (
+    <div className="wn-block mx-auto w-full max-w-[400px] px-3 py-4">
+      <div
+        className={cn(
+          'relative rounded-sm bg-(--wn-note-paper) px-7 pt-9 pb-6 font-pen text-[25px] leading-8 text-(--wn-note-ink) shadow-md',
+          !editing && '-rotate-1',
+        )}
+        // 줄 쳐진 종이 (글자 줄 높이 32px에 맞춤)
+        style={{
+          backgroundImage: 'repeating-linear-gradient(to bottom, transparent 0, transparent 31px, var(--wn-note-line) 31px, var(--wn-note-line) 32px)',
+          backgroundPosition: '0 4px',
+        }}
+      >
+        <span aria-hidden="true" className="absolute -top-3 left-1/2 h-6 w-24 -translate-x-1/2 rotate-2 bg-(--wn-note-tape)" />
+        {editing || data.to ? <div>{slot('to', '받는 사람 (비우면 안 보여요)', 40, 'block w-full')}</div> : null}
+        <div className="whitespace-pre-wrap">{slot('body', '쪽지 내용', 2000, 'block w-full whitespace-pre-wrap', true)}</div>
+        {editing || data.from ? (
+          <div className="text-right">{slot('from', '보낸 사람 (비우면 안 보여요)', 40, 'block w-full text-right')}</div>
+        ) : null}
+      </div>
     </div>
   );
 }

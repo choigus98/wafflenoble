@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Noto_Serif_KR } from 'next/font/google';
+import { Nanum_Pen_Script, Noto_Serif_KR } from 'next/font/google';
 import 'pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css';
 import './globals.css';
 
@@ -9,6 +9,14 @@ const serif = Noto_Serif_KR({
   preload: false,
   display: 'swap',
   variable: '--font-noto-serif-kr',
+});
+
+// '쪽지·메모' 템플릿의 손글씨 글꼴. 쓰는 화면에서만 필요한 글자 조각을 받는다
+const pen = Nanum_Pen_Script({
+  weight: '400',
+  preload: false,
+  display: 'swap',
+  variable: '--font-nanum-pen',
 });
 
 // 링크 미리보기에는 항상 '와플노블'만 보이도록 설명·OG 이미지는 넣지 않는다
@@ -35,7 +43,7 @@ const readerSettingsScript = `(function(){try{var s=JSON.parse(localStorage.getI
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ko" className={serif.variable} suppressHydrationWarning>
+    <html lang="ko" className={`${serif.variable} ${pen.variable}`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: readerSettingsScript }} />
       </head>
