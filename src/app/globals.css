@@ -1,0 +1,144 @@
+@import "tailwindcss";
+
+/* ─── 색상 토큰 (와플: 크림 바탕 + 구운 황금빛) ─────────────────── */
+:root {
+  --bg: #fbf7f1;
+  --surface: #ffffff;
+  --surface-2: #f3ece2;
+  --fg: #2b221c;
+  --muted: #7c6e63;
+  --line: #e8ddcf;
+  --accent: #b8741f;
+  --accent-fg: #ffffff;
+  --accent-soft: #f6e7d0;
+  --danger: #c0392f;
+  --like: #e0503c;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15120f;
+    --surface: #1e1915;
+    --surface-2: #29221c;
+    --fg: #efe6dc;
+    --muted: #a6978a;
+    --line: #362d25;
+    --accent: #e2a457;
+    --accent-fg: #1c140c;
+    --accent-soft: #3a2b1b;
+    --danger: #f06a60;
+    --like: #ff6b5a;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #15120f;
+  --surface: #1e1915;
+  --surface-2: #29221c;
+  --fg: #efe6dc;
+  --muted: #a6978a;
+  --line: #362d25;
+  --accent: #e2a457;
+  --accent-fg: #1c140c;
+  --accent-soft: #3a2b1b;
+  --danger: #f06a60;
+  --like: #ff6b5a;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+  --color-danger: var(--danger);
+  --color-like: var(--like);
+  --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui,
+    "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+  --font-serif: var(--font-noto-serif-kr), "Noto Serif KR", AppleMyungjo, Batang, serif;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  /* 한국어는 어절 단위로 줄바꿈 (긴 영문·URL은 넘치지 않게 끊기) */
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+/* ─── 읽기 설정 (html의 data-* 속성으로 제어, localStorage에 저장) ─── */
+:root {
+  --reader-size: 18px;
+  --reader-leading: 1.85;
+  --reader-font: var(--font-sans);
+}
+:root[data-size="0"] { --reader-size: 16px; }
+:root[data-size="1"] { --reader-size: 18px; }
+:root[data-size="2"] { --reader-size: 20px; }
+:root[data-size="3"] { --reader-size: 22px; }
+:root[data-leading="0"] { --reader-leading: 1.65; }
+:root[data-leading="1"] { --reader-leading: 1.85; }
+:root[data-leading="2"] { --reader-leading: 2.15; }
+:root[data-font="serif"] { --reader-font: var(--font-serif); }
+
+/* ─── 본문 (열람 화면과 에디터가 같은 스타일을 쓴다) ─────────────── */
+.novel-body {
+  font-family: var(--reader-font);
+  font-size: var(--reader-size);
+  line-height: var(--reader-leading);
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  letter-spacing: -0.003em;
+}
+.novel-body p {
+  margin: 0 0 0.95em;
+}
+/* 빈 줄도 한 줄 높이를 차지하게 */
+.novel-body p:empty::after {
+  content: "\00a0";
+}
+.novel-body hr {
+  border: 0;
+  height: 1.2em;
+  margin: 2em 0;
+  text-align: center;
+  overflow: visible;
+}
+.novel-body hr::after {
+  content: "✦  ✦  ✦";
+  color: var(--muted);
+  font-size: 0.7em;
+  letter-spacing: 0.3em;
+}
+.novel-body blockquote {
+  margin: 1.3em 0;
+  padding-left: 1em;
+  border-left: 3px solid var(--line);
+  color: var(--muted);
+}
+.novel-body strong {
+  font-weight: 700;
+}
+
+/* 에디터 */
+.ProseMirror:focus {
+  outline: none;
+}
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: var(--muted);
+  opacity: 0.7;
+  pointer-events: none;
+}
+.ProseMirror hr.ProseMirror-selectednode::after {
+  color: var(--accent);
+}
