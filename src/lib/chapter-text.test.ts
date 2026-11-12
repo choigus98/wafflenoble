@@ -94,6 +94,11 @@ describe('회차 텍스트로 내보내기', () => {
         '* 15. 와플집 딸: 120,000원 ▲5',
       ].join('\n'),
     );
+    const namecard = createTemplate('namecard');
+    if (namecard.kind !== 'namecard') throw new Error('명함 템플릿이 아니에요');
+    expect(storyBlockToText({ ...namecard, data: { ...namecard.data, address: '', role: '' } })).toBe(
+      ['[명함]', '주식회사 와플랩', '한도윤', '전화 010-2024-1113', '메일 doyun.han@waffle.example', '메모: 오늘 밤 9시, 골목 끝 와플 가게'].join('\n'),
+    );
     const todo = createTemplate('todo');
     if (todo.kind !== 'todo') throw new Error('할 일 목록 템플릿이 아니에요');
     expect(storyBlockToText({ ...todo, data: { ...todo.data, date: '' } })).toBe(
@@ -109,7 +114,7 @@ describe('회차 텍스트로 내보내기', () => {
   });
 
   it('모든 템플릿이 머리 한 줄 + 글로 풀린다 (빈 줄 없이)', () => {
-    const keys = ['kakao-dm', 'kakao-group', 'live', 'chat', 'donation', 'post', 'system-quest', 'system-status', 'news', 'call-incoming', 'call-active', 'note', 'sns', 'mail', 'search', 'push', 'sms', 'receipt', 'location', 'poll', 'transfer', 'alarm', 'event', 'item', 'music', 'rank', 'todo'] as const;
+    const keys = ['kakao-dm', 'kakao-group', 'live', 'chat', 'donation', 'post', 'system-quest', 'system-status', 'news', 'call-incoming', 'call-active', 'note', 'sns', 'mail', 'search', 'push', 'sms', 'receipt', 'location', 'poll', 'transfer', 'alarm', 'event', 'item', 'music', 'rank', 'todo', 'namecard'] as const;
     for (const key of keys) {
       const text = storyBlockToText(createTemplate(key));
       const [head, ...rest] = text.split('\n');

@@ -113,6 +113,17 @@ export function storyBlockToText(block: StoryBlock): string {
           data.date.trim() && `일시: ${data.date.trim()}`,
         );
       }
+      case 'namecard': {
+        const { data } = block;
+        return lines(
+          data.company,
+          [data.name, data.role].map((value) => value.trim()).filter(Boolean).join(' · '),
+          data.phone.trim() && `전화 ${data.phone.trim()}`,
+          data.email.trim() && `메일 ${data.email.trim()}`,
+          data.address,
+          data.memo.trim() && `메모: ${data.memo.trim()}`,
+        );
+      }
       case 'todo': {
         const items = parseTodoScript(block.data.script);
         const { done, total } = todoProgress(items);

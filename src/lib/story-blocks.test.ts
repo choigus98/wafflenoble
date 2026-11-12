@@ -80,6 +80,7 @@ const KEYS: TemplateKey[] = [
   'music',
   'rank',
   'todo',
+  'namecard',
 ];
 
 function withTrickyText(block: StoryBlock): StoryBlock {
@@ -132,6 +133,8 @@ function withTrickyText(block: StoryBlock): StoryBlock {
       return { ...block, data: { ...block.data, title: '<b>랭킹</b> & "후원"', script: `${block.data.script}\n${TRICKY}: 1,000원 ▲1` } };
     case 'todo':
       return { ...block, data: { ...block.data, title: '<b>할 일</b> & "목록"', script: `${block.data.script}\n[x] ${TRICKY}` } };
+    case 'namecard':
+      return { ...block, data: { ...block.data, name: '한<b>도윤</b> & 😀', email: '"doyun" <a@b.example>', memo: '<script>x</script> & "밤 9시"' } };
     case 'receipt':
       return { ...block, data: { ...block.data, store: '가게 <b>&</b> "따옴표"', script: `${block.data.script}\n${TRICKY}: 1,000원` } };
     case 'push':

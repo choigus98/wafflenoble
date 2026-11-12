@@ -42,6 +42,7 @@ import {
   type LocationData,
   type MailData,
   type MusicData,
+  type NamecardData,
   type NewsData,
   type NoteData,
   type PollData,
@@ -131,6 +132,8 @@ export function StoryBlockView({ block }: { block: StoryBlock }) {
       return <RankCard data={block.data} />;
     case 'todo':
       return <TodoCard data={block.data} />;
+    case 'namecard':
+      return <NamecardCard data={block.data} />;
   }
 }
 
@@ -1704,6 +1707,87 @@ function TodoCard({ data }: { data: TodoData }) {
           )}
         </ul>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * 명함: 가로 명함 모양 (회사 로고 자리 · 회사 · 이름 · 직함 · 전화 · 이메일 · 주소 · 손글씨 메모).
+ * 명함 비율(7:4)을 기본으로 하되 글이 길면 아래로 늘어난다. 에디터에서는 field로 카드 위에서 바로 고친다
+ */
+export function NamecardCard({ data, field }: { data: NamecardData; field?: FieldRenderer }) {
+  const editing = Boolean(field);
+  const slot = (name: keyof NamecardData, label: string, maxLength: number, className: string) =>
+    field ? (
+      field({ name, value: data[name], label, placeholder: label, maxLength, className, wrap: true })
+    ) : (
+      <span className={className}>{data[name]}</span>
+    );
+  const show = (name: keyof NamecardData) => editing || data[name].trim() !== '';
+  const initial = [...data.company.trim()][0] ?? [...data.name.trim()][0] ?? '?';
+  const icon = 'mt-0.5 size-3.5 shrink-0 text-(--wn-namecard-accent)';
+  const contact = show('phone') || show('email') || show('address');
+
+  return (
+    <div className="wn-block mx-auto w-full max-w-[380px]">
+      {/* 넘치는 글을 자르지 않아야(overflow 기본값) 명함 비율보다 글이 길 때 카드가 아래로 늘어난다 → 위 띠는 모서리에 맞게 따로 둥글림 */}
+      <div className="relative flex aspect-[7/4] flex-col rounded-xl border border-(--wn-border) bg-(--wn-namecard-bg) px-5 pt-5 pb-4 text-(--wn-fg) shadow-md">
+        <span aria-hidden="true" className="absolute inset-x-0 top-0 h-1.5 rounded-t-[11px] bg-(--wn-namecard-accent)" />
+        {show('company') ? (
+          <div className="flex items-center gap-2 text-[13px] font-bold text-(--wn-namecard-accent)">
+            <span aria-hidden="true" className="grid size-6 shrink-0 place-items-center rounded-md bg-(--wn-namecard-accent) text-xs text-(--wn-namecard-accent-fg)">
+              {initial}
+            </span>
+            {slot('company', '회사·소속 (비우면 안 보여요)', 40, 'min-w-0 max-w-full break-keep')}
+          </div>
+        ) : null}
+        <div className="mt-auto pt-4">
+          <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
+            <span className="max-w-full text-[22px] leading-tight font-bold break-keep">{slot('name', '이름', 30, 'max-w-full')}</span>
+            {show('role') ? <span className="max-w-full text-[13px] break-keep text-(--wn-namecard-muted)">{slot('role', '직함 (비우면 안 보여요)', 40, 'max-w-full')}</span> : null}
+          </div>
+          {contact ? (
+            <div className="mt-2.5 space-y-1 border-t border-(--wn-namecard-line) pt-2.5 text-[12.5px] text-(--wn-namecard-muted)">
+              {show('phone') ? (
+                <div className="flex items-start gap-1.5">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={icon}>
+                    <path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2" />
+                  </svg>
+                  {editing ? null : <span className="sr-only">전화 </span>}
+                  {slot('phone', '전화 (비우면 안 보여요)', 30, 'min-w-0 max-w-full tabular-nums')}
+                </div>
+              ) : null}
+              {show('email') ? (
+                <div className="flex items-start gap-1.5">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={icon}>
+                    <rect x="3" y="5" width="18" height="14" rx="2" />
+                    <path d="M3 7l9 6 9-6" />
+                  </svg>
+                  {editing ? null : <span className="sr-only">이메일 </span>}
+                  {slot('email', '이메일 (비우면 안 보여요)', 60, 'min-w-0 max-w-full break-all')}
+                </div>
+              ) : null}
+              {show('address') ? (
+                <div className="flex items-start gap-1.5">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={icon}>
+                    <path d="M12 21s-7-7.5-7-12a7 7 0 0 1 14 0c0 4.5-7 12-7 12z" />
+                    <circle cx="12" cy="9" r="2.5" />
+                  </svg>
+                  {editing ? null : <span className="sr-only">주소 </span>}
+                  {slot('address', '주소 (비우면 안 보여요)', 80, 'min-w-0 max-w-full break-keep')}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+        {show('memo') ? (
+          // 손으로 적은 메모 (펜 글씨, 살짝 기울임 — 고치는 동안에는 바로 세워서)
+          <div className={cn('mt-3 text-right font-pen text-[22px] leading-7 text-(--wn-namecard-ink)', !editing && '-rotate-2')}>
+            {editing ? null : <span className="sr-only">손글씨 메모 </span>}
+            {slot('memo', '손글씨 메모 (비우면 안 보여요)', 60, 'max-w-full text-right')}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

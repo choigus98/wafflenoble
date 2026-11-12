@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물, 이메일, 검색 결과, 휴대폰 알림, 문자 메시지, 영수증, 위치 공유, 투표, 송금 완료, 알람, 일정, 아이템 획득, 음악 재생, 실시간 순위, 할 일 목록).
+// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물, 이메일, 검색 결과, 휴대폰 알림, 문자 메시지, 영수증, 위치 공유, 투표, 송금 완료, 알람, 일정, 아이템 획득, 음악 재생, 실시간 순위, 할 일 목록, 명함).
 // 저장 형식: <div data-wn-block="종류" data-wn-data="JSON"></div>
 // 에디터(Tiptap 노드), 서버(저장할 때 검증), 열람 화면(렌더링)이 모두 이 파일을 같이 쓴다.
 //
@@ -203,6 +203,16 @@ const musicSchema = z.object({
   lyric: text(200), // 가사 (여러 줄 가능). 비우면 안 보임
 });
 
+const namecardSchema = z.object({
+  company: text(40), // 회사·소속 ('주식회사 와플랩'). 비우면 안 보임 (로고 자리에는 첫 글자)
+  name: text(30), // 이름
+  role: text(40), // 직함 ('브랜드기획팀 팀장'). 비우면 안 보임
+  phone: text(30), // 전화. 비우면 안 보임
+  email: text(60), // 이메일. 비우면 안 보임
+  address: text(80), // 주소. 비우면 안 보임
+  memo: text(60), // 손글씨 메모 ('오늘 밤 9시, 와플 가게'). 비우면 안 보임
+});
+
 const todoSchema = z.object({
   title: text(60), // 목록 제목 ('가게 문 열기 전에')
   date: text(40), // 제목 위 작은 글 ('11월 13일 목요일'). 비우면 안 보임
@@ -252,6 +262,7 @@ export const storyBlockSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('music'), data: musicSchema }),
   z.object({ kind: z.literal('rank'), data: rankSchema }),
   z.object({ kind: z.literal('todo'), data: todoSchema }),
+  z.object({ kind: z.literal('namecard'), data: namecardSchema }),
 ]);
 
 export type StoryBlock = z.infer<typeof storyBlockSchema>;
@@ -279,6 +290,7 @@ export type ItemData = z.infer<typeof itemSchema>;
 export type MusicData = z.infer<typeof musicSchema>;
 export type RankData = z.infer<typeof rankSchema>;
 export type TodoData = z.infer<typeof todoSchema>;
+export type NamecardData = z.infer<typeof namecardSchema>;
 
 /** 메일 보낸 사람 '김지은 <jieun@example.com>' → 이름과 주소. 꺾쇠가 없으면 적은 그대로 이름으로 */
 export function splitMailSender(from: string): { name: string; address: string } {
@@ -905,7 +917,8 @@ export type TemplateKey =
   | 'item'
   | 'music'
   | 'rank'
-  | 'todo';
+  | 'todo'
+  | 'namecard';
 
 export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }> = [
   { key: 'kakao-dm', label: '카톡 1:1 대화', hint: '두 사람의 메신저 대화' },
@@ -935,6 +948,7 @@ export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }>
   { key: 'music', label: '음악 재생', hint: '노래 제목 · 가수 · 재생 막대 · 가사' },
   { key: 'rank', label: '실시간 순위', hint: '방송 · 게임 · 음원 차트 랭킹, 오르내림' },
   { key: 'todo', label: '할 일 목록', hint: '메모 앱 체크리스트 · 투두 · 끝낸 개수' },
+  { key: 'namecard', label: '명함', hint: '이름 · 직함 · 회사 · 연락처 · 손글씨 메모' },
 ];
 
 export function templateLabel(block: StoryBlock): string {
@@ -1065,6 +1079,19 @@ export function createTemplate(key: TemplateKey): StoryBlock {
       return {
         kind: 'location',
         data: { badge: '위치 공유', place: '골목 끝 와플 가게', address: '와플시 반죽구 시럽로 12, 1층', note: '여기서 기다릴게' },
+      };
+    case 'namecard':
+      return {
+        kind: 'namecard',
+        data: {
+          company: '주식회사 와플랩',
+          name: '한도윤',
+          role: '브랜드기획팀 팀장',
+          phone: '010-2024-1113',
+          email: 'doyun.han@waffle.example',
+          address: '와플시 반죽구 시럽로 12, 5층',
+          memo: '오늘 밤 9시, 골목 끝 와플 가게',
+        },
       };
     case 'todo':
       return {

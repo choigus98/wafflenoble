@@ -173,6 +173,13 @@
   --wn-todo-accent: #c17d10;
   --wn-todo-accent-fg: #ffffff;
   --wn-todo-line: rgb(0 0 0 / 0.08);
+  /* 명함: 회사 이름·연락처 글자는 흰 바탕 대비 4.5:1 이상, 손글씨 메모는 파란 펜 */
+  --wn-namecard-bg: #ffffff;
+  --wn-namecard-accent: #1f4e79;
+  --wn-namecard-accent-fg: #ffffff;
+  --wn-namecard-muted: #5b6472;
+  --wn-namecard-ink: #1d4ed8;
+  --wn-namecard-line: rgb(0 0 0 / 0.08);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -344,6 +351,12 @@
     --wn-todo-accent: #f0b429;
     --wn-todo-accent-fg: #1c1b17;
     --wn-todo-line: rgb(255 255 255 / 0.1);
+    --wn-namecard-bg: #1d1f24;
+    --wn-namecard-accent: #8fb8ff;
+    --wn-namecard-accent-fg: #10213b;
+    --wn-namecard-muted: rgb(255 255 255 / 0.65);
+    --wn-namecard-ink: #93c5fd;
+    --wn-namecard-line: rgb(255 255 255 / 0.1);
   }
 }
 
@@ -514,6 +527,12 @@
   --wn-todo-accent: #f0b429;
   --wn-todo-accent-fg: #1c1b17;
   --wn-todo-line: rgb(255 255 255 / 0.1);
+  --wn-namecard-bg: #1d1f24;
+  --wn-namecard-accent: #8fb8ff;
+  --wn-namecard-accent-fg: #10213b;
+  --wn-namecard-muted: rgb(255 255 255 / 0.65);
+  --wn-namecard-ink: #93c5fd;
+  --wn-namecard-line: rgb(255 255 255 / 0.1);
 }
 
 @theme inline {
