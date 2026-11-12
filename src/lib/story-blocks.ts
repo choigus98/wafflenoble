@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물, 이메일, 검색 결과, 휴대폰 알림, 문자 메시지, 영수증, 위치 공유, 투표, 송금 완료, 알람, 일정, 아이템 획득, 음악 재생, 실시간 순위, 할 일 목록, 명함, 날씨, 지하철 안내).
+// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물, 이메일, 검색 결과, 휴대폰 알림, 문자 메시지, 영수증, 위치 공유, 투표, 송금 완료, 알람, 일정, 아이템 획득, 음악 재생, 실시간 순위, 할 일 목록, 명함, 날씨, 지하철 안내, 택배 배송 조회).
 // 저장 형식: <div data-wn-block="종류" data-wn-data="JSON"></div>
 // 에디터(Tiptap 노드), 서버(저장할 때 검증), 열람 화면(렌더링)이 모두 이 파일을 같이 쓴다.
 //
@@ -212,6 +212,15 @@ const subwaySchema = z.object({
   message: text(120), // 안내 한 줄 ('이번 역은 반죽역입니다. 내리실 문은 오른쪽입니다.'). 비우면 안 보임
 });
 
+const parcelSchema = z.object({
+  carrier: text(20), // 택배사 ('와플택배'). 동그라미에는 첫 글자
+  tracking: text(30), // 운송장 번호. 비우면 안 보임
+  item: text(60), // 상품 ('수제 시럽 세트 외 1건'). 비우면 안 보임
+  status: text(30), // 지금 상태 ('배송 중'). 말로 단계를 고른다 (parcelStep)
+  eta: text(40), // 도착 예정 ('오늘 18~20시 도착 예정'). 비우면 안 보임
+  script: text(LIMITS.script), // 배송 기록 대본 (규칙은 parseParcelScript 위 설명)
+});
+
 const weatherSchema = z.object({
   place: text(40), // 장소 ('와플시 반죽구')
   temp: text(10), // 지금 기온 ('12°')
@@ -283,6 +292,7 @@ export const storyBlockSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('namecard'), data: namecardSchema }),
   z.object({ kind: z.literal('weather'), data: weatherSchema }),
   z.object({ kind: z.literal('subway'), data: subwaySchema }),
+  z.object({ kind: z.literal('parcel'), data: parcelSchema }),
 ]);
 
 export type StoryBlock = z.infer<typeof storyBlockSchema>;
@@ -313,6 +323,7 @@ export type TodoData = z.infer<typeof todoSchema>;
 export type NamecardData = z.infer<typeof namecardSchema>;
 export type WeatherData = z.infer<typeof weatherSchema>;
 export type SubwayData = z.infer<typeof subwaySchema>;
+export type ParcelData = z.infer<typeof parcelSchema>;
 
 /** 메일 보낸 사람 '김지은 <jieun@example.com>' → 이름과 주소. 꺾쇠가 없으면 적은 그대로 이름으로 */
 export function splitMailSender(from: string): { name: string; address: string } {
@@ -800,6 +811,50 @@ export function subwayLineKey(line: string): number {
   return (sum % SUBWAY_COLORS) + 1;
 }
 
+// ─── 택배 배송 조회 ──────────────────────────────────────
+// '지금 상태' 말로 네 단계(접수 · 집하 · 배송 중 · 배송 완료) 중 어디인지 고른다. 모르는 말이면 단계 표시 없음.
+//   배송 완료 · 배달 완료 · 수령 → 배송 완료 / '준비'가 들어가면 접수 / 배송 · 배달 · 출발 · 이동 · 터미널 · 허브 · 도착 · 지연 → 배송 중
+//   집하 · 인수 · 출고 → 집하 / 접수 · 주문 · 결제 → 접수 ('집하 완료'는 집하, '접수 완료'는 접수)
+// 배송 기록 대본은 한 줄에 하나 (위가 최근, 택배 앱처럼)
+//   11.13 14:05 반죽 대리점: 배송 출발   ← 날짜·시각 + 장소: 내용 (날짜는 생략해도 됨)
+//   [어제 밤] 시럽 허브: 간선 상차        ← 시각을 [ ]로 자유롭게
+//   14:05 배송 출발                      ← 장소 없이 (시각의 쌍점은 나누지 않는다)
+
+export const PARCEL_STEPS = ['접수', '집하', '배송 중', '배송 완료'] as const;
+
+export function parcelStep(status: string): number | null {
+  const value = status.replace(/\s+/g, '');
+  if (/(배송|배달|전달|도착)완료|수령|배송끝|배달끝/.test(value)) return 3;
+  if (/준비/.test(value)) return 0;
+  if (/배송|배달|출발|이동|간선|터미널|허브|도착|지연|상차|하차/.test(value)) return 2;
+  if (/집하|인수|픽업|출고/.test(value)) return 1;
+  if (/접수|주문|결제|등록|예약/.test(value)) return 0;
+  return null;
+}
+
+export type ParcelRecord = { time: string; place: string; detail: string };
+
+const PARCEL_TIME = /^(?:\[([^\]]{1,30})\]|((?:\d{1,4}[./-]\d{1,2}(?:[./-]\d{1,2})?\.?(?:\s*\([^)]{1,3}\))?\s+)?(?:오전|오후)?\s*\d{1,2}:\d{2}(?::\d{2})?))\s*/;
+
+export function parseParcelScript(script: string): ParcelRecord[] {
+  const records: ParcelRecord[] = [];
+  for (const raw of script.split(/\r?\n/)) {
+    if (records.length >= LIMITS.lines) break;
+    const line = raw.trim();
+    if (!line) continue;
+    const match = line.match(PARCEL_TIME);
+    const time = match ? (match[1] ?? match[2] ?? '').trim() : '';
+    const rest = match ? line.slice(match[0].length) : line;
+    // 장소와 내용은 첫 쌍점 중 바로 뒤가 숫자가 아닌 것에서 나눈다
+    const split = [...rest.matchAll(/[:：]/g)].find((found) => !/\d/.test(rest[found.index + 1] ?? ''));
+    const place = split ? rest.slice(0, split.index).trim() : '';
+    const detail = (split ? rest.slice(split.index + 1) : rest).trim();
+    if (!time && !place && !detail) continue;
+    records.push({ time, place, detail });
+  }
+  return records;
+}
+
 // ─── 날씨 ──────────────────────────────────────
 // 날씨 말로 그림·바탕색을 고른다: 천둥·번개 → 뇌우, 눈(눈부신은 빼고) → 눈, 비·소나기 → 비, 안개·미세먼지·황사 → 안개,
 // 흐림·구름 많음 → 흐림, 구름 → 구름 조금, '밤'과 맑음 → 달, 맑음·화창·해·햇살 → 해. 모르는 말이면 구름 조금
@@ -1000,7 +1055,8 @@ export type TemplateKey =
   | 'todo'
   | 'namecard'
   | 'weather'
-  | 'subway';
+  | 'subway'
+  | 'parcel';
 
 export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }> = [
   { key: 'kakao-dm', label: '카톡 1:1 대화', hint: '두 사람의 메신저 대화' },
@@ -1033,6 +1089,7 @@ export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }>
   { key: 'namecard', label: '명함', hint: '이름 · 직함 · 회사 · 연락처 · 손글씨 메모' },
   { key: 'weather', label: '날씨', hint: '날씨 앱 · 지금 기온 · 최고/최저 · 시간별' },
   { key: 'subway', label: '지하철 안내', hint: '노선 색 · 이번 역 · 이전/다음 역 · 안내 방송' },
+  { key: 'parcel', label: '택배 배송 조회', hint: '택배사 · 운송장 · 배송 단계 · 배송 기록' },
 ];
 
 export function templateLabel(block: StoryBlock): string {
@@ -1163,6 +1220,18 @@ export function createTemplate(key: TemplateKey): StoryBlock {
       return {
         kind: 'location',
         data: { badge: '위치 공유', place: '골목 끝 와플 가게', address: '와플시 반죽구 시럽로 12, 1층', note: '여기서 기다릴게' },
+      };
+    case 'parcel':
+      return {
+        kind: 'parcel',
+        data: {
+          carrier: '와플택배',
+          tracking: '6012-3456-7890',
+          item: '수제 시럽 세트 외 1건',
+          status: '배송 중',
+          eta: '오늘 18~20시 도착 예정',
+          script: ['11.13 14:05 반죽 대리점: 배송 출발', '11.13 09:12 반죽 터미널: 간선 하차', '11.12 22:40 시럽 허브: 간선 상차', '11.12 18:03 시럽 집하점: 집하', '11.12 15:31 와플상점: 접수'].join('\n'),
+        },
       };
     case 'subway':
       return {

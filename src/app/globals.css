@@ -213,6 +213,13 @@
   --wn-subway-7: #4d7c0f;
   --wn-subway-8: #be185d;
   --wn-subway-9: #a16207;
+  /* 택배 배송 조회: 강조색은 흰 바탕(밝게)·어두운 바탕(어둡게)에서 글자 대비 4.5:1 이상, 동그라미 글자도 4.5:1 이상 */
+  --wn-parcel-bg: #ffffff;
+  --wn-parcel-accent: #b45309;
+  --wn-parcel-accent-fg: #ffffff;
+  --wn-parcel-muted: #5f6672;
+  --wn-parcel-track: #e5e7eb;
+  --wn-parcel-chip: #fff7ed;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -421,6 +428,12 @@
     --wn-subway-7: #a3c94f;
     --wn-subway-8: #f472b6;
     --wn-subway-9: #e2b23c;
+    --wn-parcel-bg: #17191e;
+    --wn-parcel-accent: #f59e0b;
+    --wn-parcel-accent-fg: #17191e;
+    --wn-parcel-muted: rgb(255 255 255 / 0.62);
+    --wn-parcel-track: rgb(255 255 255 / 0.16);
+    --wn-parcel-chip: rgb(245 158 11 / 0.12);
   }
 }
 
@@ -628,6 +641,12 @@
   --wn-subway-7: #a3c94f;
   --wn-subway-8: #f472b6;
   --wn-subway-9: #e2b23c;
+  --wn-parcel-bg: #17191e;
+  --wn-parcel-accent: #f59e0b;
+  --wn-parcel-accent-fg: #17191e;
+  --wn-parcel-muted: rgb(255 255 255 / 0.62);
+  --wn-parcel-track: rgb(255 255 255 / 0.16);
+  --wn-parcel-chip: rgb(245 158 11 / 0.12);
 }
 
 @theme inline {

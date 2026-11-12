@@ -19,7 +19,8 @@ describe('템플릿 찾기', () => {
   });
 
   it('초성, 초성과 글자 섞기', () => {
-    expect(labels('ㅇㅅㅈ')).toEqual(['영수증']);
+    // 이름(영수증)이 먼저, 설명에 '운송장'이 든 택배 배송 조회는 뒤에
+    expect(labels('ㅇㅅㅈ')).toEqual(['영수증', '택배 배송 조회']);
     expect(labels('ㅌㅍ')).toEqual(['투표']);
     expect(labels('영ㅅ')).toEqual(['영수증']);
     expect(labels('ㅁㅈ')).toEqual(['문자 메시지']);

@@ -16,6 +16,8 @@ import {
   parseRankScript,
   parseTodoScript,
   parseWeatherScript,
+  parcelStep,
+  parseParcelScript,
   subwayLineKey,
   todoProgress,
   weatherKind,
@@ -86,6 +88,7 @@ const KEYS: TemplateKey[] = [
   'namecard',
   'weather',
   'subway',
+  'parcel',
 ];
 
 function withTrickyText(block: StoryBlock): StoryBlock {
@@ -142,6 +145,8 @@ function withTrickyText(block: StoryBlock): StoryBlock {
       return { ...block, data: { ...block.data, name: '한<b>도윤</b> & 😀', email: '"doyun" <a@b.example>', memo: '<script>x</script> & "밤 9시"' } };
     case 'weather':
       return { ...block, data: { ...block.data, place: '와플<b>시</b> & "골목"', script: `${block.data.script}\n${TRICKY}: 비 3°` } };
+    case 'parcel':
+      return { ...block, data: { ...block.data, item: '<b>시럽</b> & "세트" 😀', script: `${block.data.script}\n11.13 15:00 ${TRICKY}: 배송 <i>완료</i>` } };
     case 'subway':
       return { ...block, data: { ...block.data, station: '<b>반죽</b> & "역" 😀', next: '시럽 <i>', message: TRICKY } };
     case 'receipt':
@@ -760,5 +765,28 @@ describe('지하철 노선 색', () => {
     expect(name).toBeLessThanOrEqual(9);
     expect(subwayLineKey('  공항철도 ')).toBe(name);
     expect(subwayLineKey('')).toBe(1);
+  });
+});
+
+describe('택배 배송 조회', () => {
+  it("'지금 상태' 말로 단계 고르기 ('집하 완료'는 집하, '준비'는 접수, 모르면 없음)", () => {
+    expect(['접수', '주문 접수', '상품 준비 중', '배송 준비', '집하', '집하 완료', '출고', '간선 상차', '배송 중', '배달 출발', '터미널 도착', '배송 지연', '배송 완료', '배달완료', '수령', '반송', ''].map(parcelStep)).toEqual([
+      0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, null, null,
+    ]);
+  });
+
+  it('배송 기록 대본: 날짜·시각 + 장소: 내용, [ ] 시각, 장소 없이, 시각의 쌍점은 안 나눔', () => {
+    expect(
+      parseParcelScript(
+        ['11.13 14:05 반죽 대리점: 배송 출발', '2026.11.12(목) 22:40 시럽 허브: 간선 상차', '[어제 밤] 와플상점: 접수', '오후 2:05 배송 완료', '14:05: 문 앞', '그냥 한 줄', '', '   '].join('\n'),
+      ),
+    ).toEqual([
+      { time: '11.13 14:05', place: '반죽 대리점', detail: '배송 출발' },
+      { time: '2026.11.12(목) 22:40', place: '시럽 허브', detail: '간선 상차' },
+      { time: '어제 밤', place: '와플상점', detail: '접수' },
+      { time: '오후 2:05', place: '', detail: '배송 완료' },
+      { time: '14:05', place: '', detail: '문 앞' },
+      { time: '', place: '', detail: '그냥 한 줄' },
+    ]);
   });
 });

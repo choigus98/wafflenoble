@@ -50,6 +50,7 @@ import {
   type RankData,
   type TodoData,
   type WeatherData,
+  type ParcelData,
   type ReceiptData,
   type SearchData,
   type SmsData,
@@ -64,7 +65,7 @@ import { cn } from '@/lib/utils';
 const COMMIT_DELAY_MS = 300;
 
 type CardBlock = Extract<StoryBlock, { kind: 'live' | 'donation' | 'news' | 'call' | 'note' | 'mail' | 'location' | 'transfer' | 'alarm' | 'event' | 'music' | 'namecard' | 'subway' }>;
-type ConversationBlock = Extract<StoryBlock, { kind: 'kakao' | 'chat' | 'post' | 'system' | 'sns' | 'search' | 'push' | 'sms' | 'receipt' | 'poll' | 'item' | 'rank' | 'todo' | 'weather' }>;
+type ConversationBlock = Extract<StoryBlock, { kind: 'kakao' | 'chat' | 'post' | 'system' | 'sns' | 'search' | 'push' | 'sms' | 'receipt' | 'poll' | 'item' | 'rank' | 'todo' | 'weather' | 'parcel' }>;
 
 const TEXTAREA =
   'w-full resize-y rounded-2xl border border-line bg-surface px-4 py-3 text-base leading-relaxed text-fg field-sizing-content placeholder:text-muted/60 focus:border-accent focus:ring-3 focus:ring-accent/20 focus:outline-none';
@@ -84,6 +85,7 @@ const SCRIPT_PLACEHOLDER: Record<ConversationBlock['kind'], string> = {
   rank: '밥알: 1,250,000원 ▲2\n감자도리: 980,000원 ▼1\n초코우유: 750,000원 NEW',
   todo: '[x] 와플 반죽\n[ ] 시럽 사 오기\n--- 저녁 ---\n[ ] 전화하기',
   weather: '지금: 맑음 12°\n오후 4시: 흐림 11°\n오후 6시: 비 9°',
+  parcel: '11.13 14:05 반죽 대리점: 배송 출발\n11.13 09:12 반죽 터미널: 간선 하차\n11.12 18:03 시럽 집하점: 집하',
 };
 
 function useDraft<T extends StoryBlock>(block: T, onChange: (block: StoryBlock) => void) {
@@ -311,7 +313,8 @@ export function ConversationEditor({
           draft.kind === 'item' ||
           draft.kind === 'rank' ||
           draft.kind === 'todo' ||
-          draft.kind === 'weather'
+          draft.kind === 'weather' ||
+          draft.kind === 'parcel'
         ? []
         : scriptSpeakers(lines);
 
@@ -330,7 +333,8 @@ export function ConversationEditor({
       | Partial<ItemData>
       | Partial<RankData>
       | Partial<TodoData>
-      | Partial<WeatherData>,
+      | Partial<WeatherData>
+      | Partial<ParcelData>,
   ) {
     update({ ...draft, data: { ...draft.data, ...patch } } as ConversationBlock);
   }
@@ -345,7 +349,8 @@ export function ConversationEditor({
       draft.kind === 'item' ||
       draft.kind === 'rank' ||
       draft.kind === 'todo' ||
-      draft.kind === 'weather'
+      draft.kind === 'weather' ||
+      draft.kind === 'parcel'
     )
       return;
     if (draft.kind === 'sns') {
@@ -600,6 +605,45 @@ export function ConversationEditor({
               inputClassName="flex-1"
             />
           </>
+        ) : draft.kind === 'parcel' ? (
+          <>
+            <MiniInput label="택배사" value={draft.data.carrier} maxLength={20} onChange={(carrier) => setData({ carrier })} inputClassName="w-28" />
+            <MiniInput
+              label="운송장 번호"
+              value={draft.data.tracking}
+              maxLength={30}
+              placeholder="비우면 안 보여요"
+              onChange={(tracking) => setData({ tracking })}
+              inputClassName="w-40"
+            />
+            <MiniInput
+              label="상품"
+              value={draft.data.item}
+              maxLength={60}
+              placeholder="비우면 안 보여요"
+              onChange={(item) => setData({ item })}
+              className="w-full"
+              inputClassName="flex-1"
+            />
+            <MiniInput
+              label="지금 상태"
+              value={draft.data.status}
+              maxLength={30}
+              placeholder="접수 · 집하 · 배송 중 · 배송 완료"
+              onChange={(status) => setData({ status })}
+              className="w-full"
+              inputClassName="flex-1"
+            />
+            <MiniInput
+              label="도착 예정"
+              value={draft.data.eta}
+              maxLength={40}
+              placeholder="비우면 안 보여요"
+              onChange={(eta) => setData({ eta })}
+              className="w-full"
+              inputClassName="flex-1"
+            />
+          </>
         ) : draft.kind === 'weather' ? (
           <>
             <MiniInput label="장소" value={draft.data.place} maxLength={40} onChange={(place) => setData({ place })} className="w-full" inputClassName="flex-1" />
@@ -756,7 +800,7 @@ export function ConversationEditor({
             ref={scriptRef}
             value={draft.data.script}
             onChange={(e) => setData({ script: e.target.value })}
-            aria-label={draft.kind === 'post' ? '댓글 대본' : draft.kind === 'sns' ? '답글 대본' : draft.kind === 'search' ? '검색 결과 대본' : draft.kind === 'push' ? '알림 대본' : draft.kind === 'receipt' ? '품목 대본' : draft.kind === 'poll' ? '선택지 대본' : draft.kind === 'item' ? '능력치 대본' : draft.kind === 'rank' ? '순위 대본' : draft.kind === 'todo' ? '할 일 대본' : draft.kind === 'weather' ? '시간별 대본' : '대본'}
+            aria-label={draft.kind === 'post' ? '댓글 대본' : draft.kind === 'sns' ? '답글 대본' : draft.kind === 'search' ? '검색 결과 대본' : draft.kind === 'push' ? '알림 대본' : draft.kind === 'receipt' ? '품목 대본' : draft.kind === 'poll' ? '선택지 대본' : draft.kind === 'item' ? '능력치 대본' : draft.kind === 'rank' ? '순위 대본' : draft.kind === 'todo' ? '할 일 대본' : draft.kind === 'weather' ? '시간별 대본' : draft.kind === 'parcel' ? '배송 기록 대본' : '대본'}
             spellCheck={false}
             maxLength={LIMITS.script}
             placeholder={SCRIPT_PLACEHOLDER[draft.kind]}
@@ -868,6 +912,12 @@ const SCRIPT_HELP: Record<ConversationBlock['kind'], Array<[string, string]>> = 
     ['「…」 또는 […]', '등급 색으로 굵게'],
     ['---', '구분선'],
     ['그냥 쓰기', '설명 글'],
+  ],
+  parcel: [
+    ['11.13 14:05 대리점: 배송 출발', '기록 한 줄 (위가 최근)'],
+    ['[어제 밤] 허브: 간선 상차', '시각을 괄호로'],
+    ['14:05 배송 출발', '장소 없이'],
+    ['접수 · 집하 · 배송 중 · 배송 완료', "'지금 상태'로 단계"],
   ],
   weather: [
     ['오후 3시: 맑음 12°', '시간별 한 칸'],

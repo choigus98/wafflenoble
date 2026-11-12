@@ -32,6 +32,9 @@ import {
   smsContact,
   splitMailSender,
   subwayLineKey,
+  PARCEL_STEPS,
+  parcelStep,
+  parseParcelScript,
   todoProgress,
   weatherKind,
   type AlarmData,
@@ -58,6 +61,7 @@ import {
   type SmsData,
   type SnsData,
   type SubwayData,
+  type ParcelData,
   type StoryBlock,
   type SystemData,
   type TodoData,
@@ -144,6 +148,8 @@ export function StoryBlockView({ block }: { block: StoryBlock }) {
       return <WeatherCard data={block.data} />;
     case 'subway':
       return <SubwayCard data={block.data} />;
+    case 'parcel':
+      return <ParcelCard data={block.data} />;
   }
 }
 
@@ -2010,6 +2016,95 @@ export function SubwayCard({ data, field }: { data: SubwayData; field?: FieldRen
           </div>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+/**
+ * 택배 배송 조회: 택배 앱 카드 (택배사 동그라미 · 운송장 · 상품 · 지금 상태(크게) · 도착 예정 · 네 단계 진행 · 배송 기록).
+ * 단계는 '지금 상태' 말로 고른다 (parcelStep, 모르는 말이면 단계 표시 없음). 낭독기에는 단계를 목록으로 읽고 지금 단계를 알려 준다.
+ * 배송 기록은 대본 한 줄에 하나 (parseParcelScript), 맨 위 기록이 가장 최근이라 진하게
+ */
+function ParcelCard({ data }: { data: ParcelData }) {
+  const step = parcelStep(data.status);
+  const records = parseParcelScript(data.script);
+  const badge = [...data.carrier.trim()][0] ?? '택';
+  const last = PARCEL_STEPS.length - 1;
+
+  return (
+    <div className="wn-block mx-auto w-full max-w-[420px] rounded-[20px] border border-(--wn-border) bg-(--wn-parcel-bg) px-5 pt-4 pb-4 text-(--wn-fg) shadow-sm">
+      <div className="flex items-center gap-2.5">
+        <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-full bg-(--wn-parcel-accent) text-sm font-bold text-(--wn-parcel-accent-fg)">
+          {badge}
+        </span>
+        <div className="min-w-0">
+          {data.carrier.trim() ? <div className="text-sm font-bold break-keep">{data.carrier}</div> : null}
+          {data.tracking.trim() ? (
+            <div className="text-xs break-all text-(--wn-parcel-muted) tabular-nums">
+              운송장 <span className="font-medium">{data.tracking}</span>
+            </div>
+          ) : null}
+        </div>
+      </div>
+      {data.item.trim() ? <div className="mt-3 text-[13px] break-keep text-(--wn-parcel-muted)">{data.item}</div> : null}
+      {data.status.trim() ? <div className="mt-0.5 text-2xl leading-tight font-bold break-keep">{data.status}</div> : null}
+      {data.eta.trim() ? (
+        <div className="mt-2 inline-flex max-w-full items-center gap-1.5 rounded-lg bg-(--wn-parcel-chip) px-2.5 py-1 text-[13px] font-semibold text-(--wn-parcel-accent)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-3.5 shrink-0">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 7v5l3 2" />
+          </svg>
+          <span className="min-w-0 break-keep">{data.eta}</span>
+        </div>
+      ) : null}
+      {/* 네 단계: 점과 선은 그림(낭독기에서 숨김), 이름은 목록으로 읽고 지금 단계는 aria-current */}
+      <div className="relative mt-4">
+        <span aria-hidden="true" className="absolute top-[7px] right-[12.5%] left-[12.5%] h-0.5 rounded-full bg-(--wn-parcel-track)" />
+        {step !== null && step > 0 ? (
+          <span aria-hidden="true" className="absolute top-[7px] left-[12.5%] h-0.5 rounded-full bg-(--wn-parcel-accent)" style={{ width: `${(step / last) * 75}%` }} />
+        ) : null}
+        <ol aria-label="배송 단계" className="relative grid grid-cols-4 text-center text-[11px] leading-tight">
+          {PARCEL_STEPS.map((label, index) => {
+            const done = step !== null && index <= step;
+            const current = index === step;
+            return (
+              <li key={label} aria-current={current ? 'step' : undefined} className="flex min-w-0 flex-col items-center gap-1.5 px-0.5">
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    'size-4 shrink-0 rounded-full border-2',
+                    done ? 'border-(--wn-parcel-accent) bg-(--wn-parcel-accent)' : 'border-(--wn-parcel-muted) bg-(--wn-parcel-bg)',
+                    current && 'ring-4 ring-[color-mix(in_srgb,var(--wn-parcel-accent)_25%,transparent)]',
+                  )}
+                />
+                <span className={cn('break-keep', current ? 'font-bold text-(--wn-parcel-accent)' : done ? 'font-medium' : 'text-(--wn-parcel-muted)')}>{label}</span>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+      {records.length > 0 ? (
+        <ol aria-label="배송 기록" className="mt-4 border-t border-(--wn-line) pt-3">
+          {records.map((record, index) => (
+            <li key={index} className="relative grid grid-cols-[0.75rem_minmax(0,1fr)] gap-x-3 pb-3 last:pb-0">
+              {/* 기록 사이를 잇는 세로선 (마지막 줄 아래는 없음) */}
+              {index < records.length - 1 ? <span aria-hidden="true" className="absolute top-3.5 bottom-0 left-[5px] w-0.5 bg-(--wn-parcel-track)" /> : null}
+              <span
+                aria-hidden="true"
+                className={cn('relative mt-1 size-3 rounded-full', index === 0 ? 'bg-(--wn-parcel-accent)' : 'border-2 border-(--wn-parcel-muted) bg-(--wn-parcel-bg)')}
+              />
+              <div className="min-w-0">
+                {record.detail ? <div className={cn('text-sm break-keep', index === 0 && 'font-bold')}>{record.detail}</div> : null}
+                {record.place || record.time ? (
+                  <div className="text-xs break-keep text-(--wn-parcel-muted)">
+                    {[record.place, record.time].filter(Boolean).join(' · ')}
+                  </div>
+                ) : null}
+              </div>
+            </li>
+          ))}
+        </ol>
+      ) : null}
     </div>
   );
 }

@@ -8,6 +8,7 @@
 import {
   CALL_DETAIL_DEFAULT,
   kakaoTitle,
+  parseParcelScript,
   parsePollScript,
   parseRankScript,
   parseReceiptScript,
@@ -118,6 +119,19 @@ export function storyBlockToText(block: StoryBlock): string {
         const { data } = block;
         const around = [data.prev.trim() && `이전 역: ${data.prev.trim()}`, data.next.trim() && `다음 역: ${data.next.trim()}`].filter(Boolean).join(' · ');
         return lines([data.line, data.direction].map((value) => value.trim()).filter(Boolean).join(' · '), data.station.trim() && `이번 역: ${data.station.trim()}`, around, data.message);
+      }
+      case 'parcel': {
+        const { data } = block;
+        const records = parseParcelScript(data.script)
+          .map((record) => [record.time, record.place && `${record.place}:`, record.detail].filter(Boolean).join(' '))
+          .join('\n');
+        return lines(
+          [data.carrier.trim(), data.tracking.trim() && `운송장 ${data.tracking.trim()}`].filter(Boolean).join(' · '),
+          data.item,
+          data.status.trim() && `지금 상태: ${data.status.trim()}`,
+          data.eta,
+          records,
+        );
       }
       case 'weather': {
         const { data } = block;

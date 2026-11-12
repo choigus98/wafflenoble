@@ -105,6 +105,20 @@ describe('회차 텍스트로 내보내기', () => {
     expect(storyBlockToText(createTemplate('subway'))).toBe(
       ['[지하철 안내]', '2호선 · 시럽 방면', '이번 역: 반죽', '이전 역: 버터 · 다음 역: 시럽', '이번 역은 반죽, 반죽역입니다. 내리실 문은 오른쪽입니다.'].join('\n'),
     );
+    expect(storyBlockToText(createTemplate('parcel'))).toBe(
+      [
+        '[택배 배송 조회]',
+        '와플택배 · 운송장 6012-3456-7890',
+        '수제 시럽 세트 외 1건',
+        '지금 상태: 배송 중',
+        '오늘 18~20시 도착 예정',
+        '11.13 14:05 반죽 대리점: 배송 출발',
+        '11.13 09:12 반죽 터미널: 간선 하차',
+        '11.12 22:40 시럽 허브: 간선 상차',
+        '11.12 18:03 시럽 집하점: 집하',
+        '11.12 15:31 와플상점: 접수',
+      ].join('\n'),
+    );
     const subway = createTemplate('subway');
     if (subway.kind !== 'subway') throw new Error('지하철 안내 템플릿이 아니에요');
     expect(storyBlockToText({ ...subway, data: { ...subway.data, direction: '', next: '', message: '' } })).toBe(['[지하철 안내]', '2호선', '이번 역: 반죽', '이전 역: 버터'].join('\n'));
@@ -123,7 +137,7 @@ describe('회차 텍스트로 내보내기', () => {
   });
 
   it('모든 템플릿이 머리 한 줄 + 글로 풀린다 (빈 줄 없이)', () => {
-    const keys = ['kakao-dm', 'kakao-group', 'live', 'chat', 'donation', 'post', 'system-quest', 'system-status', 'news', 'call-incoming', 'call-active', 'note', 'sns', 'mail', 'search', 'push', 'sms', 'receipt', 'location', 'poll', 'transfer', 'alarm', 'event', 'item', 'music', 'rank', 'todo', 'namecard', 'weather', 'subway'] as const;
+    const keys = ['kakao-dm', 'kakao-group', 'live', 'chat', 'donation', 'post', 'system-quest', 'system-status', 'news', 'call-incoming', 'call-active', 'note', 'sns', 'mail', 'search', 'push', 'sms', 'receipt', 'location', 'poll', 'transfer', 'alarm', 'event', 'item', 'music', 'rank', 'todo', 'namecard', 'weather', 'subway', 'parcel'] as const;
     for (const key of keys) {
       const text = storyBlockToText(createTemplate(key));
       const [head, ...rest] = text.split('\n');
