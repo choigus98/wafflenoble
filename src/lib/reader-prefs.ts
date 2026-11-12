@@ -1,4 +1,4 @@
-// 이 기기의 읽기 설정 (글자 크기 · 줄 간격 · 글꼴 · 화면 모드 · 본문 폭). localStorage에 두고,
+// 이 기기의 읽기 설정 (글자 크기 · 줄 간격 · 문단 간격 · 글꼴 · 화면 모드 · 본문 폭). localStorage에 두고,
 // 첫 화면을 그리기 전에 app/layout.tsx의 짧은 스크립트가 <html data-*>에 반영한다 (깜빡임 없이).
 // 회차 화면의 '가'(읽기 설정)와 위쪽 바의 화면 모드 단추가 같은 값을 쓴다.
 
@@ -10,12 +10,13 @@ export type ReaderPrefs = {
   font?: 'sans' | 'serif';
   theme?: ThemeChoice;
   width?: number; // 0 좁게 · 2 넓게 (없으면 보통). 넓은 화면에서 한 줄 길이
+  gap?: number; // 문단 간격: 0 좁게 · 2 넓게 (없으면 보통)
 };
 
 export const READER_PREFS_KEY = 'wn:reader-settings';
 const CHANGE_EVENT = 'wn:reader-settings';
 /** <html data-*>로 옮기는 값들. app/layout.tsx의 첫 화면 스크립트도 이 목록을 쓴다 */
-export const READER_PREF_KEYS = ['theme', 'size', 'leading', 'font', 'width'] as const;
+export const READER_PREF_KEYS = ['theme', 'size', 'leading', 'font', 'width', 'gap'] as const;
 
 /** 주소창·상태 표시줄 색 (layout.tsx의 viewport.themeColor와 같은 값) */
 export const THEME_COLORS = { light: '#fbf7f1', dark: '#15120f' } as const;

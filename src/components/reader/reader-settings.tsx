@@ -47,6 +47,12 @@ export function ReaderSettings({ share }: { share?: { path: string; title: strin
             onSelect={(index) => update({ leading: index })}
           />
           <Option
+            label="문단 간격"
+            options={['좁게', '보통', '넓게']}
+            selected={settings.gap ?? 1}
+            onSelect={(index) => update({ gap: index === 1 ? undefined : index })}
+          />
+          <Option
             label="글꼴"
             options={['고딕', '명조']}
             selected={settings.font === 'serif' ? 1 : 0}

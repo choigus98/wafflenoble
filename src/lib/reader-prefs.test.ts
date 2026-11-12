@@ -18,8 +18,8 @@ describe('읽기 설정 저장값', () => {
 });
 
 describe('첫 화면 스크립트가 옮기는 값', () => {
-  it('본문 폭까지 다섯 가지 (빠지면 새로 고칠 때 설정이 잠깐 풀려 보임)', () => {
-    expect([...READER_PREF_KEYS]).toEqual(['theme', 'size', 'leading', 'font', 'width']);
-    expect(parseReaderPrefs('{"width":0,"size":3}')).toEqual({ width: 0, size: 3 });
+  it('본문 폭·문단 간격까지 여섯 가지 (빠지면 새로 고칠 때 설정이 잠깐 풀려 보임)', () => {
+    expect([...READER_PREF_KEYS]).toEqual(['theme', 'size', 'leading', 'font', 'width', 'gap']);
+    expect(parseReaderPrefs('{"width":0,"size":3,"gap":2}')).toEqual({ width: 0, size: 3, gap: 2 });
   });
 });

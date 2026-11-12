@@ -419,6 +419,10 @@ body {
 :root[data-leading="0"] { --reader-leading: 1.65; }
 :root[data-leading="1"] { --reader-leading: 1.85; }
 :root[data-leading="2"] { --reader-leading: 2.15; }
+/* 문단 간격 (문단 사이 여백, 본문 글자 크기 기준) */
+:root { --reader-gap: 0.95em; }
+:root[data-gap="0"] { --reader-gap: 0.45em; }
+:root[data-gap="2"] { --reader-gap: 1.7em; }
 :root[data-font="serif"] { --reader-font: var(--font-serif); }
 
 /* 본문 폭: 넓은 화면에서 한 줄 길이 (보통 = 원래 폭 48rem). 회차 화면에서만 열람 칸과 위쪽 바를 같이 바꾼다.
@@ -440,7 +444,7 @@ body:has(article[data-reading]) :is(#main, [data-reader-bar]) {
   letter-spacing: -0.003em;
 }
 .novel-body p {
-  margin: 0 0 0.95em;
+  margin: 0 0 var(--reader-gap);
 }
 /* 빈 줄도 한 줄 높이를 차지하게 */
 .novel-body p:empty::after {
