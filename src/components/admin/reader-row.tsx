@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { startTransition, useActionState, useMemo, useState, type FormEvent } from 'react';
 import { deleteReader, renameReader } from '@/app/admin/actions';
 import { SubmitButton } from '@/components/submit-button';
@@ -14,6 +15,8 @@ type ReaderSummary = {
   lastSeen: string;
   readChapters: number;
   likes: number;
+  // 가장 최근에 연 회차 (작품이 여러 개일 수 있어서 작품 이름도 같이)
+  lastRead: { href: string; novel: string; chapter: string; at: string; when: string } | null;
 };
 
 export function ReaderRow({ reader }: { reader: ReaderSummary }) {
@@ -47,6 +50,16 @@ export function ReaderRow({ reader }: { reader: ReaderSummary }) {
           처음 {reader.firstSeen} · 마지막 {reader.lastSeen} · 읽은 회차 {reader.readChapters} ·{' '}
           <span className="text-like">♥ {reader.likes}</span>
         </p>
+        {reader.lastRead ? (
+          // 제목이 길면 자르지 않고 다음 줄로 (관리자가 끝까지 읽을 수 있게)
+          <p className="text-[13px] leading-relaxed break-keep text-muted">
+            최근에 읽은 회차{' '}
+            <Link href={reader.lastRead.href} className="font-medium text-accent underline-offset-2 hover:underline">
+              {reader.lastRead.novel} · {reader.lastRead.chapter}
+            </Link>{' '}
+            · <time dateTime={reader.lastRead.at}>{reader.lastRead.when}</time>
+          </p>
+        ) : null}
         <FormMessage state={state} />
       </div>
       {!editing ? (

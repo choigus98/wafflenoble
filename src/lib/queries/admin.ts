@@ -131,17 +131,36 @@ export async function adminGetChapter(novelId: number, chapterId: number) {
 
 export async function adminListReaders() {
   await requireAdmin();
-  return db
-    .select({
-      id: readers.id,
-      nickname: readers.nickname,
-      createdAt: readers.createdAt,
-      lastSeenAt: readers.lastSeenAt,
-      readChapters: readerReadCount,
-      likes: readerLikeCount,
-    })
-    .from(readers)
-    .orderBy(desc(readers.lastSeenAt));
+  const [list, lastReads] = await Promise.all([
+    db
+      .select({
+        id: readers.id,
+        nickname: readers.nickname,
+        createdAt: readers.createdAt,
+        lastSeenAt: readers.lastSeenAt,
+        readChapters: readerReadCount,
+        likes: readerLikeCount,
+      })
+      .from(readers)
+      .orderBy(desc(readers.lastSeenAt)),
+    // 길드원마다 가장 최근에 연 회차 하나 (distinct on)
+    db
+      .selectDistinctOn([chapterViews.readerId], {
+        readerId: chapterViews.readerId,
+        at: chapterViews.lastViewedAt,
+        chapterId: chapters.id,
+        novelId: chapters.novelId,
+        position: chapters.position,
+        title: chapters.title,
+        novelTitle: novels.title,
+      })
+      .from(chapterViews)
+      .innerJoin(chapters, eq(chapters.id, chapterViews.chapterId))
+      .innerJoin(novels, eq(novels.id, chapters.novelId))
+      .orderBy(chapterViews.readerId, desc(chapterViews.lastViewedAt)),
+  ]);
+  const lastReadBy = new Map(lastReads.map((row) => [row.readerId, row]));
+  return list.map((reader) => ({ ...reader, lastRead: lastReadBy.get(reader.id) ?? null }));
 }
 
 export async function adminGetGuildSettings() {

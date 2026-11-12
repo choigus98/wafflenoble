@@ -46,6 +46,17 @@ async function ReaderList() {
             lastSeen: formatRelative(reader.lastSeenAt, now),
             readChapters: reader.readChapters,
             likes: reader.likes,
+            lastRead: reader.lastRead
+              ? {
+                  href: `/admin/novels/${reader.lastRead.novelId}/chapters/${reader.lastRead.chapterId}`,
+                  novel: reader.lastRead.novelTitle,
+                  chapter: reader.lastRead.title
+                    ? `${reader.lastRead.position}화 「${reader.lastRead.title}」`
+                    : `${reader.lastRead.position}화`,
+                  at: reader.lastRead.at.toISOString(),
+                  when: formatRelative(reader.lastRead.at, now),
+                }
+              : null,
           }}
         />
       ))}
