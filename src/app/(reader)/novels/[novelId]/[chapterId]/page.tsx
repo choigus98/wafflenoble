@@ -1,0 +1,107 @@
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { Suspense } from 'react';
+import { LikeButton } from '@/components/reader/like-button';
+import { ReaderSettings } from '@/components/reader/reader-settings';
+import { ViewTracker } from '@/components/reader/view-tracker';
+import { Badge, ButtonLink, Skeleton } from '@/components/ui';
+import { formatDate, formatNumber } from '@/lib/format';
+import { getChapterView } from '@/lib/queries/reader';
+import { parseId } from '@/lib/utils';
+
+export default function ChapterPage({ params }: PageProps<'/novels/[novelId]/[chapterId]'>) {
+  return (
+    <Suspense fallback={<ChapterSkeleton />}>
+      <ChapterView params={params} />
+    </Suspense>
+  );
+}
+
+async function ChapterView({ params }: Pick<PageProps<'/novels/[novelId]/[chapterId]'>, 'params'>) {
+  const { novelId: rawNovelId, chapterId: rawChapterId } = await params;
+  const novelId = parseId(rawNovelId);
+  const chapterId = parseId(rawChapterId);
+  if (!novelId || !chapterId) notFound();
+  const data = await getChapterView(novelId, chapterId);
+  if (!data) notFound();
+
+  const { viewer, novel, chapter, prev, next, likes, readCount } = data;
+  const isReader = viewer.kind === 'reader';
+
+  return (
+    <article className="pt-6">
+      <header className="flex items-start justify-between gap-3 border-b border-line pb-5">
+        <div className="min-w-0 space-y-1.5">
+          <Link href={`/novels/${novel.id}`} className="block truncate text-sm font-semibold text-accent hover:underline">
+            {novel.title}
+          </Link>
+          <h1 className="text-xl leading-snug font-bold tracking-tight break-keep sm:text-2xl">
+            <span className="mr-2 text-muted">{chapter.position}화</span>
+            {chapter.title}
+          </h1>
+          <p className="flex items-center gap-2 text-xs text-muted">
+            {chapter.publishedAt ? formatDate(chapter.publishedAt) : null}
+            {chapter.status === 'draft' ? <Badge tone="danger">미리보기 · 임시저장</Badge> : null}
+          </p>
+        </div>
+        <ReaderSettings />
+      </header>
+
+      {chapter.contentHtml ? (
+        <div className="novel-body py-9" dangerouslySetInnerHTML={{ __html: chapter.contentHtml }} />
+      ) : (
+        <p className="py-16 text-center text-muted">아직 본문이 없어요.</p>
+      )}
+
+      <footer className="space-y-7 border-t border-line pt-7">
+        <div className="flex flex-col items-center gap-3">
+          <LikeButton
+            chapterId={chapter.id}
+            initial={likes}
+            disabledReason={isReader ? null : '관리자는 좋아요를 누를 수 없어요'}
+          />
+          <p className="text-xs text-muted">{formatNumber(readCount)}명이 읽었어요</p>
+        </div>
+
+        <nav className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+          {prev ? (
+            <ButtonLink href={`/novels/${novel.id}/${prev.id}`} variant="secondary" className="justify-start truncate">
+              ← {prev.position}화
+            </ButtonLink>
+          ) : (
+            <span />
+          )}
+          <ButtonLink href={`/novels/${novel.id}`} variant="ghost">
+            목록
+          </ButtonLink>
+          {next ? (
+            <ButtonLink href={`/novels/${novel.id}/${next.id}`} className="justify-end truncate">
+              {next.position}화 →
+            </ButtonLink>
+          ) : (
+            <span className="text-right text-xs text-muted">마지막 화예요</span>
+          )}
+        </nav>
+      </footer>
+
+      {isReader && chapter.status === 'published' ? <ViewTracker chapterId={chapter.id} /> : null}
+    </article>
+  );
+}
+
+function ChapterSkeleton() {
+  return (
+    <div className="pt-6">
+      <div className="space-y-2 border-b border-line pb-5">
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-7 w-3/4" />
+        <Skeleton className="h-3 w-20" />
+      </div>
+      <div className="space-y-3 py-9">
+        {Array.from({ length: 10 }, (_, index) => (
+          <Skeleton key={index} className={index % 3 === 2 ? 'h-5 w-2/3' : 'h-5'} />
+        ))}
+      </div>
+    </div>
+  );
+}
