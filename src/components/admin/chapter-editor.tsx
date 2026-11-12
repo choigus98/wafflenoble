@@ -20,6 +20,7 @@ import { CheckMenu, type CheckTool } from '@/components/admin/check-menu';
 import { CharGoal } from '@/components/admin/char-goal';
 import { FindBar, FindReplace } from '@/components/admin/find-replace';
 import { LongSentenceMarks, LongSentencePanel } from '@/components/admin/long-sentence-panel';
+import { MoveBlock } from '@/components/admin/move-block';
 import { ParagraphFlash } from '@/components/admin/paragraph-flash';
 import { RepeatPanel } from '@/components/admin/repeat-panel';
 import { ScenePanel, jumpToScene } from '@/components/admin/scene-panel';
@@ -353,6 +354,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
       LongSentenceMarks,
       ParagraphFlash,
       SpeakMarks,
+      MoveBlock,
     ],
     content: chapter.contentHtml,
     editorProps: {
