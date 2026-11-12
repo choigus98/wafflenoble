@@ -10,7 +10,8 @@ import { requireViewer } from '@/lib/auth/guards';
 export default function ReaderLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="sticky top-0 z-30 border-b border-line bg-bg/85 backdrop-blur-md">
+      {/* data-print-hide: 인쇄·PDF로 저장할 때는 숨김 (globals.css) */}
+      <header data-print-hide="" className="sticky top-0 z-30 border-b border-line bg-bg/85 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-3xl items-center justify-between gap-3 px-4">
           <Link href="/" className="rounded-lg focus-visible:outline-2 focus-visible:outline-accent">
             <Logo />

@@ -39,6 +39,7 @@ export function BackToTop({ targetId }: { targetId: string }) {
       }}
       aria-label="맨 위로"
       title="맨 위로"
+      data-print-hide=""
       className="fixed right-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-30 grid size-11 place-items-center rounded-full border border-line bg-surface/95 text-fg shadow-lg shadow-black/10 backdrop-blur transition hover:bg-surface-2 sm:right-6 sm:bottom-6"
     >
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-5">

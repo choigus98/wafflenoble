@@ -86,7 +86,7 @@ export function ReadingProgress({ chapterId }: { chapterId: number }) {
 
   return (
     <>
-      <div aria-hidden="true" className="fixed inset-x-0 top-0 z-40 h-[3px]">
+      <div aria-hidden="true" data-print-hide="" className="fixed inset-x-0 top-0 z-40 h-[3px]">
         {/* scale-x-0 클래스는 Tailwind 4에서 CSS scale 속성이라 아래 transform과 곱해져 막대가 안 보인다 → 처음 값은 인라인으로 */}
         <div
           ref={barRef}
@@ -97,6 +97,7 @@ export function ReadingProgress({ chapterId }: { chapterId: number }) {
       {offer !== null ? (
         <div
           role="status"
+          data-print-hide=""
           className="fixed inset-x-0 bottom-5 z-40 mx-auto flex w-fit max-w-[calc(100%-2rem)] items-center gap-1 rounded-full border border-line bg-surface py-1.5 pr-1.5 pl-4 text-sm shadow-lg shadow-black/10"
         >
           <span className="text-muted">지난번 {Math.round(offer * 100)}%까지 읽었어요</span>

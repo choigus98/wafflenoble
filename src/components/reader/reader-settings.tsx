@@ -56,6 +56,21 @@ export function ReaderSettings() {
             selected={settings.theme === 'light' ? 1 : settings.theme === 'dark' ? 2 : 0}
             onSelect={(index) => update({ theme: index === 1 ? 'light' : index === 2 ? 'dark' : undefined })}
           />
+          {/* 인쇄·PDF로 저장: 머리 메뉴·단추는 빠지고 제목·본문·작가의 말만 (globals.css의 인쇄 모양) */}
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              window.print();
+            }}
+            className="flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-line text-[13px] font-semibold transition hover:bg-surface-2"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-4">
+              <path d="M7 9V3h10v6M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2" />
+              <path d="M7 14h10v7H7z" />
+            </svg>
+            인쇄 · PDF로 저장
+          </button>
         </div>
       ) : null}
     </div>

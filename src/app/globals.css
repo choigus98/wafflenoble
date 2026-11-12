@@ -456,3 +456,44 @@ html[data-focus="on"] [data-focus-grid] {
 .ProseMirror hr.ProseMirror-selectednode::after {
   color: var(--accent);
 }
+
+/* ─── 인쇄 · PDF로 저장 (회차 화면): 머리 메뉴·단추 없이 제목·본문·작가의 말만 ─────────────
+   어두운 화면이어도 인쇄하는 동안은 밝은 화면으로 바꿔 찍는다 (app/layout.tsx의 beforeprint) */
+@page {
+  margin: 18mm 16mm;
+}
+@media print {
+  [data-print-hide] {
+    display: none !important;
+  }
+  html,
+  body {
+    background: #fff !important;
+  }
+  main {
+    padding-bottom: 0 !important;
+  }
+  .novel-body {
+    font-size: 11.5pt;
+    line-height: 1.8;
+  }
+  .novel-body p {
+    orphans: 2;
+    widows: 2;
+  }
+  /* 템플릿은 화면 색 그대로 찍고, 쪽 경계에서 잘리지 않게 */
+  .wn-block {
+    break-inside: avoid;
+    box-shadow: none !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  #chapter-title {
+    break-after: avoid;
+  }
+  a[href] {
+    color: inherit;
+    text-decoration: none;
+  }
+}
+

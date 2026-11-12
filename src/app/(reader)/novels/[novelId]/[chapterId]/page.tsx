@@ -73,7 +73,7 @@ async function ChapterView({ params }: Pick<PageProps<'/novels/[novelId]/[chapte
           </p>
         </div>
         {/* 목차 목록은 이 묶음의 오른쪽 끝에 맞춰 펼쳐진다 */}
-        <div className="relative flex shrink-0 gap-2">
+        <div data-print-hide="" className="relative flex shrink-0 gap-2">
           {toc.length > 1 ? (
             <ChapterToc
               // 다른 회차로 가면 닫힌 상태로 새로 그린다
@@ -108,7 +108,7 @@ async function ChapterView({ params }: Pick<PageProps<'/novels/[novelId]/[chapte
         </aside>
       ) : null}
 
-      <footer className="space-y-7 border-t border-line pt-7">
+      <footer data-print-hide="" className="space-y-7 border-t border-line pt-7">
         <div className="flex flex-col items-center gap-3">
           <LikeButton
             chapterId={chapter.id}
