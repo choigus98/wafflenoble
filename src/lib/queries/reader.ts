@@ -5,11 +5,13 @@ import { db } from '@/lib/db';
 import { chapterViews, chapters, novels } from '@/lib/db/schema';
 import { getLikeSummary } from './reactions';
 import {
+  chapterIsNewFor,
   chapterLikeCount,
   chapterReadBy,
   isScheduledChapter,
   isVisibleChapter,
   novelLastVisibleAt,
+  novelNewChapterCount,
   novelVisibleChapterCount,
 } from './visibility';
 
@@ -21,6 +23,7 @@ import {
 export async function listNovels() {
   const viewer = await requireViewer();
   const isAdmin = viewer.kind === 'admin';
+  const readerId = viewer.kind === 'reader' ? viewer.reader.id : null;
   const rows = await db
     .select({
       id: novels.id,
@@ -31,6 +34,8 @@ export async function listNovels() {
       coverColor: novels.coverColor,
       lastPublishedAt: novelLastVisibleAt,
       chapterCount: novelVisibleChapterCount,
+      // 이 길드원이 아직 안 읽은 새 회차 수 (관리자는 0)
+      newChapters: readerId ? novelNewChapterCount(readerId) : sql<number>`0`,
     })
     .from(novels)
     .where(isAdmin ? undefined : eq(novels.isPublished, true))
@@ -47,6 +52,7 @@ export async function getNovelDetail(novelId: number) {
   if (!novel || (!isAdmin && !novel.isPublished)) return null;
 
   const readByMe = readerId ? chapterReadBy(readerId) : sql<boolean>`false`;
+  const isNew = readerId ? chapterIsNewFor(readerId) : sql<boolean>`false`;
 
   const list = await db
     .select({
@@ -58,6 +64,7 @@ export async function getNovelDetail(novelId: number) {
       scheduled: isScheduledChapter,
       likeCount: chapterLikeCount,
       readByMe,
+      isNew,
     })
     .from(chapters)
     .where(and(eq(chapters.novelId, novelId), isAdmin ? undefined : isVisibleChapter))

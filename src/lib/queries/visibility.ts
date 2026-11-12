@@ -47,6 +47,23 @@ export const chapterReaderCount = sql<number>`(select count(*)::int from ${chapt
 export const chapterReadBy = (readerId: string) =>
   sql<boolean>`exists(select 1 from ${chapterViews} v where v.chapter_id = ${chapters}.id and v.reader_id = ${readerId})`;
 
+// ─── 새 회차 (길드원마다 다름) ─────────────────────────────
+
+/** 공개된 지 이 기간 안이고 아직 안 읽은 회차를 '새 회차'로 표시한다 */
+export const NEW_CHAPTER_DAYS = 3;
+const newWindow = sql.raw(`interval '${NEW_CHAPTER_DAYS} days'`);
+
+/** 이 길드원에게 '새 회차'인지: 길드원에게 보이는 회차 중 최근에 공개됐고 아직 안 읽음 */
+export const chapterIsNewFor = (readerId: string) =>
+  sql<boolean>`(${isVisibleChapter} and ${chapters.publishedAt} > now() - ${newWindow} and not ${chapterReadBy(readerId)})`;
+
+/** 작품별: 이 길드원이 아직 안 읽은 새 회차 수 */
+export const novelNewChapterCount = (readerId: string) => sql<number>`(
+  select count(*)::int from ${chapters} c
+  where c.novel_id = ${novels}.id and ${visibleIn('c')} and c.published_at > now() - ${newWindow}
+    and not exists(select 1 from ${chapterViews} v where v.chapter_id = c.id and v.reader_id = ${readerId})
+)`;
+
 /** 길드원(readers)별 읽은 회차 수 */
 export const readerReadCount = sql<number>`(select count(*)::int from ${chapterViews} v where v.reader_id = ${readers}.id)`;
 

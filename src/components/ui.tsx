@@ -81,13 +81,14 @@ export function Badge({
   className,
   children,
 }: {
-  tone?: 'neutral' | 'accent' | 'muted' | 'danger';
+  tone?: 'neutral' | 'accent' | 'solid' | 'muted' | 'danger';
   className?: string;
   children: ReactNode;
 }) {
   const tones = {
     neutral: 'bg-surface-2 text-fg',
     accent: 'bg-accent-soft text-accent',
+    solid: 'bg-accent text-accent-fg',
     muted: 'border border-line text-muted',
     danger: 'bg-danger/10 text-danger',
   };

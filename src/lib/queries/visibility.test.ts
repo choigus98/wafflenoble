@@ -1,11 +1,13 @@
 import { PgDialect } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
 import {
+  chapterIsNewFor,
   chapterLikeCount,
   chapterReadBy,
   chapterReaderCount,
   novelChapterCount,
   novelLastVisibleAt,
+  novelNewChapterCount,
   novelScheduledChapterCount,
   novelVisibleChapterCount,
   readerLikeCount,
@@ -33,6 +35,19 @@ describe('상관 하위 쿼리는 바깥 테이블을 이름으로 가리킨다'
 
   it('이 길드원이 읽었는지', () => {
     expect(render(chapterReadBy('00000000-0000-0000-0000-000000000000'))).toContain('v.chapter_id = "chapters".id');
+  });
+
+  it('새 회차: 보이는 회차 중 3일 안에 공개됐고 이 길드원이 안 읽은 것', () => {
+    const reader = '00000000-0000-0000-0000-000000000000';
+    const perNovel = dialect.sqlToQuery(novelNewChapterCount(reader));
+    expect(perNovel.sql.replace(/\s+/g, ' ')).toContain('c.novel_id = "novels".id');
+    expect(perNovel.sql).toContain("c.published_at > now() - interval '3 days'");
+    expect(perNovel.sql).toContain('v.chapter_id = c.id and v.reader_id = $1');
+    expect(perNovel.params).toEqual([reader]);
+
+    const perChapter = dialect.sqlToQuery(chapterIsNewFor(reader));
+    expect(perChapter.sql).toContain("interval '3 days'");
+    expect(perChapter.sql).toContain('not exists(select 1 from "chapter_views" v where v.chapter_id = "chapters".id');
   });
 
   it('보이는 회차는 발행 상태이면서 공개 시각이 지난 것', () => {

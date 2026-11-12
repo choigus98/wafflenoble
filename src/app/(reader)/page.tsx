@@ -47,6 +47,8 @@ async function NovelGrid() {
             <div className="mt-3 space-y-1.5">
               <p className="line-clamp-2 leading-snug font-semibold">{novel.title}</p>
               <div className="flex flex-wrap items-center gap-1.5 text-[13px] text-muted">
+                {/* 이 길드원이 아직 안 읽은 새 회차 (최근 3일 안에 공개된 것만) */}
+                {novel.newChapters > 0 ? <Badge tone="solid">새 회차 {novel.newChapters}</Badge> : null}
                 <Badge tone={novel.serialStatus === 'completed' ? 'neutral' : 'accent'}>
                   {SERIAL_STATUS_LABEL[novel.serialStatus]}
                 </Badge>

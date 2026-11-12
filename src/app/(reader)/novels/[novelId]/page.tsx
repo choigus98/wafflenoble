@@ -87,8 +87,16 @@ async function NovelDetail({ params }: Pick<PageProps<'/novels/[novelId]'>, 'par
                     {chapter.position}화
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className={cn('block truncate font-medium', chapter.readByMe && 'text-muted')}>
-                      {chapter.title || `${chapter.position}화`}
+                    <span className="flex items-center gap-1.5">
+                      <span className={cn('min-w-0 truncate font-medium', chapter.readByMe && 'text-muted')}>
+                        {chapter.title || `${chapter.position}화`}
+                      </span>
+                      {chapter.isNew ? (
+                        <span className="shrink-0 rounded-full bg-accent px-1.5 py-px text-[10px] leading-4 font-bold tracking-wide text-accent-fg">
+                          <span aria-hidden="true">NEW</span>
+                          <span className="sr-only">새 회차</span>
+                        </span>
+                      ) : null}
                     </span>
                     <span className="mt-0.5 flex items-center gap-2 text-xs text-muted">
                       {chapter.publishedAt && !chapter.scheduled ? formatDate(chapter.publishedAt) : null}
@@ -99,7 +107,14 @@ async function NovelDetail({ params }: Pick<PageProps<'/novels/[novelId]'>, 'par
                       {chapter.likeCount > 0 ? <span className="text-like">♥ {chapter.likeCount}</span> : null}
                     </span>
                   </span>
-                  {chapter.readByMe ? <span className="shrink-0 text-xs text-muted">읽음</span> : null}
+                  {chapter.readByMe ? (
+                    <span className="flex shrink-0 items-center gap-1 text-xs text-muted">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-3.5">
+                        <path d="M5 12.5l4.5 4.5L19 7.5" />
+                      </svg>
+                      읽음
+                    </span>
+                  ) : null}
                 </Link>
               </li>
             ))}
