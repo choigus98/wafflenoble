@@ -1,51 +1,16 @@
 'use client';
 
 import type { Node as PMNode } from '@tiptap/pm/model';
-import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state';
-import { Decoration, DecorationSet } from '@tiptap/pm/view';
-import { Extension, useEditorState, type Editor } from '@tiptap/react';
+import { TextSelection } from '@tiptap/pm/state';
+import { useEditorState, type Editor } from '@tiptap/react';
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { clearFlash, FLASH_MS, withFlash } from '@/components/admin/paragraph-flash';
 import { dialogueLines, filterDialogue, type DialogueLine } from '@/lib/dialogue';
 import { particle } from '@/lib/format';
-import { scrollBelowBar } from '@/lib/motion';
+import { afterScroll, scrollBelowBar } from '@/lib/motion';
 
 // 회차 에디터 '대사 모아 보기' 창: 따옴표로 시작하는 문단만 차례로 모아 인물 말투를 이어 읽는다.
 // 낱말·이름으로 거르고(초성도), 줄을 누르면 본문의 그 대사 첫머리로 커서를 옮겨 바로 고칠 수 있게 한다 (잠깐 칠해서 어디인지 보여 줌)
-
-const FLASH_MS = 1600;
-
-// ─── 고른 대사 잠깐 칠하기 (ProseMirror 장식) ─────────────────────
-// 에디터가 관리하는 문단에 직접 class를 붙이면 ProseMirror가 바뀐 DOM을 되돌려 버려서, 장식으로 칠한다.
-// 칠할 자리는 트랜잭션 메타로 받고(되돌리기 기록·자동저장에 안 남음), 글이 바뀌면 자리를 따라간다
-
-const flashKey = new PluginKey<DecorationSet>('wn-dialogue-flash');
-
-export const DialogueFlash = Extension.create({
-  name: 'dialogueFlash',
-
-  addProseMirrorPlugins() {
-    return [
-      new Plugin<DecorationSet>({
-        key: flashKey,
-        state: {
-          init: () => DecorationSet.empty,
-          apply(tr, previous) {
-            const meta = tr.getMeta(flashKey) as { pos: number } | null | undefined;
-            if (meta === null) return DecorationSet.empty;
-            if (meta) {
-              const node = tr.doc.nodeAt(meta.pos);
-              return node ? DecorationSet.create(tr.doc, [Decoration.node(meta.pos, meta.pos + node.nodeSize, { class: 'wn-dialogue-flash' })]) : DecorationSet.empty;
-            }
-            return previous.map(tr.mapping, tr.doc);
-          },
-        },
-        props: {
-          decorations: (state) => flashKey.getState(state),
-        },
-      }),
-    ];
-  },
-});
 
 // 선택만 바뀐 트랜잭션에서도 다시 모으지 않게 문서마다 한 번만
 const collected = new WeakMap<PMNode, DialogueLine[]>();
@@ -65,6 +30,7 @@ export function DialoguePanel({ editor, onClose }: { editor: Editor; onClose: ()
   const sectionRef = useRef<HTMLElement>(null);
   const firstRef = useRef<HTMLParagraphElement>(null);
   const flashTimerRef = useRef<number | null>(null);
+  const cancelScrollWaitRef = useRef<(() => void) | null>(null);
 
   // 열면 첫 줄(없으면 안내 글)에 포커스
   useEffect(() => {
@@ -86,8 +52,9 @@ export function DialoguePanel({ editor, onClose }: { editor: Editor; onClose: ()
   // 창을 닫거나 다른 데로 가면 칠한 것 지우기
   useEffect(() => {
     return () => {
+      cancelScrollWaitRef.current?.();
       if (flashTimerRef.current !== null) window.clearTimeout(flashTimerRef.current);
-      if (!editor.isDestroyed) editor.view.dispatch(editor.state.tr.setMeta(flashKey, null));
+      clearFlash(editor);
     };
   }, [editor]);
 
@@ -95,15 +62,23 @@ export function DialoguePanel({ editor, onClose }: { editor: Editor; onClose: ()
   function go(line: DialogueLine) {
     const { state, view } = editor;
     if (line.pos + 1 > state.doc.content.size) return;
-    view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, line.pos + 1)).setMeta(flashKey, { pos: line.pos }));
+    view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, line.pos + 1)));
     view.focus();
     const element = view.nodeDOM(line.pos) as HTMLElement | null;
-    if (element) scrollBelowBar(element, sectionRef.current?.closest<HTMLElement>('[data-editor-bar]') ?? null, 'center');
-    if (flashTimerRef.current !== null) window.clearTimeout(flashTimerRef.current);
-    flashTimerRef.current = window.setTimeout(() => {
-      flashTimerRef.current = null;
-      if (!editor.isDestroyed) editor.view.dispatch(editor.state.tr.setMeta(flashKey, null));
-    }, FLASH_MS);
+    const top = element ? scrollBelowBar(element, sectionRef.current?.closest<HTMLElement>('[data-editor-bar]') ?? null, 'center') : window.scrollY;
+    // 다른 줄을 고르면 앞에 칠한 것은 지우고, 스크롤이 멈춘 뒤에 칠한다 (멀리 가면 1초 넘게 걸려서)
+    clearFlash(editor);
+    cancelScrollWaitRef.current?.();
+    cancelScrollWaitRef.current = afterScroll(top, () => {
+      cancelScrollWaitRef.current = null;
+      if (editor.isDestroyed) return;
+      editor.view.dispatch(withFlash(editor.state.tr, line.pos));
+      if (flashTimerRef.current !== null) window.clearTimeout(flashTimerRef.current);
+      flashTimerRef.current = window.setTimeout(() => {
+        flashTimerRef.current = null;
+        clearFlash(editor);
+      }, FLASH_MS);
+    });
   }
 
   return (

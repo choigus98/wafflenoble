@@ -14,11 +14,13 @@ import {
 } from '@/components/admin/story-block/story-block-node';
 import { ChangesDialog } from '@/components/admin/changes-dialog';
 import { CharacterPanel } from '@/components/admin/character-panel';
-import { DialogueFlash, DialoguePanel } from '@/components/admin/dialogue-panel';
+import { DialoguePanel } from '@/components/admin/dialogue-panel';
+import { EditSpotOffer } from '@/components/admin/edit-spot';
 import { CheckMenu, type CheckTool } from '@/components/admin/check-menu';
 import { CharGoal } from '@/components/admin/char-goal';
 import { FindBar, FindReplace } from '@/components/admin/find-replace';
 import { LongSentenceMarks, LongSentencePanel } from '@/components/admin/long-sentence-panel';
+import { ParagraphFlash } from '@/components/admin/paragraph-flash';
 import { RepeatPanel } from '@/components/admin/repeat-panel';
 import { ScenePanel, jumpToScene } from '@/components/admin/scene-panel';
 import { SpeakMarks, SpeakPanel } from '@/components/admin/speak-panel';
@@ -349,7 +351,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
       FindReplace.configure({ onOpen: openFind }),
       SpellingCheck,
       LongSentenceMarks,
-      DialogueFlash,
+      ParagraphFlash,
       SpeakMarks,
     ],
     content: chapter.contentHtml,
@@ -774,6 +776,9 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
         ) : null}
       </div>
 
+      {/* 다시 열었을 때 마지막으로 쓰던 자리가 첫 화면에 안 보이면 '쓰던 곳으로' (이 기기에 기억).
+          화면 아래에 떠 있지만 키보드로는 도구 막대 다음·본문 앞에서 닿게 여기에 둔다 (막대 안은 backdrop-filter 때문에 fixed가 막대 기준이 됨) */}
+      {editor ? <EditSpotOffer editor={editor} chapterId={chapter.id} barRef={barRef} /> : null}
       <EditorContent editor={editor} className="mt-2 rounded-2xl border border-line bg-surface" />
       <ChangesDialog result={changes} dialogRef={changesDialogRef} />
 
