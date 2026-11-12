@@ -1,0 +1,9 @@
+# pnpm 11+ 형식
+allowBuilds:
+  esbuild: true
+  sharp: false
+  unrs-resolver: false
+
+# pnpm 10 이하 형식 (배포 환경의 pnpm 버전이 다를 때를 대비)
+onlyBuiltDependencies:
+  - esbuild

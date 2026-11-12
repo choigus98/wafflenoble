@@ -1,0 +1,21 @@
+# 로컬 개발용 Postgres. `pnpm db:up`으로 띄운다 (배포 환경은 Neon)
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: wafflenoble-db
+    environment:
+      POSTGRES_USER: waffle
+      POSTGRES_PASSWORD: waffle
+      POSTGRES_DB: wafflenoble
+    ports:
+      - "54329:5432"
+    volumes:
+      - wafflenoble-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U waffle -d wafflenoble"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+volumes:
+  wafflenoble-db:
