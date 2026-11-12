@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import { NovelCover } from '@/components/novel-cover';
 import { Badge, ButtonLink, Skeleton } from '@/components/ui';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatSchedule } from '@/lib/format';
 import { getNovelDetail } from '@/lib/queries/reader';
 import { SERIAL_STATUS_LABEL, cn, parseId } from '@/lib/utils';
 
@@ -23,7 +23,7 @@ async function NovelDetail({ params }: Pick<PageProps<'/novels/[novelId]'>, 'par
   if (!data) notFound();
 
   const { viewer, novel, chapters, continueChapter } = data;
-  const first = chapters.find((chapter) => chapter.status === 'published') ?? chapters[0];
+  const first = chapters.find((chapter) => chapter.status === 'published' && !chapter.scheduled) ?? chapters[0];
 
   return (
     <article className="pt-8">
@@ -91,8 +91,11 @@ async function NovelDetail({ params }: Pick<PageProps<'/novels/[novelId]'>, 'par
                       {chapter.title || `${chapter.position}화`}
                     </span>
                     <span className="mt-0.5 flex items-center gap-2 text-xs text-muted">
-                      {chapter.publishedAt ? formatDate(chapter.publishedAt) : null}
+                      {chapter.publishedAt && !chapter.scheduled ? formatDate(chapter.publishedAt) : null}
                       {chapter.status === 'draft' ? <Badge tone="muted">임시저장</Badge> : null}
+                      {chapter.scheduled && chapter.publishedAt ? (
+                        <Badge tone="muted">예약 · {formatSchedule(chapter.publishedAt)}</Badge>
+                      ) : null}
                       {chapter.likeCount > 0 ? <span className="text-like">♥ {chapter.likeCount}</span> : null}
                     </span>
                   </span>

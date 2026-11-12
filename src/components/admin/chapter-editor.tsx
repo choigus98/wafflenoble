@@ -5,7 +5,7 @@ import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/r
 import StarterKit from '@tiptap/starter-kit';
 import Link from 'next/link';
 import { useEffect, useRef, useState, useTransition, type ReactNode } from 'react';
-import { deleteChapter, saveChapter, setChapterStatus } from '@/app/admin/actions';
+import { deleteChapter, saveChapter, scheduleChapter, setChapterStatus } from '@/app/admin/actions';
 import {
   StoryBlockNode,
   createTemplateEditingStore,
@@ -14,7 +14,7 @@ import {
 import { TemplateMenu } from '@/components/admin/story-block/template-menu';
 import { SubmitButton } from '@/components/submit-button';
 import { Badge, Button, buttonClass } from '@/components/ui';
-import { formatNumber, formatTime } from '@/lib/format';
+import { formatNumber, formatSchedule, formatTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 export type EditorChapter = {
@@ -25,6 +25,8 @@ export type EditorChapter = {
   contentHtml: string;
   status: 'draft' | 'published';
   updatedAt: string;
+  publishedAt: string | null;
+  scheduled: boolean; // 예약 발행 대기 중 (공개 시각 전이라 길드원에게 아직 안 보임)
 };
 
 type SaveState = 'saved' | 'dirty' | 'saving' | 'error';
@@ -62,6 +64,10 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
   const [title, setTitle] = useState(chapter.title);
   const [position, setPosition] = useState(String(chapter.position));
   const [status, setStatus] = useState(chapter.status);
+  const [publishAt, setPublishAt] = useState(chapter.publishedAt);
+  const [scheduled, setScheduled] = useState(chapter.scheduled);
+  // 예약 창에 띄울 기본 시각 (창이 열려 있을 때만 값이 있음)
+  const [scheduleDraft, setScheduleDraft] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>('saved');
   const [message, setMessage] = useState<{ tone: 'info' | 'error'; text: string } | null>(null);
   const [savedAt, setSavedAt] = useState(chapter.updatedAt);
@@ -81,6 +87,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
 
   const draftRef = useRef<Draft>({ title: chapter.title, position: String(chapter.position), html: chapter.contentHtml });
   const statusRef = useRef(chapter.status);
+  const scheduledRef = useRef(chapter.scheduled);
   const timerRef = useRef<number | null>(null);
   // Tiptap 콜백과 타이머가 항상 최신 함수를 부르도록 ref로 잡아 둔다
   const saveRef = useRef<() => Promise<boolean>>(async () => true);
@@ -91,6 +98,11 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
       window.clearTimeout(timerRef.current);
       timerRef.current = null;
     }
+  }
+
+  /** 길드원에게 이미 보이는 회차인지 (발행됐고 예약 시각도 지남). 보이는 회차는 서버에 자동저장하지 않는다 */
+  function isLiveNow() {
+    return statusRef.current === 'published' && !scheduledRef.current;
   }
 
   function scheduleAutosave() {
@@ -104,7 +116,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
   async function save(): Promise<boolean> {
     clearTimer();
     // 발행된 회차의 저장은 곧 길드원에게 반영이라, 템플릿을 고치는 중에는 막는다
-    if (statusRef.current === 'published' && templateStore.get() !== null) {
+    if (isLiveNow() && templateStore.get() !== null) {
       setMessage({ tone: 'error', text: '편집 중인 템플릿을 완료해야 수정을 반영할 수 있어요' });
       return false;
     }
@@ -142,7 +154,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
       } else {
         // 저장하는 사이에 더 고쳤으면 이어서 저장
         setSaveState('dirty');
-        if (statusRef.current === 'draft') scheduleAutosave();
+        if (!isLiveNow()) scheduleAutosave();
       }
       return true;
     } catch {
@@ -157,7 +169,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
     try {
       localStorage.setItem(storageKey, JSON.stringify({ ...draftRef.current, at: Date.now() }));
     } catch {}
-    if (statusRef.current === 'draft') scheduleAutosave();
+    if (!isLiveNow()) scheduleAutosave();
   }
 
   useEffect(() => {
@@ -217,6 +229,19 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
     return () => window.removeEventListener('beforeunload', warn);
   }, [saveState]);
 
+  // 화면을 열어 둔 채 예약 시각이 지나면 '발행됨'으로 바꾼다 (그 뒤로는 수정 반영을 눌러야 길드원에게 보임)
+  useEffect(() => {
+    if (!scheduled || !publishAt) return;
+    const delay = Date.parse(publishAt) - Date.now();
+    if (delay > 2_000_000_000) return; // setTimeout 한계(약 24일)보다 먼 예약은 화면을 다시 열 때 반영
+    const timer = window.setTimeout(() => {
+      scheduledRef.current = false;
+      setScheduled(false);
+      setMessage({ tone: 'info', text: '예약한 시각이 되어 공개됐어요. 이제부터 고친 내용은 수정 반영을 눌러야 길드원에게 보여요' });
+    }, Math.max(0, delay));
+    return () => window.clearTimeout(timer);
+  }, [scheduled, publishAt]);
+
   // Cmd/Ctrl + S → 저장
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -273,21 +298,69 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
         setMessage({ tone: 'error', text: result.message });
         return;
       }
+      const wasScheduled = scheduledRef.current;
       statusRef.current = result.status;
+      scheduledRef.current = false;
       setStatus(result.status);
+      setScheduled(false);
+      setPublishAt(result.publishedAt);
       setMessage({
         tone: 'info',
         text:
           result.status === 'published'
             ? '발행했어요. 이제 길드원이 볼 수 있어요'
-            : '임시저장으로 돌렸어요. 길드원에게는 안 보여요',
+            : wasScheduled
+              ? '예약을 취소했어요. 임시저장 상태로 돌아왔어요'
+              : '임시저장으로 돌렸어요. 길드원에게는 안 보여요',
       });
     });
   }
 
+  function openSchedule() {
+    if (templateStore.get() !== null) {
+      setMessage({ tone: 'error', text: '편집 중인 템플릿을 완료해야 예약할 수 있어요' });
+      return;
+    }
+    setScheduleDraft(toLocalInputValue(scheduled && publishAt ? new Date(publishAt) : nextScheduleDefault()));
+  }
+
+  function schedule(localValue: string) {
+    if (templateStore.get() !== null) {
+      setMessage({ tone: 'error', text: '편집 중인 템플릿을 완료해야 예약할 수 있어요' });
+      return;
+    }
+    // datetime-local 값은 브라우저 시간대(한국)로 해석된다
+    const when = new Date(localValue);
+    if (Number.isNaN(when.getTime())) {
+      setMessage({ tone: 'error', text: '예약 시각을 다시 골라 주세요' });
+      return;
+    }
+    startStatusTransition(async () => {
+      // 예약 전에 지금 내용을 먼저 저장
+      if (saveState !== 'saved' && !(await save())) return;
+      const result = await scheduleChapter(chapter.id, when.toISOString());
+      if (!result.ok) {
+        setMessage({ tone: 'error', text: result.message });
+        return;
+      }
+      statusRef.current = 'published';
+      scheduledRef.current = true;
+      setStatus('published');
+      setScheduled(true);
+      setPublishAt(result.publishedAt);
+      setScheduleDraft(null);
+      setMessage({
+        tone: 'info',
+        text: `${result.publishedAt ? formatSchedule(new Date(result.publishedAt)) : '예약한 시각'}에 공개돼요. 그 전까지는 지금처럼 자동저장돼요`,
+      });
+    });
+  }
+
+  const live = status === 'published' && !scheduled;
+
   const saveLabel: Record<SaveState, string> = {
     saved: `저장됨 · ${formatTime(new Date(savedAt))}`,
-    dirty: status === 'draft' ? '입력 중…' : '반영 안 된 수정이 있어요',
+    dirty: live ? '반영 안 된 수정이 있어요' : '입력 중…',
     saving: '저장하는 중…',
     error: '저장 실패',
   };
@@ -298,7 +371,9 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
         <Link href={`/admin/novels/${chapter.novelId}`} className="max-w-full truncate text-sm font-semibold text-muted hover:text-fg">
           ← {novelTitle}
         </Link>
-        <Badge tone={status === 'published' ? 'accent' : 'muted'}>{status === 'published' ? '발행됨' : '임시저장'}</Badge>
+        <Badge tone={live ? 'accent' : scheduled ? 'neutral' : 'muted'}>
+          {live ? '발행됨' : scheduled && publishAt ? `예약 · ${formatSchedule(new Date(publishAt))}` : '임시저장'}
+        </Badge>
         <span
           aria-live="polite"
           className={cn('text-[13px] tabular-nums', saveState === 'error' ? 'text-danger' : 'text-muted')}
@@ -356,7 +431,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
             {editingTemplate ? (
               // 편집 중에는 발행이 막힌다는 걸 알려 주고, 여기서 바로 편집을 마칠 수 있게
               <span className="flex items-center gap-1 text-xs text-muted">
-                <span className="hidden sm:inline">템플릿 편집 중이라 {status === 'draft' ? '발행' : '반영'}할 수 없어요</span>
+                <span className="hidden sm:inline">템플릿 편집 중이라 {live ? '반영' : '발행'}할 수 없어요</span>
                 <button
                   type="button"
                   onClick={() => templateStore.set(null)}
@@ -366,7 +441,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
                 </button>
               </span>
             ) : null}
-            {status === 'draft' ? (
+            {!live ? (
               <>
                 <Button
                   type="button"
@@ -377,6 +452,31 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
                 >
                   저장
                 </Button>
+                <div className="relative">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={openSchedule}
+                    disabled={statusPending || editingTemplate}
+                    aria-expanded={scheduleDraft !== null}
+                  >
+                    {scheduled ? '예약 변경' : '예약'}
+                  </Button>
+                  {scheduleDraft !== null ? (
+                    <SchedulePopover
+                      defaultValue={scheduleDraft}
+                      pending={statusPending}
+                      onConfirm={schedule}
+                      onClose={() => setScheduleDraft(null)}
+                    />
+                  ) : null}
+                </div>
+                {scheduled ? (
+                  <Button type="button" variant="ghost" size="sm" onClick={() => changeStatus('draft')} disabled={statusPending}>
+                    예약 취소
+                  </Button>
+                ) : null}
                 <Button
                   type="button"
                   size="sm"
@@ -384,7 +484,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
                   disabled={statusPending || editingTemplate}
                   title={editingTemplate ? '편집 중인 템플릿을 완료해야 발행할 수 있어요' : undefined}
                 >
-                  발행하기
+                  {scheduled ? '지금 발행' : '발행하기'}
                 </Button>
               </>
             ) : (
@@ -454,6 +554,82 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
             회차 삭제
           </SubmitButton>
         </form>
+      </div>
+    </div>
+  );
+}
+
+/** <input type="datetime-local">에 넣을 값 (브라우저 시간대 기준) */
+function toLocalInputValue(date: Date): string {
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/** 예약 기본값: 두 시간 뒤 정각 (예: 18:20 → 20:00) */
+function nextScheduleDefault(): Date {
+  const date = new Date();
+  date.setHours(date.getHours() + 2, 0, 0, 0);
+  return date;
+}
+
+function SchedulePopover({
+  defaultValue,
+  pending,
+  onConfirm,
+  onClose,
+}: {
+  defaultValue: string;
+  pending: boolean;
+  onConfirm: (value: string) => void;
+  onClose: () => void;
+}) {
+  const [value, setValue] = useState(defaultValue);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+
+  // 바깥을 누르거나 Esc를 누르면 닫기
+  useEffect(() => {
+    const close = (event: MouseEvent | KeyboardEvent) => {
+      if (event instanceof KeyboardEvent ? event.key === 'Escape' : !rootRef.current?.contains(event.target as Node)) {
+        onCloseRef.current();
+      }
+    };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', close);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('keydown', close);
+    };
+  }, []);
+
+  return (
+    <div
+      ref={rootRef}
+      role="dialog"
+      aria-label="예약 발행"
+      className="absolute top-10 right-0 z-30 w-72 rounded-2xl border border-line bg-surface p-4 text-left shadow-lg shadow-black/10"
+    >
+      <label className="block space-y-1.5">
+        <span className="text-sm font-semibold">공개할 시각</span>
+        <input
+          type="datetime-local"
+          value={value}
+          onChange={(event) => setValue(event.target.value)}
+          className="h-11 w-full rounded-xl border border-line bg-surface px-3 text-base text-fg focus:border-accent focus:ring-3 focus:ring-accent/20 focus:outline-none"
+        />
+      </label>
+      <p className="mt-2 text-xs leading-relaxed text-muted">이 시각이 되면 길드원에게 보여요. 그 전까지는 임시저장처럼 자동저장돼요.</p>
+      <div className="mt-3 flex justify-end gap-2">
+        <Button type="button" variant="ghost" size="sm" onClick={onClose}>
+          취소
+        </Button>
+        <Button type="button" size="sm" disabled={!value || pending} onClick={() => onConfirm(value)}>
+          예약하기
+        </Button>
       </div>
     </div>
   );

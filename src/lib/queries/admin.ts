@@ -1,9 +1,19 @@
 import 'server-only';
-import { and, asc, desc, eq, sql } from 'drizzle-orm';
+import { and, asc, desc, eq } from 'drizzle-orm';
 import { requireAdmin } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { chapterLikes, chapterViews, chapters, novels, readers } from '@/lib/db/schema';
 import { getGuildSettings } from '@/lib/settings';
+import {
+  chapterLikeCount,
+  chapterReaderCount,
+  isScheduledChapter,
+  novelChapterCount,
+  novelScheduledChapterCount,
+  novelVisibleChapterCount,
+  readerLikeCount,
+  readerReadCount,
+} from './visibility';
 
 // 관리자 전용 조회. 모든 함수가 첫 줄에서 requireAdmin()을 호출한다.
 
@@ -16,11 +26,9 @@ export async function adminListNovels() {
       serialStatus: novels.serialStatus,
       isPublished: novels.isPublished,
       updatedAt: novels.updatedAt,
-      totalChapters: sql<number>`(select count(*)::int from ${chapters} where ${chapters.novelId} = ${novels.id})`,
-      publishedChapters: sql<number>`(
-        select count(*)::int from ${chapters}
-        where ${chapters.novelId} = ${novels.id} and ${chapters.status} = 'published'
-      )`,
+      totalChapters: novelChapterCount,
+      publishedChapters: novelVisibleChapterCount,
+      scheduledChapters: novelScheduledChapterCount,
     })
     .from(novels)
     .orderBy(desc(novels.updatedAt));
@@ -38,9 +46,10 @@ export async function adminGetNovel(novelId: number) {
       status: chapters.status,
       charCount: chapters.charCount,
       publishedAt: chapters.publishedAt,
+      scheduled: isScheduledChapter,
       updatedAt: chapters.updatedAt,
-      readCount: sql<number>`(select count(*)::int from ${chapterViews} where ${chapterViews.chapterId} = ${chapters.id})`,
-      likeCount: sql<number>`(select count(*)::int from ${chapterLikes} where ${chapterLikes.chapterId} = ${chapters.id})`,
+      readCount: chapterReaderCount,
+      likeCount: chapterLikeCount,
     })
     .from(chapters)
     .where(eq(chapters.novelId, novelId))
@@ -51,7 +60,7 @@ export async function adminGetNovel(novelId: number) {
 export async function adminGetChapter(novelId: number, chapterId: number) {
   await requireAdmin();
   const [row] = await db
-    .select({ chapter: chapters, novelTitle: novels.title })
+    .select({ chapter: chapters, novelTitle: novels.title, scheduled: isScheduledChapter })
     .from(chapters)
     .innerJoin(novels, eq(novels.id, chapters.novelId))
     .where(and(eq(chapters.id, chapterId), eq(chapters.novelId, novelId)))
@@ -79,6 +88,7 @@ export async function adminGetChapter(novelId: number, chapterId: number) {
 
   return {
     chapter: row.chapter,
+    scheduled: row.scheduled,
     novelTitle: row.novelTitle,
     viewers,
     likers: likers.map((liker) => liker.nickname),
@@ -93,8 +103,8 @@ export async function adminListReaders() {
       nickname: readers.nickname,
       createdAt: readers.createdAt,
       lastSeenAt: readers.lastSeenAt,
-      readChapters: sql<number>`(select count(*)::int from ${chapterViews} where ${chapterViews.readerId} = ${readers.id})`,
-      likes: sql<number>`(select count(*)::int from ${chapterLikes} where ${chapterLikes.readerId} = ${readers.id})`,
+      readChapters: readerReadCount,
+      likes: readerLikeCount,
     })
     .from(readers)
     .orderBy(desc(readers.lastSeenAt));

@@ -2,6 +2,7 @@ import 'server-only';
 import { and, asc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { chapterLikes, chapters, novels, readers } from '@/lib/db/schema';
+import { isVisibleChapter } from './visibility';
 
 export type LikeSummary = { liked: boolean; count: number; names: string[] };
 
@@ -20,14 +21,14 @@ export async function getLikeSummary(chapterId: number, readerId: string | null)
   };
 }
 
-/** 길드원에게 보이는 회차인지 (공개 작품의 발행된 회차) */
+/** 길드원에게 보이는 회차인지 (공개 작품의, 공개 시각이 지난 발행 회차) */
 export async function isChapterOpenToReaders(chapterId: number): Promise<boolean> {
   const [row] = await db
     .select({ id: chapters.id })
     .from(chapters)
     .innerJoin(novels, eq(novels.id, chapters.novelId))
     .where(
-      and(eq(chapters.id, chapterId), eq(chapters.status, 'published'), eq(novels.isPublished, true)),
+      and(eq(chapters.id, chapterId), isVisibleChapter, eq(novels.isPublished, true)),
     )
     .limit(1);
   return Boolean(row);

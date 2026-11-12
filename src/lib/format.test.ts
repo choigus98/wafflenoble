@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatDate, formatDateTime, formatRelative } from '@/lib/format';
+import { formatDate, formatDateTime, formatRelative, formatSchedule } from '@/lib/format';
 
 describe('날짜 표시', () => {
   it('서버가 UTC여도 한국 시간으로 표시한다', () => {
@@ -7,6 +7,13 @@ describe('날짜 표시', () => {
     const date = new Date('2026-11-12T15:30:00Z');
     expect(formatDate(date)).toBe('2026.11.13');
     expect(formatDateTime(date)).toBe('2026.11.13 00:30');
+  });
+
+  it('예약 시각은 오전/오후로', () => {
+    expect(formatSchedule(new Date('2026-11-13T11:00:00Z'))).toBe('11월 13일 (금) 오후 8:00');
+    expect(formatSchedule(new Date('2026-11-13T00:05:00Z'))).toBe('11월 13일 (금) 오전 9:05');
+    expect(formatSchedule(new Date('2026-11-13T03:30:00Z'))).toBe('11월 13일 (금) 오후 12:30');
+    expect(formatSchedule(new Date('2026-11-12T15:00:00Z'))).toBe('11월 13일 (금) 오전 12:00');
   });
 
   it('상대 시간', () => {

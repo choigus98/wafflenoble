@@ -132,9 +132,10 @@ export async function saveChapter(input: z.input<typeof chapterInputSchema>): Pr
 }
 
 export type ChapterStatusResult =
-  | { ok: true; status: 'draft' | 'published' }
+  | { ok: true; status: 'draft' | 'published'; publishedAt: string | null; scheduled: boolean }
   | { ok: false; message: string };
 
+/** 지금 발행(published) 또는 임시저장으로 되돌리기(draft). 예약된 회차를 '지금 발행'하면 예약 시각 대신 지금 공개 */
 export async function setChapterStatus(
   chapterId: number,
   status: 'draft' | 'published',
@@ -144,24 +145,62 @@ export async function setChapterStatus(
     return { ok: false, message: '잘못된 요청이에요' };
   }
 
+  let publishedAt: Date | null = null;
   if (status === 'published') {
-    const found = await db.transaction(async (tx) => {
+    const updated = await db.transaction(async (tx) => {
       const [chapter] = await tx
         .update(chapters)
-        .set({ status: 'published', publishedAt: sql`coalesce(${chapters.publishedAt}, now())` })
+        .set({
+          status: 'published',
+          // 처음 발행이거나 예약 시각이 아직 안 왔으면 지금으로, 예전에 발행했던 회차면 원래 발행일 유지
+          publishedAt: sql`case when ${chapters.publishedAt} is null or ${chapters.publishedAt} > now() then now() else ${chapters.publishedAt} end`,
+        })
         .where(eq(chapters.id, chapterId))
-        .returning({ novelId: chapters.novelId });
-      if (!chapter) return false;
+        .returning({ novelId: chapters.novelId, publishedAt: chapters.publishedAt });
+      if (!chapter) return null;
       await tx.update(novels).set({ lastPublishedAt: sql`now()` }).where(eq(novels.id, chapter.novelId));
-      return true;
+      return chapter;
     });
-    if (!found) return { ok: false, message: '회차를 찾을 수 없어요' };
+    if (!updated) return { ok: false, message: '회차를 찾을 수 없어요' };
+    publishedAt = updated.publishedAt;
   } else {
-    await db.update(chapters).set({ status: 'draft' }).where(eq(chapters.id, chapterId));
+    const [updated] = await db
+      .update(chapters)
+      .set({ status: 'draft' })
+      .where(eq(chapters.id, chapterId))
+      .returning({ publishedAt: chapters.publishedAt });
+    if (!updated) return { ok: false, message: '회차를 찾을 수 없어요' };
+    publishedAt = updated.publishedAt;
   }
 
   refresh();
-  return { ok: true, status };
+  return { ok: true, status, publishedAt: publishedAt?.toISOString() ?? null, scheduled: false };
+}
+
+const SCHEDULE_MIN_LEAD_MS = 60 * 1000; // 최소 1분 뒤
+const SCHEDULE_MAX_LEAD_MS = 366 * 24 * 60 * 60 * 1000; // 최대 1년 뒤
+
+/** 예약 발행: 정한 시각이 되면 길드원에게 보인다 (그 전까지는 관리자만 봄). 다시 부르면 예약 시각 변경 */
+export async function scheduleChapter(chapterId: number, publishAt: string): Promise<ChapterStatusResult> {
+  await requireAdmin();
+  if (!idSchema.safeParse(chapterId).success || typeof publishAt !== 'string') {
+    return { ok: false, message: '잘못된 요청이에요' };
+  }
+  const when = new Date(publishAt);
+  if (Number.isNaN(when.getTime())) return { ok: false, message: '예약 시각을 다시 골라 주세요' };
+  const lead = when.getTime() - Date.now();
+  if (lead < SCHEDULE_MIN_LEAD_MS) return { ok: false, message: '예약 시각은 지금보다 1분 이상 뒤로 정해 주세요' };
+  if (lead > SCHEDULE_MAX_LEAD_MS) return { ok: false, message: '예약은 1년 안으로만 할 수 있어요' };
+
+  const [updated] = await db
+    .update(chapters)
+    .set({ status: 'published', publishedAt: when })
+    .where(eq(chapters.id, chapterId))
+    .returning({ publishedAt: chapters.publishedAt });
+  if (!updated) return { ok: false, message: '회차를 찾을 수 없어요' };
+
+  refresh();
+  return { ok: true, status: 'published', publishedAt: updated.publishedAt?.toISOString() ?? null, scheduled: true };
 }
 
 export async function deleteChapter(novelId: number, chapterId: number): Promise<void> {

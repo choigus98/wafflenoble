@@ -6,7 +6,7 @@ import { LikeButton } from '@/components/reader/like-button';
 import { ReaderSettings } from '@/components/reader/reader-settings';
 import { ViewTracker } from '@/components/reader/view-tracker';
 import { Badge, ButtonLink, Skeleton } from '@/components/ui';
-import { formatDate, formatNumber } from '@/lib/format';
+import { formatDate, formatNumber, formatSchedule } from '@/lib/format';
 import { getChapterView } from '@/lib/queries/reader';
 import { parseId } from '@/lib/utils';
 
@@ -41,8 +41,11 @@ async function ChapterView({ params }: Pick<PageProps<'/novels/[novelId]/[chapte
             {chapter.title}
           </h1>
           <p className="flex items-center gap-2 text-xs text-muted">
-            {chapter.publishedAt ? formatDate(chapter.publishedAt) : null}
+            {chapter.publishedAt && chapter.visibleNow ? formatDate(chapter.publishedAt) : null}
             {chapter.status === 'draft' ? <Badge tone="danger">미리보기 · 임시저장</Badge> : null}
+            {chapter.status === 'published' && !chapter.visibleNow && chapter.publishedAt ? (
+              <Badge tone="danger">미리보기 · {formatSchedule(chapter.publishedAt)} 공개 예정</Badge>
+            ) : null}
           </p>
         </div>
         <ReaderSettings />
@@ -85,7 +88,7 @@ async function ChapterView({ params }: Pick<PageProps<'/novels/[novelId]/[chapte
         </nav>
       </footer>
 
-      {isReader && chapter.status === 'published' ? <ViewTracker chapterId={chapter.id} /> : null}
+      {isReader && chapter.visibleNow ? <ViewTracker chapterId={chapter.id} /> : null}
     </article>
   );
 }

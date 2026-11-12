@@ -56,7 +56,9 @@ async function NovelList() {
                     <Badge tone={novel.isPublished ? 'accent' : 'muted'}>{novel.isPublished ? '공개' : '비공개'}</Badge>
                     <Badge>{SERIAL_STATUS_LABEL[novel.serialStatus]}</Badge>
                     <span>
-                      발행 {novel.publishedChapters} / 전체 {novel.totalChapters}화 · {formatRelative(novel.updatedAt, now)} 수정
+                      발행 {novel.publishedChapters}
+                      {novel.scheduledChapters > 0 ? ` · 예약 ${novel.scheduledChapters}` : ''} / 전체 {novel.totalChapters}화 ·{' '}
+                      {formatRelative(novel.updatedAt, now)} 수정
                     </span>
                   </div>
                 </div>

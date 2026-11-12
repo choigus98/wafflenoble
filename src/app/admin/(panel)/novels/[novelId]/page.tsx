@@ -6,7 +6,7 @@ import { DeleteNovelForm } from '@/components/admin/delete-novel-form';
 import { NovelForm } from '@/components/admin/novel-form';
 import { SubmitButton } from '@/components/submit-button';
 import { Badge, Card, Skeleton } from '@/components/ui';
-import { formatDate, formatNumber, formatRelative } from '@/lib/format';
+import { formatDate, formatNumber, formatRelative, formatSchedule } from '@/lib/format';
 import { adminGetNovel } from '@/lib/queries/admin';
 import { parseId } from '@/lib/utils';
 
@@ -67,14 +67,16 @@ async function NovelAdmin({ params }: Pick<PageProps<'/admin/novels/[novelId]'>,
                   <span className="min-w-0 flex-1 space-y-1">
                     <span className="block truncate font-medium">{chapter.title || '(제목 없음)'}</span>
                     <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
-                      <Badge tone={chapter.status === 'published' ? 'accent' : 'muted'}>
-                        {chapter.status === 'published' ? '발행' : '임시저장'}
+                      <Badge tone={chapter.scheduled ? 'neutral' : chapter.status === 'published' ? 'accent' : 'muted'}>
+                        {chapter.scheduled ? '예약' : chapter.status === 'published' ? '발행' : '임시저장'}
                       </Badge>
                       <span>{formatNumber(chapter.charCount)}자</span>
                       <span>
-                        {chapter.status === 'published' && chapter.publishedAt
-                          ? `${formatDate(chapter.publishedAt)} 발행`
-                          : `${formatRelative(chapter.updatedAt, now)} 수정`}
+                        {chapter.scheduled && chapter.publishedAt
+                          ? `${formatSchedule(chapter.publishedAt)} 공개 예정`
+                          : chapter.status === 'published' && chapter.publishedAt
+                            ? `${formatDate(chapter.publishedAt)} 발행`
+                            : `${formatRelative(chapter.updatedAt, now)} 수정`}
                       </span>
                     </span>
                   </span>
