@@ -849,6 +849,9 @@ function Toolbar({
       italic: current.isActive('italic'),
       strike: current.isActive('strike'),
       quote: current.isActive('blockquote'),
+      // 되돌릴 것·다시 할 것이 있는지 (템플릿 안 글자 고침은 문서 기록에 넣지 않으므로 여기에 안 잡힘)
+      canUndo: current.can().undo(),
+      canRedo: current.can().redo(),
     }),
   });
 
@@ -861,8 +864,37 @@ function Toolbar({
   ];
 
   return (
-    <div role="toolbar" aria-label="서식" className="flex items-center gap-0.5 rounded-xl border border-line bg-surface p-1">
+    // 휴대폰 폭에서 단추가 넘치면 두 줄로 (가로로 삐져나가지 않게)
+    <div role="toolbar" aria-label="서식" className="flex flex-wrap items-center gap-0.5 rounded-xl border border-line bg-surface p-1">
       <TemplateMenu editor={editor} />
+      <span aria-hidden="true" className="mx-0.5 h-5 w-px bg-line" />
+      {/* 되돌리기·다시 하기: 휴대폰처럼 단축키를 못 쓰는 곳에서도 */}
+      <button
+        type="button"
+        onClick={() => editor.chain().focus().undo().run()}
+        disabled={!active?.canUndo}
+        title="되돌리기 (Ctrl+Z / ⌘Z)"
+        aria-label="되돌리기"
+        className="grid h-8 min-w-8 place-items-center rounded-lg px-2 text-fg transition hover:bg-surface-2 disabled:pointer-events-none disabled:opacity-35"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-4">
+          <path d="M9 14 4 9l5-5" />
+          <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        onClick={() => editor.chain().focus().redo().run()}
+        disabled={!active?.canRedo}
+        title="다시 하기 (Ctrl+Shift+Z / ⇧⌘Z)"
+        aria-label="다시 하기"
+        className="grid h-8 min-w-8 place-items-center rounded-lg px-2 text-fg transition hover:bg-surface-2 disabled:pointer-events-none disabled:opacity-35"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-4">
+          <path d="m15 14 5-5-5-5" />
+          <path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13" />
+        </svg>
+      </button>
       <span aria-hidden="true" className="mx-0.5 h-5 w-px bg-line" />
       {items.map((item) => (
         <button
