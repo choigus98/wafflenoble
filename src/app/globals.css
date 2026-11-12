@@ -125,6 +125,13 @@
   --wn-transfer-bg: #ffffff;
   --wn-transfer-accent: #2563d9; /* 흰 바탕 대비 5.4:1 */
   --wn-transfer-accent-fg: #ffffff;
+  --wn-alarm-bg-from: #fff5e8;
+  --wn-alarm-bg-to: #ffe2c4;
+  --wn-alarm-fg: #2a1d12;
+  --wn-alarm-muted: #6a5340; /* 아래쪽 진한 바탕에서도 대비 5.8:1 */
+  --wn-alarm-accent: #c2410c;
+  --wn-alarm-accent-fg: #ffffff;
+  --wn-alarm-chip-bg: rgb(0 0 0 / 0.07);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -252,6 +259,13 @@
     --wn-transfer-bg: #17191e;
     --wn-transfer-accent: #7aa7ff;
     --wn-transfer-accent-fg: #0f1523;
+    --wn-alarm-bg-from: #1d1b2e;
+    --wn-alarm-bg-to: #121220;
+    --wn-alarm-fg: #f4f1ff;
+    --wn-alarm-muted: rgb(255 255 255 / 0.68);
+    --wn-alarm-accent: #ff9f6b;
+    --wn-alarm-accent-fg: #1b1020;
+    --wn-alarm-chip-bg: rgb(255 255 255 / 0.12);
   }
 }
 
@@ -378,6 +392,13 @@
   --wn-transfer-bg: #17191e;
   --wn-transfer-accent: #7aa7ff;
   --wn-transfer-accent-fg: #0f1523;
+  --wn-alarm-bg-from: #1d1b2e;
+  --wn-alarm-bg-to: #121220;
+  --wn-alarm-fg: #f4f1ff;
+  --wn-alarm-muted: rgb(255 255 255 / 0.68);
+  --wn-alarm-accent: #ff9f6b;
+  --wn-alarm-accent-fg: #1b1020;
+  --wn-alarm-chip-bg: rgb(255 255 255 / 0.12);
 }
 
 @theme inline {

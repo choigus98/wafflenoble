@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import {
   CHAT_COLORS,
+  WEEKDAYS,
+  alarmDays,
   chatColorKey,
   commentDisplayName,
   isMine,
@@ -21,6 +23,7 @@ import {
   scriptSpeakers,
   smsContact,
   splitMailSender,
+  type AlarmData,
   type CallData,
   type ChatData,
   type DonationData,
@@ -102,6 +105,8 @@ export function StoryBlockView({ block }: { block: StoryBlock }) {
       return <PollCard data={block.data} />;
     case 'transfer':
       return <TransferCard data={block.data} />;
+    case 'alarm':
+      return <AlarmCard data={block.data} />;
   }
 }
 
@@ -1186,6 +1191,62 @@ export function TransferCard({ data, field }: { data: TransferData; field?: Fiel
           ))}
         </dl>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * 알람: 휴대폰 알람이 울리는 화면 (날짜 · 오전/오후 · 큰 시각 · 알람 이름 · 반복 요일 · '다시 알림'·'중지' 모양).
+ * 아래 두 단추는 화면 모양일 뿐이라 진짜 단추가 아니라 글자로 그린다.
+ * 반복 요일은 일~토 일곱 글자 줄에서 칠하고(그림이라 낭독기에서는 숨김), 낭독기에는 '반복 월, 화, 수'로 읽힌다
+ */
+export function AlarmCard({ data, field }: { data: AlarmData; field?: FieldRenderer }) {
+  const editing = Boolean(field);
+  const slot = (name: keyof AlarmData, label: string, maxLength: number, className: string, wrap = false) =>
+    field ? (
+      field({ name, value: data[name], label, placeholder: label, maxLength, className, wrap })
+    ) : (
+      <span className={className}>{data[name]}</span>
+    );
+  const repeat = editing ? null : alarmDays(data.days);
+
+  return (
+    <div className="wn-block mx-auto w-full max-w-[340px] rounded-[28px] border border-(--wn-border) bg-linear-to-b from-(--wn-alarm-bg-from) to-(--wn-alarm-bg-to) px-6 pt-6 pb-6 text-center text-(--wn-alarm-fg) shadow-sm">
+      {editing || data.date.trim() ? (
+        <div className="text-[13px] font-medium text-(--wn-alarm-muted)">{slot('date', '날짜 (비우면 안 보여요)', 40, 'max-w-full text-center')}</div>
+      ) : null}
+      <div className="mt-5 flex flex-col items-center">
+        {editing || data.period.trim() ? (
+          <div className="text-[17px] font-medium text-(--wn-alarm-muted)">{slot('period', '오전·오후 (비우면 안 보여요)', 10, 'max-w-full text-center')}</div>
+        ) : null}
+        <div className="max-w-full text-[64px] leading-none font-light tracking-tight tabular-nums">{slot('time', '시각', 10, 'max-w-full text-center')}</div>
+      </div>
+      {editing || data.label.trim() ? (
+        <div className="mt-4 text-[16px] font-semibold break-keep">{slot('label', '알람 이름 (비우면 안 보여요)', 40, 'max-w-full text-center', true)}</div>
+      ) : null}
+      {editing ? (
+        <div className="mt-3 text-[13px] text-(--wn-alarm-muted)">
+          {slot('days', '반복 요일 (월 화 수 · 매일 · 평일 · 주말)', 40, 'max-w-full text-center', true)}
+        </div>
+      ) : repeat ? (
+        <div className="mt-3 text-[13px] font-semibold">
+          <span className="sr-only">반복 {repeat.spoken}</span>
+          <span aria-hidden="true" className="inline-flex gap-2">
+            {WEEKDAYS.map((day, index) => (
+              <span key={day} className={repeat.days[index] ? 'text-(--wn-alarm-accent)' : 'font-normal text-(--wn-alarm-muted)'}>
+                {day}
+              </span>
+            ))}
+          </span>
+        </div>
+      ) : data.days.trim() ? (
+        <div className="mt-3 text-[13px] break-keep text-(--wn-alarm-muted)">{data.days}</div>
+      ) : null}
+      {/* 화면 모양만 (누르는 단추가 아님) */}
+      <div className="mt-7 flex gap-3 text-[15px] font-semibold">
+        <span className="flex-1 rounded-full bg-(--wn-alarm-chip-bg) py-3">다시 알림</span>
+        <span className="flex-1 rounded-full bg-(--wn-alarm-accent) py-3 text-(--wn-alarm-accent-fg)">중지</span>
+      </div>
     </div>
   );
 }

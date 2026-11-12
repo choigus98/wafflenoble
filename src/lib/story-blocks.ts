@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물, 이메일, 검색 결과, 휴대폰 알림, 문자 메시지, 영수증, 위치 공유, 투표, 송금 완료).
+// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물, 이메일, 검색 결과, 휴대폰 알림, 문자 메시지, 영수증, 위치 공유, 투표, 송금 완료, 알람).
 // 저장 형식: <div data-wn-block="종류" data-wn-data="JSON"></div>
 // 에디터(Tiptap 노드), 서버(저장할 때 검증), 열람 화면(렌더링)이 모두 이 파일을 같이 쓴다.
 //
@@ -176,6 +176,14 @@ const transferSchema = z.object({
   date: text(40), // 일시. 비우면 안 보임
 });
 
+const alarmSchema = z.object({
+  date: text(40), // 위쪽 날짜 ('11월 13일 목요일'). 비우면 안 보임
+  period: text(10), // '오전'·'오후'. 비우면 안 보임 (24시간제로 '06:30'처럼 쓸 때)
+  time: text(10), // 큰 시각 ('6:30')
+  label: text(40), // 알람 이름. 비우면 안 보임
+  days: text(40), // 반복 요일 ('월 화 수 목 금', '매일', '평일', '주말'). 비우면 안 보임 (규칙은 alarmDays 위 설명)
+});
+
 /** 전화 화면 모드를 바꿀 때, 아직 고치지 않은 기본 문구는 새 모드에 맞게 바꿔 준다 */
 export const CALL_DETAIL_DEFAULT = { incoming: '휴대전화', active: '00:12' } as const;
 
@@ -199,6 +207,7 @@ export const storyBlockSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('location'), data: locationSchema }),
   z.object({ kind: z.literal('poll'), data: pollSchema }),
   z.object({ kind: z.literal('transfer'), data: transferSchema }),
+  z.object({ kind: z.literal('alarm'), data: alarmSchema }),
 ]);
 
 export type StoryBlock = z.infer<typeof storyBlockSchema>;
@@ -220,6 +229,7 @@ export type ReceiptData = z.infer<typeof receiptSchema>;
 export type LocationData = z.infer<typeof locationSchema>;
 export type PollData = z.infer<typeof pollSchema>;
 export type TransferData = z.infer<typeof transferSchema>;
+export type AlarmData = z.infer<typeof alarmSchema>;
 
 /** 메일 보낸 사람 '김지은 <jieun@example.com>' → 이름과 주소. 꺾쇠가 없으면 적은 그대로 이름으로 */
 export function splitMailSender(from: string): { name: string; address: string } {
@@ -635,6 +645,32 @@ export function pollStatus(data: PollData, options: PollOption[]): string {
   return `${pollTotal(options).toLocaleString('ko-KR')}명 참여`;
 }
 
+// ─── 알람 반복 요일 ──────────────────────────────────────
+// '월 화 수 목 금'·'월, 수, 금'·'월요일 금요일'처럼 요일을 띄어 쓰면 일~토 일곱 글자 줄에서 그 요일을 칠한다.
+// '매일'·'평일'·'주말'도 됨. 요일이 아닌 말이 섞이면('격주 월요일') 적은 그대로 글로 보여 준다
+
+export const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'] as const;
+
+/** 칠할 요일(일~토 7칸)과 화면 낭독기용 글. 요일로 못 읽으면 null */
+export function alarmDays(text: string): { days: boolean[]; spoken: string } | null {
+  const tokens = text.split(/[\s,·、/]+/).filter(Boolean);
+  if (tokens.length === 0) return null;
+  const days = WEEKDAYS.map(() => false);
+  for (const token of tokens) {
+    if (token === '매일') days.fill(true);
+    else if (token === '평일') for (let day = 1; day <= 5; day += 1) days[day] = true;
+    else if (token === '주말') days[0] = days[6] = true;
+    else {
+      const name = token.endsWith('요일') ? token.slice(0, -2) : token;
+      const index = WEEKDAYS.indexOf(name as (typeof WEEKDAYS)[number]);
+      if (index === -1) return null;
+      days[index] = true;
+    }
+  }
+  const spoken = days.every(Boolean) ? '매일' : WEEKDAYS.filter((_, day) => days[day]).join(', ');
+  return { days, spoken };
+}
+
 /** 제목 옆·댓글 머리에 보일 댓글 수. 직접 적은 값이 먼저, 없으면 실제 댓글 개수 */
 export function postCommentCount(data: PostData, lines: CommentLine[]): string {
   return data.commentCount.trim() || String(lines.filter((line) => line.type === 'comment').length);
@@ -663,7 +699,8 @@ export type TemplateKey =
   | 'receipt'
   | 'location'
   | 'poll'
-  | 'transfer';
+  | 'transfer'
+  | 'alarm';
 
 export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }> = [
   { key: 'kakao-dm', label: '카톡 1:1 대화', hint: '두 사람의 메신저 대화' },
@@ -687,6 +724,7 @@ export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }>
   { key: 'location', label: '위치 공유', hint: '장소 · 주소 · 지도 그림' },
   { key: 'poll', label: '투표', hint: '질문 · 선택지 · 표 수 막대' },
   { key: 'transfer', label: '송금 완료', hint: '은행 앱 송금 결과 · 금액 · 받는 분' },
+  { key: 'alarm', label: '알람', hint: '큰 시각 · 알람 이름 · 반복 요일' },
 ];
 
 export function templateLabel(block: StoryBlock): string {
@@ -817,6 +855,11 @@ export function createTemplate(key: TemplateKey): StoryBlock {
       return {
         kind: 'location',
         data: { badge: '위치 공유', place: '골목 끝 와플 가게', address: '와플시 반죽구 시럽로 12, 1층', note: '여기서 기다릴게' },
+      };
+    case 'alarm':
+      return {
+        kind: 'alarm',
+        data: { date: lockScreenDate(), period: '오전', time: '6:30', label: '일어나! 와플 가게 문 여는 날', days: '월 화 수 목 금' },
       };
     case 'transfer':
       return {

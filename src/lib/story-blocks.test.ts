@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { sanitizeChapterHtml } from '@/lib/content';
 import {
+  alarmDays,
   chatColorKey,
   commentDisplayName,
   commentSpeakers,
@@ -66,6 +67,7 @@ const KEYS: TemplateKey[] = [
   'location',
   'poll',
   'transfer',
+  'alarm',
 ];
 
 function withTrickyText(block: StoryBlock): StoryBlock {
@@ -106,6 +108,8 @@ function withTrickyText(block: StoryBlock): StoryBlock {
       return { ...block, data: { ...block.data, question: TRICKY, script: `${block.data.script}\n* ${TRICKY}: 1,000표` } };
     case 'transfer':
       return { ...block, data: { ...block.data, to: '김<b>수진</b> & "친구"', memo: '밥값 <script>x</script> & "😀"' } };
+    case 'alarm':
+      return { ...block, data: { ...block.data, label: '<b>일어나</b> & "지각" 😀', days: '월 <수> & 금' } };
     case 'receipt':
       return { ...block, data: { ...block.data, store: '가게 <b>&</b> "따옴표"', script: `${block.data.script}\n${TRICKY}: 1,000원` } };
     case 'push':
@@ -549,5 +553,33 @@ describe('투표 대본', () => {
     expect(pollStatus(block.data, options)).toBe('22명 참여');
     expect(options.filter((option) => option.mine).map((option) => option.text)).toEqual(['떡볶이']);
     expect(options.map((option) => pollPercent(option, pollTotal(options)))).toEqual([55, 32, 14, 0]);
+  });
+});
+
+describe('알람 반복 요일', () => {
+  const on = (text: string) => {
+    const result = alarmDays(text);
+    return result ? ['일', '월', '화', '수', '목', '금', '토'].filter((_, day) => result.days[day]).join('') : null;
+  };
+
+  it('요일을 띄어 쓰거나 쉼표·가운뎃점으로, \'월요일\'도 됨', () => {
+    expect(on('월 화 수 목 금')).toBe('월화수목금');
+    expect(on('월, 수, 금')).toBe('월수금');
+    expect(on('토·일')).toBe('일토');
+    expect(on('월요일 금요일')).toBe('월금');
+  });
+
+  it("'매일'·'평일'·'주말', 낭독기용 글", () => {
+    expect(on('매일')).toBe('일월화수목금토');
+    expect(alarmDays('매일')?.spoken).toBe('매일');
+    expect(on('평일')).toBe('월화수목금');
+    expect(on('주말')).toBe('일토');
+    expect(alarmDays('월 수 금')?.spoken).toBe('월, 수, 금');
+  });
+
+  it('요일이 아닌 말이 섞이거나 비어 있으면 null (적은 그대로 글로)', () => {
+    expect(alarmDays('격주 월요일')).toBeNull();
+    expect(alarmDays('')).toBeNull();
+    expect(alarmDays('   ')).toBeNull();
   });
 });
