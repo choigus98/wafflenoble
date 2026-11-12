@@ -25,6 +25,7 @@ import {
   templateLabel,
   todoProgress,
   type StoryBlock,
+  parseStockPoints,
 } from '@/lib/story-blocks';
 
 export type DocNode = { type: string; text?: string; attrs?: Record<string, unknown>; content?: DocNode[] };
@@ -121,6 +122,17 @@ export function storyBlockToText(block: StoryBlock): string {
         const { data } = block;
         const around = [data.prev.trim() && `이전 역: ${data.prev.trim()}`, data.next.trim() && `다음 역: ${data.next.trim()}`].filter(Boolean).join(' · ');
         return lines([data.line, data.direction].map((value) => value.trim()).filter(Boolean).join(' · '), data.station.trim() && `이번 역: ${data.station.trim()}`, around, data.message);
+      }
+      case 'stock': {
+        const { data } = block;
+        const points = parseStockPoints(data.points);
+        const trim = (value: string) => value.trim();
+        return lines(
+          [data.name, data.code].map(trim).filter(Boolean).join(' · '),
+          [data.price, data.change].map(trim).filter(Boolean).join(' '),
+          [data.volume.trim() && `거래량 ${data.volume.trim()}`, data.note.trim()].filter(Boolean).join(' · '),
+          points.length >= 2 && `흐름: ${points[0].toLocaleString('ko-KR')} → ${(points.at(-1) as number).toLocaleString('ko-KR')}`,
+        );
       }
       case 'translate': {
         const { data } = block;

@@ -47,6 +47,8 @@ import {
   type PostData,
   type StoryBlock,
   type TemplateKey,
+  parseStockPoints,
+  stockDirection,
 } from '@/lib/story-blocks';
 
 // 브라우저 DOM 직렬화처럼 & 와 " 만 이스케이프 (Tiptap getHTML 결과 흉내)
@@ -99,6 +101,7 @@ const KEYS: TemplateKey[] = [
   'profile',
   'taxi',
   'translate',
+  'stock',
 ];
 
 function withTrickyText(block: StoryBlock): StoryBlock {
@@ -161,6 +164,8 @@ function withTrickyText(block: StoryBlock): StoryBlock {
       return { ...block, data: { ...block.data, plate: '서울 <b>32사</b> & 1234', note: TRICKY.slice(0, 60), from: '"따옴표" 가게 & 😀', to: '' } };
     case 'translate':
       return { ...block, data: { ...block.data, source: `${TRICKY}\n둘째 줄 <i>기울임</i>`.slice(0, 300), result: '"따옴표" & <b>굵게</b> 😀', pronounce: '' } };
+    case 'stock':
+      return { ...block, data: { ...block.data, name: '<b>와플</b> & "전자" 😀', note: TRICKY.slice(0, 40), points: '1 2 abc 3' } };
     case 'match':
       return { ...block, data: { ...block.data, mvp: '<b>하연화</b> & 😀', script: `${block.data.script}\n* ${TRICKY}: 1 / 2 / 3` } };
     case 'ticket':
@@ -849,5 +854,20 @@ describe('메신저 프로필 배경', () => {
     expect(['노을', '저녁 하늘빛', '바다', '밤하늘의 별', '보름달', '달콤한 봄', '벚꽃 엔딩', '초록 숲', '', '아무거나'].map(profileTone)).toEqual([
       'sunset', 'sunset', 'sea', 'night', 'night', 'blossom', 'blossom', 'forest', 'plain', 'plain',
     ]);
+  });
+});
+
+describe('주식 시세', () => {
+  it('흐름 숫자: 띄어쓰기·줄바꿈으로 나누고 쉼표는 떼고, 숫자가 아닌 것은 건너뜀', () => {
+    expect(parseStockPoints(' 70,100  70,800\n71,200 abc 72,400원 -3.5 ')).toEqual([70100, 70800, 71200, -3.5]);
+    expect(parseStockPoints('')).toEqual([]);
+  });
+
+  it('방향: 등락 앞 기호로, 없으면 흐름의 처음·끝, 같으면 보합', () => {
+    expect(['+1,200', '▲ 3%', '-500', '−2.1%', '▼10'].map((change) => stockDirection(change, []))).toEqual(['up', 'up', 'down', 'down', 'down']);
+    expect(stockDirection('', [3, 5])).toBe('up');
+    expect(stockDirection('0 (0.00%)', [5, 3])).toBe('down');
+    expect(stockDirection('보합', [4, 4])).toBe('flat');
+    expect(stockDirection('', [])).toBe('flat');
   });
 });

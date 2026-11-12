@@ -311,7 +311,8 @@ function StoryBlockItem({ node, editor, getPos, selected, deleteNode, extension 
         block.kind === 'subway' ||
         block.kind === 'profile' ||
         block.kind === 'taxi' ||
-        block.kind === 'translate' ? (
+        block.kind === 'translate' ||
+        block.kind === 'stock' ? (
           // 방송창·후원 알림·뉴스 기사: 카드의 글자를 눌러 그 자리에서 바로 고친다. 고치기 시작하면 열려 있던 대본 창은 닫힌다
           <div className={frame} onFocusCapture={() => store.set(null)}>
             <InlineCardEditor block={block} onChange={commit} autoFocus={isNew} />

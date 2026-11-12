@@ -252,6 +252,16 @@ const profileSchema = z.object({
   music: text(40), // 프로필 음악 ('골목 끝의 단맛 - 시럽밴드'). 비우면 안 보임
 });
 
+const stockSchema = z.object({
+  name: text(30), // 종목 이름 ('와플전자')
+  code: text(30), // 시장·종목 코드 ('와플거래소 · WFL'). 비우면 안 보임
+  price: text(20), // 현재가 ('72,400원')
+  change: text(30), // 등락 ('+1,200 (+1.68%)'). 앞 기호(+ · − · ▲ · ▼)로 오름·내림을 고른다 (stockDirection). 비우면 흐름의 처음·끝으로
+  volume: text(30), // 거래량 ('1,234만 주'). 비우면 안 보임
+  note: text(40), // 맨 아래 한 줄 ('장 마감 · 15:30'). 비우면 안 보임
+  points: text(600), // 흐름 그래프 숫자 ('70,100 70,800 …' 띄어 써서). 두 개 이상이면 그래프
+});
+
 const translateSchema = z.object({
   from: text(20), // 원문 언어 ('한국어'). 비우면 안 보임
   to: text(20), // 번역 언어 ('일본어'). 비우면 안 보임
@@ -348,6 +358,7 @@ export const storyBlockSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('profile'), data: profileSchema }),
   z.object({ kind: z.literal('taxi'), data: taxiSchema }),
   z.object({ kind: z.literal('translate'), data: translateSchema }),
+  z.object({ kind: z.literal('stock'), data: stockSchema }),
 ]);
 
 export type StoryBlock = z.infer<typeof storyBlockSchema>;
@@ -384,6 +395,7 @@ export type MatchData = z.infer<typeof matchSchema>;
 export type ProfileData = z.infer<typeof profileSchema>;
 export type TaxiData = z.infer<typeof taxiSchema>;
 export type TranslateData = z.infer<typeof translateSchema>;
+export type StockData = z.infer<typeof stockSchema>;
 
 /** 메일 보낸 사람 '김지은 <jieun@example.com>' → 이름과 주소. 꺾쇠가 없으면 적은 그대로 이름으로 */
 export function splitMailSender(from: string): { name: string; address: string } {
@@ -915,6 +927,29 @@ export function parseParcelScript(script: string): ParcelRecord[] {
   return records;
 }
 
+// ─── 주식 시세 ──────────────────────────────────────
+// 흐름 그래프 숫자: 띄어쓰기·줄바꿈으로 나누고 천 단위 쉼표는 떼어 읽는다 ('70,100 70,800'), 숫자가 아닌 것은 건너뜀, 60개까지
+// 방향: 등락 글의 앞 기호로 (+ ▲ ↑ → 오름, - − ▼ ↓ → 내림), 기호가 없거나 비었으면 흐름의 처음·끝을 견줌, 같으면 보합
+
+export type StockDirection = 'up' | 'down' | 'flat';
+
+export function parseStockPoints(text: string): number[] {
+  return text
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((token) => Number(token.replace(/,/g, '')))
+    .filter((value) => Number.isFinite(value))
+    .slice(0, 60);
+}
+
+export function stockDirection(change: string, points: number[]): StockDirection {
+  const sign = change.trim()[0];
+  if (sign && '+▲↑'.includes(sign)) return 'up';
+  if (sign && '-−▼↓'.includes(sign)) return 'down';
+  if (points.length >= 2 && points.at(-1) !== points[0]) return (points.at(-1) as number) > points[0] ? 'up' : 'down';
+  return 'flat';
+}
+
 // ─── 메신저 프로필 배경 ──────────────────────────────────────
 // 배경 말로 그라데이션을 고른다: 노을·저녁·석양·주황 → 노을, 밤·별·달빛·새벽 → 밤(밤하늘도), 바다·하늘·파도·파랑 → 바다,
 // 벚꽃·봄·분홍·꽃 → 벚꽃, 숲·나무·초록·풀 → 숲, 그 밖은 기본(회색). 모두 흰 글씨가 대비 4.5:1 이상인 진한 색
@@ -1203,7 +1238,8 @@ export type TemplateKey =
   | 'match'
   | 'profile'
   | 'taxi'
-  | 'translate';
+  | 'translate'
+  | 'stock';
 
 export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }> = [
   { key: 'kakao-dm', label: '카톡 1:1 대화', hint: '두 사람의 메신저 대화' },
@@ -1243,6 +1279,7 @@ export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }>
   { key: 'profile', label: '메신저 프로필', hint: '프로필 사진 · 이름 · 상태 메시지 · 배경 · 프로필 음악' },
   { key: 'taxi', label: '택시 호출', hint: '배차 완료 · 몇 분 후 도착 · 차량 번호 · 차종 · 기사 · 출발 → 도착' },
   { key: 'translate', label: '번역기', hint: '원문 언어 → 번역 언어 · 원문 · 번역문 · 발음' },
+  { key: 'stock', label: '주식 시세', hint: '종목 · 현재가 · 오르면 빨강 내리면 파랑 · 거래량 · 흐름 그래프' },
 ];
 
 export function templateLabel(block: StoryBlock): string {
@@ -1379,6 +1416,19 @@ export function createTemplate(key: TemplateKey): StoryBlock {
       return {
         kind: 'location',
         data: { badge: '위치 공유', place: '골목 끝 와플 가게', address: '와플시 반죽구 시럽로 12, 1층', note: '여기서 기다릴게' },
+      };
+    case 'stock':
+      return {
+        kind: 'stock',
+        data: {
+          name: '와플전자',
+          code: '와플거래소 · WFL',
+          price: '72,400원',
+          change: '+1,200 (+1.68%)',
+          volume: '1,234만 주',
+          note: '장 마감 · 15:30',
+          points: '70,100 70,800 71,200 70,900 71,800 72,400',
+        },
       };
     case 'translate':
       return {

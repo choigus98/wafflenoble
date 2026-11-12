@@ -39,6 +39,8 @@ import {
   matchOutcome,
   parseMatchScript,
   profileTone,
+  parseStockPoints,
+  stockDirection,
   todoProgress,
   weatherKind,
   type AlarmData,
@@ -71,6 +73,7 @@ import {
   type ProfileData,
   type TaxiData,
   type TranslateData,
+  type StockData,
   type StoryBlock,
   type SystemData,
   type TodoData,
@@ -169,6 +172,8 @@ export function StoryBlockView({ block }: { block: StoryBlock }) {
       return <TaxiCard data={block.data} />;
     case 'translate':
       return <TranslateCard data={block.data} />;
+    case 'stock':
+      return <StockCard data={block.data} />;
   }
 }
 
@@ -2484,6 +2489,93 @@ export function TranslateCard({ data, field }: { data: TranslateData; field?: Fi
               {slot('pronounce', '발음 (비우면 안 보여요)', 120, 'max-w-full')}
             </div>
           ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * 주식 시세: 종목 · 시장·코드 · 현재가(크게) · 등락(오르면 빨강 ▲, 내리면 파랑 ▼, 보합 회색 — 색만이 아니라 기호와 부호로도) ·
+ * 흐름 그래프(숫자 두 개 이상이면, 2px 선과 옅은 면, 끝 점) · 거래량 · 맨 아래 한 줄. 에디터에서는 그래프 아래에 흐름 숫자 칸
+ */
+export function StockCard({ data, field }: { data: StockData; field?: FieldRenderer }) {
+  const editing = Boolean(field);
+  const slot = (name: keyof StockData, label: string, maxLength: number, className: string, multiline = false) =>
+    field ? (
+      field({ name, value: data[name], label, placeholder: label, maxLength, className, multiline, wrap: !multiline })
+    ) : (
+      <span className={className}>{data[name]}</span>
+    );
+  const show = (name: keyof StockData) => editing || data[name].trim() !== '';
+  const points = parseStockPoints(data.points);
+  const direction = stockDirection(data.change, points);
+  // 등락 글에 화살표를 직접 썼으면('▲ 3%') 카드가 붙이는 화살표는 빼서 두 번 나오지 않게
+  const arrow = /^[▲▼↑↓]/.test(data.change.trim()) ? null : direction === 'up' ? '▲' : direction === 'down' ? '▼' : '–';
+  const word = direction === 'up' ? '오름' : direction === 'down' ? '내림' : '보합';
+  const style = { '--stock-tone': `var(--wn-stock-${direction})` } as CSSProperties;
+
+  // 흐름 그래프: 가로 300 · 세로 72 칸에 맞춘 선과 아래 면 (가로세로 비율을 지켜서 끝 점이 찌그러지지 않게)
+  const W = 300;
+  const H = 72;
+  const P = 6;
+  let line = '';
+  let area = '';
+  let end: [number, number] | null = null;
+  if (points.length >= 2) {
+    const min = Math.min(...points);
+    const max = Math.max(...points);
+    const xy = points.map((value, index): [number, number] => [
+      P + (index / (points.length - 1)) * (W - 2 * P),
+      max === min ? H / 2 : P + (1 - (value - min) / (max - min)) * (H - 2 * P),
+    ]);
+    line = xy.map(([x, y], index) => `${index ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join(' ');
+    area = `${line} L${xy[xy.length - 1][0].toFixed(1)} ${H} L${xy[0][0].toFixed(1)} ${H} Z`;
+    end = xy[xy.length - 1];
+  }
+  const empty = !editing && !line && (['name', 'code', 'price', 'change', 'volume', 'note'] as const).every((name) => data[name].trim() === '');
+
+  return (
+    <div style={style} className="wn-block mx-auto w-full max-w-[400px] overflow-hidden rounded-[18px] border border-(--wn-border) bg-(--wn-stock-bg) px-5 pt-4 pb-4 text-(--wn-fg) shadow-sm">
+      {/* 다 비우면 이름 대신 '주식 시세'만 보이므로 낭독기용 머리는 빼서 두 번 읽지 않게 */}
+      {editing || empty ? null : <span className="sr-only">주식 시세 </span>}
+      {empty ? <p className="text-sm text-(--wn-stock-flat)">주식 시세</p> : null}
+      {show('name') || show('code') ? (
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+          {show('name') ? <span className="max-w-full text-[15px] font-bold break-keep">{slot('name', '종목 이름', 30, 'max-w-full')}</span> : null}
+          {show('code') ? <span className="max-w-full text-xs break-keep text-(--wn-stock-flat)">{slot('code', '시장·코드 (비우면 안 보여요)', 30, 'max-w-full')}</span> : null}
+        </div>
+      ) : null}
+      {show('price') ? <div className="mt-1.5 text-[28px] leading-tight font-bold break-keep">{slot('price', '현재가', 20, 'max-w-full')}</div> : null}
+      {show('change') ? (
+        <div className="mt-0.5 flex items-center gap-1 text-sm font-semibold text-(--stock-tone)">
+          {arrow ? <span aria-hidden="true">{arrow}</span> : null}
+          {editing ? null : <span className="sr-only">{word} </span>}
+          {slot('change', '등락 (+ 오름 · − 내림)', 30, 'max-w-full tabular-nums')}
+        </div>
+      ) : null}
+      {line && end ? (
+        <svg viewBox={`0 0 ${W} ${H}`} aria-hidden="true" className="mt-3 block h-auto w-full">
+          <path d={area} fill="var(--stock-tone)" fillOpacity="0.1" />
+          <path d={line} fill="none" stroke="var(--stock-tone)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          <circle cx={end[0]} cy={end[1]} r="4" fill="var(--stock-tone)" stroke="var(--wn-stock-bg)" strokeWidth="2" />
+        </svg>
+      ) : null}
+      {!editing && points.length >= 2 ? (
+        <span className="sr-only">
+          흐름 {points[0].toLocaleString('ko-KR')}에서 {points[points.length - 1].toLocaleString('ko-KR')}까지
+        </span>
+      ) : null}
+      {editing ? <div className="mt-2 text-xs tabular-nums">{slot('points', '흐름 숫자 (띄어 써요, 두 개 이상이면 그래프)', 600, 'block w-full', true)}</div> : null}
+      {show('volume') || show('note') ? (
+        <div className="mt-3 flex flex-wrap gap-x-3 gap-y-0.5 border-t border-(--wn-border) pt-2.5 text-xs text-(--wn-stock-flat)">
+          {show('volume') ? (
+            // 에디터에서는 '거래량' 글자와 입력칸을 가운데 맞춤으로 (입력칸 아래 끝에 글자가 붙지 않게)
+            <span className="inline-flex max-w-full items-center gap-1 break-keep">
+              거래량 {slot('volume', '거래량 (비우면 안 보여요)', 30, 'max-w-full')}
+            </span>
+          ) : null}
+          {show('note') ? <span className="max-w-full break-keep">{slot('note', '맨 아래 한 줄 (비우면 안 보여요)', 40, 'max-w-full')}</span> : null}
         </div>
       ) : null}
     </div>
