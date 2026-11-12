@@ -156,7 +156,13 @@ export function ShortcutGuide() {
               </svg>
             </button>
           </div>
-          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-5 py-4">
+          {/* 목록이 창보다 길면 안에서 스크롤: 키보드로도 내릴 수 있게 포커스를 받는다 (Safari는 스크롤 칸에 저절로 포커스가 가지 않음) */}
+          <div
+            tabIndex={0}
+            role="region"
+            aria-label="단축키 목록"
+            className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-5 py-4 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
+          >
             {GROUPS.map((group) => (
               <section key={group.title}>
                 <h3 className="text-xs font-semibold text-muted">{group.title}</h3>

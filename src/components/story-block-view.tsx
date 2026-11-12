@@ -60,7 +60,8 @@ export type FieldRenderer = (spec: {
   placeholder: string;
   maxLength: number;
   className: string;
-  multiline?: boolean;
+  multiline?: boolean; // 여러 줄 글 (줄바꿈을 그대로 저장)
+  wrap?: boolean; // 한 줄 값이지만 칸이 좁으면 화면에서 줄을 바꿔 보여 줌 (Enter·줄바꿈은 막음)
 }) => ReactNode;
 
 export function StoryBlockView({ block }: { block: StoryBlock }) {
@@ -106,9 +107,9 @@ export function StoryBlockView({ block }: { block: StoryBlock }) {
 
 export function LiveCard({ data, field }: { data: LiveData; field?: FieldRenderer }) {
   const editing = Boolean(field);
-  const slot = (name: keyof LiveData, label: string, maxLength: number, className: string) =>
+  const slot = (name: keyof LiveData, label: string, maxLength: number, className: string, multiline = false, wrap = false) =>
     field ? (
-      field({ name, value: data[name], label, placeholder: label, maxLength, className })
+      field({ name, value: data[name], label, placeholder: label, maxLength, className, multiline, wrap })
     ) : (
       <span className={className}>{data[name]}</span>
     );
@@ -127,7 +128,7 @@ export function LiveCard({ data, field }: { data: LiveData; field?: FieldRendere
           : null}
       </div>
       {editing || data.title ? (
-        <div className="mt-2">{slot('title', '방송 제목', 120, 'block w-full text-[21px] leading-snug font-bold whitespace-pre-wrap')}</div>
+        <div className="mt-2">{slot('title', '방송 제목', 120, 'block w-full text-[21px] leading-snug font-bold whitespace-pre-wrap', false, true)}</div>
       ) : null}
       <div className="mt-3 flex items-center justify-between gap-3 text-sm">
         {editing || data.viewers ? (
@@ -705,9 +706,9 @@ function SnsCard({ data }: { data: SnsData }) {
 /** 이메일: 제목 · 보낸 사람(이름·주소) · 받는 사람 · 시각 · 본문 · 첨부 파일. 에디터에서는 field로 카드 위에서 바로 고친다 */
 export function MailCard({ data, field }: { data: MailData; field?: FieldRenderer }) {
   const editing = Boolean(field);
-  const slot = (name: keyof MailData, label: string, maxLength: number, className: string, multiline = false) =>
+  const slot = (name: keyof MailData, label: string, maxLength: number, className: string, multiline = false, wrap = false) =>
     field ? (
-      field({ name, value: data[name], label, placeholder: label, maxLength, className, multiline })
+      field({ name, value: data[name], label, placeholder: label, maxLength, className, multiline, wrap })
     ) : (
       <span className={className}>{data[name]}</span>
     );
@@ -728,11 +729,11 @@ export function MailCard({ data, field }: { data: MailData; field?: FieldRendere
         <div className="min-w-0 flex-1 text-[13px] leading-snug">
           {editing ? (
             <div className="flex flex-col items-start gap-1">
-              {slot('from', '보낸 사람 (이름 <주소>)', 80, 'max-w-full text-[14px] font-semibold')}
+              {slot('from', '보낸 사람 (이름 <주소>)', 80, 'max-w-full text-[14px] font-semibold', false, true)}
               <div className="flex max-w-full flex-wrap items-center gap-x-1 text-(--wn-muted)">
                 <span className="shrink-0">받는 사람</span>
                 {/* 두 글자 이름도 누르기 쉽게 너비는 32px 이상 */}
-                {slot('to', '받는 사람 (비우면 안 보여요)', 80, 'max-w-full min-w-8')}
+                {slot('to', '받는 사람 (비우면 안 보여요)', 80, 'max-w-full min-w-8', false, true)}
               </div>
               {slot('date', '시각', 40, 'max-w-full text-(--wn-muted) tabular-nums')}
             </div>
@@ -769,7 +770,7 @@ export function MailCard({ data, field }: { data: MailData; field?: FieldRendere
             <path d="M20.5 11.5l-8.2 8.2a5 5 0 0 1-7.1-7.1l8.5-8.5a3.4 3.4 0 0 1 4.8 4.8l-8.4 8.4a1.8 1.8 0 0 1-2.6-2.6l7.7-7.7" />
           </svg>
           {editing ? null : <span className="sr-only">첨부 파일 </span>}
-          {slot('attachment', '첨부 파일 이름 (비우면 안 보여요)', 80, editing ? 'max-w-full min-w-8' : 'min-w-0 truncate')}
+          {slot('attachment', '첨부 파일 이름 (비우면 안 보여요)', 80, editing ? 'max-w-full min-w-8' : 'min-w-0 truncate', false, true)}
         </div>
       ) : null}
     </div>
@@ -995,9 +996,9 @@ function ReceiptCard({ data }: { data: ReceiptData }) {
 /** 위치 공유: 작은 지도 그림(장식) · 위치 공유 표시 · 장소 이름 · 주소 · 한 줄 메모. 에디터에서는 field로 카드 위에서 바로 고친다 */
 export function LocationCard({ data, field }: { data: LocationData; field?: FieldRenderer }) {
   const editing = Boolean(field);
-  const slot = (name: keyof LocationData, label: string, maxLength: number, className: string) =>
+  const slot = (name: keyof LocationData, label: string, maxLength: number, className: string, wrap = false) =>
     field ? (
-      field({ name, value: data[name], label, placeholder: label, maxLength, className })
+      field({ name, value: data[name], label, placeholder: label, maxLength, className, wrap })
     ) : (
       <span className={className}>{data[name]}</span>
     );
@@ -1029,15 +1030,15 @@ export function LocationCard({ data, field }: { data: LocationData; field?: Fiel
             {slot('badge', '위쪽 표시 (비우면 안 보여요)', 40, '')}
           </div>
         ) : null}
-        <div className="mt-1">{slot('place', '장소 이름', 60, 'block w-full text-[17px] leading-snug font-bold break-keep')}</div>
+        <div className="mt-1">{slot('place', '장소 이름', 60, 'block w-full text-[17px] leading-snug font-bold break-keep', true)}</div>
         {editing || data.address.trim() ? (
           <div className="mt-0.5 text-[13px] text-(--wn-muted)">
             {editing ? null : <span className="sr-only">주소 </span>}
-            {slot('address', '주소 (비우면 안 보여요)', 120, 'block w-full break-keep')}
+            {slot('address', '주소 (비우면 안 보여요)', 120, 'block w-full break-keep', true)}
           </div>
         ) : null}
         {editing || data.note.trim() ? (
-          <div className="mt-2.5 rounded-xl bg-(--wn-loc-note-bg) px-3 py-2 text-sm">{slot('note', '한 줄 메모 (비우면 안 보여요)', 120, 'block w-full break-keep')}</div>
+          <div className="mt-2.5 rounded-xl bg-(--wn-loc-note-bg) px-3 py-2 text-sm">{slot('note', '한 줄 메모 (비우면 안 보여요)', 120, 'block w-full break-keep', true)}</div>
         ) : null}
       </div>
     </div>
@@ -1152,9 +1153,9 @@ const TRANSFER_ROWS: Array<{ name: 'to' | 'from' | 'memo' | 'date'; label: strin
  */
 export function TransferCard({ data, field }: { data: TransferData; field?: FieldRenderer }) {
   const editing = Boolean(field);
-  const slot = (name: keyof TransferData, label: string, maxLength: number, className: string) =>
+  const slot = (name: keyof TransferData, label: string, maxLength: number, className: string, wrap = false) =>
     field ? (
-      field({ name, value: data[name], label, placeholder: label, maxLength, className })
+      field({ name, value: data[name], label, placeholder: label, maxLength, className, wrap })
     ) : (
       <span className={className}>{data[name]}</span>
     );
@@ -1171,7 +1172,7 @@ export function TransferCard({ data, field }: { data: TransferData; field?: Fiel
           <path d="M14.5 24.5l6.5 6.5 12.5-13.5" fill="none" stroke="var(--wn-transfer-accent-fg)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
         <div className="mt-3 max-w-full text-[15px] font-semibold text-(--wn-muted)">{slot('status', '완료 문구', 30, 'max-w-full text-center')}</div>
-        <div className="mt-0.5 max-w-full text-[28px] leading-tight font-bold break-all tabular-nums">{slot('amount', '금액', 30, 'max-w-full text-center')}</div>
+        <div className="mt-0.5 max-w-full text-[28px] leading-tight font-bold break-all tabular-nums">{slot('amount', '금액', 30, 'max-w-full text-center', true)}</div>
       </div>
       {rows.length > 0 ? (
         <dl className="mt-5 space-y-2 border-t border-(--wn-line) pt-4 text-sm">
@@ -1179,7 +1180,7 @@ export function TransferCard({ data, field }: { data: TransferData; field?: Fiel
             <div key={row.name} className="flex items-baseline justify-between gap-4">
               <dt className="shrink-0 text-(--wn-muted)">{row.label}</dt>
               <dd className="min-w-0 text-right break-keep">
-                {slot(row.name, row.optional ? `${row.label} (비우면 안 보여요)` : row.label, row.maxLength, 'max-w-full text-right')}
+                {slot(row.name, row.optional ? `${row.label} (비우면 안 보여요)` : row.label, row.maxLength, 'max-w-full text-right', true)}
               </dd>
             </div>
           ))}

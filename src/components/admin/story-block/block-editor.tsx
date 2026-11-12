@@ -118,6 +118,12 @@ function useDraft<T extends StoryBlock>(block: T, onChange: (block: StoryBlock) 
 const INLINE_EDIT =
   'min-h-6 rounded-md bg-transparent outline-none ring-1 ring-transparent transition placeholder:text-(--wn-muted) placeholder:opacity-70 hover:ring-(--wn-border) focus:ring-2 focus:ring-accent';
 
+/** 줄바꿈 칸(wrap)이 비어 있을 때 자리표시가 다 보이는 최소 너비 (한글 1em, 나머지 0.55em으로 어림, 칸보다 넓지 않게) */
+function placeholderWidth(text: string): string {
+  const em = [...text].reduce((sum, char) => sum + (/[\u3131-\u318e\uac00-\ud7a3]/.test(char) ? 1 : 0.55), 0);
+  return `min(${em.toFixed(1)}em, 100%)`;
+}
+
 export function InlineCardEditor({
   block,
   onChange,
@@ -131,9 +137,11 @@ export function InlineCardEditor({
   const { draft, update, flush } = useDraft(block, onChange);
   const firstField = { live: 'streamer', donation: 'donor', call: 'name', news: 'title', note: 'body', mail: 'subject', location: 'place', transfer: 'amount' }[draft.kind];
 
-  const field: FieldRenderer = ({ name, value, label, placeholder, maxLength, className, multiline }) => {
+  const field: FieldRenderer = ({ name, value, label, placeholder, maxLength, className, multiline, wrap }) => {
     const set = (next: string) => update({ ...draft, data: { ...draft.data, [name]: next } } as CardBlock);
-    return multiline ? (
+    // wrap: 한 줄 값이지만 좁은 화면에서 줄을 바꿔 다 보이게 (입력칸은 줄을 못 바꿔서 긴 값이 잘려 보였다).
+    // Enter는 막고, 붙여 넣은 줄바꿈은 띄어쓰기로 바꾼다
+    return multiline || wrap ? (
       <textarea
         key={name}
         aria-label={label}
@@ -142,8 +150,16 @@ export function InlineCardEditor({
         maxLength={maxLength}
         rows={1}
         autoFocus={autoFocus && name === firstField}
-        onChange={(e) => set(e.target.value)}
+        onChange={(e) => set(wrap ? e.target.value.replace(/\r?\n/g, ' ') : e.target.value)}
+        onKeyDown={
+          wrap
+            ? (e) => {
+                if (e.key === 'Enter' && !e.nativeEvent.isComposing && e.keyCode !== 229) e.preventDefault();
+              }
+            : undefined
+        }
         onBlur={flush}
+        style={wrap && !value ? { minWidth: placeholderWidth(placeholder) } : undefined}
         className={cn(className, INLINE_EDIT, 'resize-none field-sizing-content')}
       />
     ) : (
