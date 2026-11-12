@@ -15,6 +15,7 @@ import {
 import { ChangesDialog } from '@/components/admin/changes-dialog';
 import { CharGoal } from '@/components/admin/char-goal';
 import { FindBar, FindReplace } from '@/components/admin/find-replace';
+import { ScenePanel, jumpToScene } from '@/components/admin/scene-panel';
 import { SpellingCheck, SpellingPanel } from '@/components/admin/spelling-panel';
 import { ShortcutGuide } from '@/components/admin/shortcut-guide';
 import { TemplateMenu } from '@/components/admin/story-block/template-menu';
@@ -113,9 +114,10 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
   const scheduleButtonRef = useRef<HTMLButtonElement>(null);
   // 찾기·바꾸기 창. 열 때마다 번호를 올려서, 열린 상태에서 다시 열면(Cmd+F) 고른 글자로 새로 찾는다
   const [findSession, setFindSession] = useState(0);
-  const [findOpen, setFindOpen] = useState(false);
-  // 자주 틀리는 말 창 (찾기 창과 같은 자리라 한 번에 하나만)
-  const [spellOpen, setSpellOpen] = useState(false);
+  // 도구 막대 아래 창: 찾기·바꾸기 · 자주 틀리는 말 · 장면 바로가기 (같은 자리라 한 번에 하나만)
+  const [panel, setPanel] = useState<'find' | 'spelling' | 'scenes' | null>(null);
+  // 화면 위에 붙는 도구 막대 (장면으로 갈 때 그 높이만큼 비켜서 스크롤)
+  const barRef = useRef<HTMLDivElement>(null);
   // 집중 모드: 이 기기에 기억해 두고, 화면 맨 처음(layout의 스크립트)에 <html data-focus>로 반영된다
   const [focusMode, setFocusMode] = useState(() => document.documentElement.dataset.focus === 'on');
   const [saveState, setSaveState] = useState<SaveState>('saved');
@@ -169,14 +171,11 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
 
   // setState 함수만 쓰므로 에디터 확장에 그대로 넘겨도 늘 같은 동작
   const openFind = () => {
-    setSpellOpen(false);
-    setFindOpen(true);
+    setPanel('find');
     setFindSession((value) => value + 1);
   };
-  const toggleSpelling = () => {
-    setFindOpen(false);
-    setSpellOpen((open) => !open);
-  };
+  const togglePanel = (name: 'spelling' | 'scenes') => setPanel((open) => (open === name ? null : name));
+  const closePanel = (name: 'find' | 'spelling' | 'scenes') => setPanel((open) => (open === name ? null : open));
 
   /** 문장 부호 다듬기: 본문 전체를 한 번에 (되돌리기 한 번이면 전부 원래대로). 템플릿 안은 그대로 (lib/punctuation.ts) */
   const polishPunctuation = () => {
@@ -614,15 +613,15 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
         </label>
       </div>
 
-      <div className="sticky top-0 z-20 -mx-1 mt-5 bg-bg/90 px-1 py-2 backdrop-blur-md">
+      <div ref={barRef} className="sticky top-0 z-20 -mx-1 mt-5 bg-bg/90 px-1 py-2 backdrop-blur-md">
         <div className="flex flex-wrap items-center justify-between gap-2">
           {editor ? (
             <Toolbar
               editor={editor}
               onFind={openFind}
               onPolish={polishPunctuation}
-              spellOpen={spellOpen}
-              onSpelling={toggleSpelling}
+              panel={panel}
+              onTogglePanel={togglePanel}
               focusMode={focusMode}
               onToggleFocus={toggleFocusMode}
             />
@@ -726,8 +725,19 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
             )}
           </div>
         </div>
-        {findOpen && editor ? <FindBar key={findSession} editor={editor} onClose={() => setFindOpen(false)} /> : null}
-        {spellOpen && editor ? <SpellingPanel editor={editor} onClose={() => setSpellOpen(false)} /> : null}
+        {panel === 'find' && editor ? <FindBar key={findSession} editor={editor} onClose={() => closePanel('find')} /> : null}
+        {panel === 'spelling' && editor ? <SpellingPanel editor={editor} onClose={() => closePanel('spelling')} /> : null}
+        {panel === 'scenes' && editor ? (
+          <ScenePanel
+            editor={editor}
+            onClose={() => closePanel('scenes')}
+            onJump={(scene) => {
+              closePanel('scenes');
+              // 창이 닫혀 도구 막대가 줄어든 뒤에 재야 장면 첫머리가 막대 바로 아래에 온다
+              window.setTimeout(() => jumpToScene(editor, scene, barRef.current), 0);
+            }}
+          />
+        ) : null}
       </div>
 
       <EditorContent editor={editor} className="mt-2 rounded-2xl border border-line bg-surface" />
@@ -935,16 +945,16 @@ function Toolbar({
   editor,
   onFind,
   onPolish,
-  spellOpen,
-  onSpelling,
+  panel,
+  onTogglePanel,
   focusMode,
   onToggleFocus,
 }: {
   editor: Editor;
   onFind: () => void;
   onPolish: () => void;
-  spellOpen: boolean;
-  onSpelling: () => void;
+  panel: 'find' | 'spelling' | 'scenes' | null;
+  onTogglePanel: (name: 'spelling' | 'scenes') => void;
   focusMode: boolean;
   onToggleFocus: () => void;
 }) {
@@ -1042,15 +1052,28 @@ function Toolbar({
       </button>
       <button
         type="button"
-        onClick={onSpelling}
-        aria-expanded={spellOpen}
+        onClick={() => onTogglePanel('spelling')}
+        aria-expanded={panel === 'spelling'}
         title="자주 틀리는 말 찾기: 됬 → 됐, 몇일 → 며칠, 할께 → 할게 … (템플릿 안은 그대로)"
         aria-label="자주 틀리는 말 찾기"
-        className={cn('grid h-8 min-w-8 place-items-center rounded-lg px-2 transition', spellOpen ? 'bg-accent-soft text-accent' : 'text-fg hover:bg-surface-2')}
+        className={cn('grid h-8 min-w-8 place-items-center rounded-lg px-2 transition', panel === 'spelling' ? 'bg-accent-soft text-accent' : 'text-fg hover:bg-surface-2')}
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-4">
           <path d="M5 9.5l3.5 3.5L16 5.5" />
           <path d="M3 19c1.5-1.6 3-1.6 4.5 0s3 1.6 4.5 0 3-1.6 4.5 0 3 1.6 4.5 0" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        onClick={() => onTogglePanel('scenes')}
+        aria-expanded={panel === 'scenes'}
+        title="장면 바로가기: 장면 전환(✦)으로 나뉜 장면 목록"
+        aria-label="장면 바로가기"
+        className={cn('grid h-8 min-w-8 place-items-center rounded-lg px-2 transition', panel === 'scenes' ? 'bg-accent-soft text-accent' : 'text-fg hover:bg-surface-2')}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-4">
+          <path d="M10 6h10M10 12h10M10 18h10" />
+          <path d="M5 4l1.6 2L5 8 3.4 6zM5 10l1.6 2L5 14l-1.6-2zM5 16l1.6 2L5 20l-1.6-2z" fill="currentColor" strokeWidth="1" />
         </svg>
       </button>
       <button
