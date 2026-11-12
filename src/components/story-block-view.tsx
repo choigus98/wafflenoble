@@ -1955,11 +1955,9 @@ export function SubwayCard({ data, field }: { data: SubwayData; field?: FieldRen
               {badge}
             </span>
             {show('line') ? slot('line', '노선 (비우면 안 보여요)', 20, 'max-w-full break-keep') : null}
+            {/* 방면은 흐린 색으로만 나눔 (가운뎃점을 두면 길어서 줄이 바뀔 때 점이 줄 머리에 혼자 남음) */}
             {show('direction') ? (
-              <span className="flex min-w-0 items-center gap-2 text-(--wn-subway-muted)">
-                {show('line') ? <span aria-hidden="true">·</span> : null}
-                {slot('direction', '방면 (비우면 안 보여요)', 30, 'max-w-full break-keep')}
-              </span>
+              <span className="min-w-0 text-(--wn-subway-muted)">{slot('direction', '방면 (비우면 안 보여요)', 30, 'max-w-full break-keep')}</span>
             ) : null}
           </div>
         ) : null}

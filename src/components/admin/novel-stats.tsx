@@ -46,9 +46,10 @@ export function NovelStatsSection({ novelId, stats }: { novelId: number; stats: 
 
 function Stat({ label, value, note }: { label: string; value: string; note: ReactNode }) {
   return (
-    <div className="min-w-0 rounded-2xl border border-line bg-surface px-4 py-3">
+    // 큰 숫자(1,234,567자)도 한 줄에: 칸 너비에 맞춰 글씨를 줄인다 (최대 20px)
+    <div className="@container min-w-0 rounded-2xl border border-line bg-surface px-4 py-3">
       <dt className="text-xs font-semibold text-muted">{label}</dt>
-      <dd className="mt-1 text-xl font-semibold break-keep text-fg">{value}</dd>
+      <dd className="mt-1 text-[min(1.25rem,16cqi)] font-semibold whitespace-nowrap text-fg">{value}</dd>
       <dd className="mt-0.5 text-xs break-keep text-muted">{note}</dd>
     </div>
   );
