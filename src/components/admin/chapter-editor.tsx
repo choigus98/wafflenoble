@@ -12,6 +12,7 @@ import {
   createTemplateEditingStore,
   useEditingTemplateUid,
 } from '@/components/admin/story-block/story-block-node';
+import { CharGoal } from '@/components/admin/char-goal';
 import { FindBar, FindReplace } from '@/components/admin/find-replace';
 import { TemplateMenu } from '@/components/admin/story-block/template-menu';
 import { SubmitButton } from '@/components/submit-button';
@@ -611,9 +612,13 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
         ) : (
           <span />
         )}
-        <p className="text-[13px] text-muted tabular-nums">
-          공백 포함 {formatNumber(counts.all)}자 · 공백 제외 {formatNumber(counts.noSpace)}자
-        </p>
+        <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+          <p className="text-[13px] text-muted tabular-nums">
+            공백 포함 {formatNumber(counts.all)}자 · 공백 제외 {formatNumber(counts.noSpace)}자
+          </p>
+          {/* 목표는 공백 포함 글자수 기준 */}
+          <CharGoal count={counts.all} />
+        </div>
       </div>
 
       {/* 회차 끝 '작가의 말': 본문과 같은 저장 흐름(자동저장·수정 반영·로컬 사본)을 탄다 */}
