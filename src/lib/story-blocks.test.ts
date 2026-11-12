@@ -98,6 +98,7 @@ const KEYS: TemplateKey[] = [
   'match',
   'profile',
   'taxi',
+  'translate',
 ];
 
 function withTrickyText(block: StoryBlock): StoryBlock {
@@ -158,6 +159,8 @@ function withTrickyText(block: StoryBlock): StoryBlock {
       return { ...block, data: { ...block.data, name: '한<b>지은</b> & 😀', status: TRICKY.slice(0, 60), music: '<i>노래</i> & "가수"' } };
     case 'taxi':
       return { ...block, data: { ...block.data, plate: '서울 <b>32사</b> & 1234', note: TRICKY.slice(0, 60), from: '"따옴표" 가게 & 😀', to: '' } };
+    case 'translate':
+      return { ...block, data: { ...block.data, source: `${TRICKY}\n둘째 줄 <i>기울임</i>`.slice(0, 300), result: '"따옴표" & <b>굵게</b> 😀', pronounce: '' } };
     case 'match':
       return { ...block, data: { ...block.data, mvp: '<b>하연화</b> & 😀', script: `${block.data.script}\n* ${TRICKY}: 1 / 2 / 3` } };
     case 'ticket':

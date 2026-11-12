@@ -128,6 +128,9 @@ describe('회차 텍스트로 내보내기', () => {
     expect(storyBlockToText(createTemplate('taxi'))).toBe(
       ['[택시 호출]', '배차 완료 · 3분 후 도착', '기사님이 출발지로 오고 있어요', '서울 32사 1234 · 흰색 쏘나타 · 김민수 기사님', '달빛 와플 가게 → 연남동 골목 입구'].join('\n'),
     );
+    expect(storyBlockToText(createTemplate('translate'))).toBe(
+      ['[번역기]', '한국어 → 일본어', '와플 하나 주세요.', 'ワッフルを一つください。', '발음: 왓후루 오 히토츠 쿠다사이'].join('\n'),
+    );
     // 출발·도착 중 하나만 있으면 이름표를 붙여서
     const taxi = createTemplate('taxi');
     if (taxi.kind !== 'taxi') throw new Error('택시 템플릿이 아니에요');
@@ -160,7 +163,7 @@ describe('회차 텍스트로 내보내기', () => {
   });
 
   it('모든 템플릿이 머리 한 줄 + 글로 풀린다 (빈 줄 없이)', () => {
-    const keys = ['kakao-dm', 'kakao-group', 'live', 'chat', 'donation', 'post', 'system-quest', 'system-status', 'news', 'call-incoming', 'call-active', 'note', 'sns', 'mail', 'search', 'push', 'sms', 'receipt', 'location', 'poll', 'transfer', 'alarm', 'event', 'item', 'music', 'rank', 'todo', 'namecard', 'weather', 'subway', 'parcel', 'ticket-plane', 'ticket-train', 'match', 'profile', 'taxi'] as const;
+    const keys = ['kakao-dm', 'kakao-group', 'live', 'chat', 'donation', 'post', 'system-quest', 'system-status', 'news', 'call-incoming', 'call-active', 'note', 'sns', 'mail', 'search', 'push', 'sms', 'receipt', 'location', 'poll', 'transfer', 'alarm', 'event', 'item', 'music', 'rank', 'todo', 'namecard', 'weather', 'subway', 'parcel', 'ticket-plane', 'ticket-train', 'match', 'profile', 'taxi', 'translate'] as const;
     for (const key of keys) {
       const text = storyBlockToText(createTemplate(key));
       const [head, ...rest] = text.split('\n');

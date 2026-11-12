@@ -70,6 +70,7 @@ import {
   type MatchData,
   type ProfileData,
   type TaxiData,
+  type TranslateData,
   type StoryBlock,
   type SystemData,
   type TodoData,
@@ -166,6 +167,8 @@ export function StoryBlockView({ block }: { block: StoryBlock }) {
       return <ProfileCard data={block.data} />;
     case 'taxi':
       return <TaxiCard data={block.data} />;
+    case 'translate':
+      return <TranslateCard data={block.data} />;
   }
 }
 
@@ -2415,6 +2418,71 @@ export function TaxiCard({ data, field }: { data: TaxiData; field?: FieldRendere
                 </li>
               ) : null}
             </ol>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * 번역기(번역 앱 화면): 맨 위에 원문 언어 → 번역 언어, 원문, 아래 칸에 번역문(크게) · 발음.
+ * 비운 칸은 안 보인다(에디터에서는 빈칸 안내로 보임). 원문·번역문은 줄바꿈 그대로
+ */
+export function TranslateCard({ data, field }: { data: TranslateData; field?: FieldRenderer }) {
+  const editing = Boolean(field);
+  // shape: line은 한 줄 입력칸(짧은 언어 이름 — 칩 안에서 글자가 가운데 오게), wrap은 좁으면 줄을 바꾸는 한 줄 값, multi는 여러 줄
+  const slot = (name: keyof TranslateData, label: string, maxLength: number, className: string, shape: 'line' | 'wrap' | 'multi' = 'wrap') =>
+    field ? (
+      field({ name, value: data[name], label, placeholder: label, maxLength, className, multiline: shape === 'multi', wrap: shape === 'wrap' })
+    ) : (
+      <span className={className}>{data[name]}</span>
+    );
+  const show = (name: keyof TranslateData) => editing || data[name].trim() !== '';
+  const chip = 'max-w-full rounded-full bg-(--wn-translate-chip) px-2.5 py-1 text-xs font-semibold break-keep text-(--wn-translate-accent)';
+  const hasResult = show('result') || show('pronounce');
+
+  return (
+    <div className="wn-block mx-auto w-full max-w-[440px] overflow-hidden rounded-[18px] border border-(--wn-border) bg-(--wn-translate-bg) text-(--wn-fg) shadow-sm">
+      <div className="flex flex-wrap items-center gap-1.5 border-b border-(--wn-border) px-4 py-2.5">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="mr-1 size-[18px] shrink-0 text-(--wn-translate-accent)">
+          <path d="M4 5h8M8 3v2M10 5c-.6 3.4-2.8 6.2-6 8M6 8.5c1 1.7 2.6 3.2 4.5 4.2" />
+          <path d="M13 21l4-9 4 9M14.5 17.5h5" />
+        </svg>
+        {editing ? null : <span className="sr-only">번역기 </span>}
+        {show('from') ? <span className={chip}>{slot('from', '원문 언어', 20, 'max-w-full min-w-8', 'line')}</span> : null}
+        {show('from') && show('to') ? (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-4 shrink-0 text-(--wn-translate-muted)">
+            <path d="M5 12h14M13 6l6 6-6 6" />
+          </svg>
+        ) : null}
+        {/* 낭독기에는 화살표 대신 '에서'를 읽어 준다 */}
+        {show('to') ? (
+          <span className={chip}>
+            {editing || !show('from') ? null : <span className="sr-only">에서 </span>}
+            {slot('to', '번역 언어', 20, 'max-w-full min-w-8', 'line')}
+          </span>
+        ) : null}
+      </div>
+      {show('source') ? (
+        <div className="px-5 pt-4 pb-4 text-[17px] leading-relaxed break-keep whitespace-pre-line">
+          {editing ? null : <span className="sr-only">원문 </span>}
+          {slot('source', '원문 (비우면 안 보여요)', 300, 'block w-full', 'multi')}
+        </div>
+      ) : null}
+      {hasResult ? (
+        <div className="bg-(--wn-translate-panel) px-5 pt-4 pb-5">
+          {show('result') ? (
+            <div className="text-[19px] leading-relaxed font-bold break-keep whitespace-pre-line">
+              {editing ? null : <span className="sr-only">번역 </span>}
+              {slot('result', '번역문 (비우면 안 보여요)', 300, 'block w-full', 'multi')}
+            </div>
+          ) : null}
+          {show('pronounce') ? (
+            <div className="mt-1.5 text-sm break-keep text-(--wn-translate-muted)">
+              {editing ? null : <span className="sr-only">발음 </span>}
+              {slot('pronounce', '발음 (비우면 안 보여요)', 120, 'max-w-full')}
+            </div>
           ) : null}
         </div>
       ) : null}

@@ -263,6 +263,11 @@
   --wn-taxi-plate-fg: #1c1917;
   --wn-taxi-from: #2563eb;
   --wn-taxi-to: #dc2626;
+  --wn-translate-bg: #ffffff;
+  --wn-translate-panel: #eef4ff;
+  --wn-translate-chip: #e8efff;
+  --wn-translate-accent: #1d4ed8;
+  --wn-translate-muted: #5f6672;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -517,6 +522,11 @@
     --wn-taxi-plate-fg: #1c1917;
     --wn-taxi-from: #60a5fa;
     --wn-taxi-to: #f87171;
+    --wn-translate-bg: #17191e;
+    --wn-translate-panel: #1d2433;
+    --wn-translate-chip: #243150;
+    --wn-translate-accent: #93b4ff;
+    --wn-translate-muted: rgb(255 255 255 / 0.62);
   }
 }
 
@@ -770,6 +780,11 @@
   --wn-taxi-plate-fg: #1c1917;
   --wn-taxi-from: #60a5fa;
   --wn-taxi-to: #f87171;
+  --wn-translate-bg: #17191e;
+  --wn-translate-panel: #1d2433;
+  --wn-translate-chip: #243150;
+  --wn-translate-accent: #93b4ff;
+  --wn-translate-muted: rgb(255 255 255 / 0.62);
 }
 
 @theme inline {
