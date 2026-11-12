@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Suspense } from 'react';
+import { RecentActivity } from '@/components/admin/recent-activity';
 import { NovelCover } from '@/components/novel-cover';
 import { Badge, ButtonLink, Skeleton } from '@/components/ui';
 import { formatRelative } from '@/lib/format';
@@ -16,6 +17,11 @@ export default function AdminHomePage() {
       <Suspense fallback={<ListSkeleton />}>
         <NovelList />
       </Suspense>
+      <div className="mt-10">
+        <Suspense fallback={<Skeleton className="h-48" />}>
+          <RecentActivity />
+        </Suspense>
+      </div>
     </>
   );
 }

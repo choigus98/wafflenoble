@@ -67,6 +67,23 @@ export function formatSchedule(date: Date): string {
   return `${map.month}월 ${map.day}일 (${map.weekday}) ${period} ${hour12}:${map.minute}`;
 }
 
+/**
+ * 받침에 따라 조사만 고른다. 예: particle('자정의 손님', '을', '를') → '을'
+ * 마지막 글자가 한글이 아니면 '을(를)'처럼 둘 다 쓴다
+ */
+export function particle(word: string, afterBatchim: string, afterVowel: string): string {
+  const last = word.trim().at(-1);
+  if (!last) return afterVowel;
+  const code = last.charCodeAt(0);
+  if (code < 0xac00 || code > 0xd7a3) return `${afterBatchim}(${afterVowel})`;
+  return (code - 0xac00) % 28 === 0 ? afterVowel : afterBatchim;
+}
+
+/** 단어 + 조사. 예: withParticle('자정의 손님', '을', '를') → '자정의 손님을' */
+export function withParticle(word: string, afterBatchim: string, afterVowel: string): string {
+  return `${word}${particle(word, afterBatchim, afterVowel)}`;
+}
+
 export function formatNumber(value: number): string {
   return value.toLocaleString('ko-KR');
 }

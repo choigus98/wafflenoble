@@ -1,5 +1,5 @@
 import 'server-only';
-import { and, asc, desc, eq } from 'drizzle-orm';
+import { and, asc, count, countDistinct, desc, eq, gt, sql } from 'drizzle-orm';
 import { requireAdmin } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { chapterLikes, chapterViews, chapters, novels, readers } from '@/lib/db/schema';
@@ -114,4 +114,69 @@ export async function adminGetGuildSettings() {
   await requireAdmin();
   const guild = await getGuildSettings();
   return { hasPassword: Boolean(guild.guildPasswordHash), updatedAt: guild.updatedAt };
+}
+
+// ─── 최근 반응 ─────────────────────────────────────────
+
+export type Activity =
+  | { kind: 'like'; at: Date; nickname: string; novelId: number; chapterId: number; position: number; chapterTitle: string }
+  | {
+      kind: 'read';
+      at: Date;
+      nickname: string;
+      novelId: number;
+      chapterId: number;
+      position: number;
+      chapterTitle: string;
+      viewCount: number;
+    }
+  | { kind: 'join'; at: Date; nickname: string };
+
+/** 좋아요·읽음·새 길드원을 시간 순서로 섞은 최근 반응. 종류마다 최근 것만 가져와 합친다 */
+export async function adminRecentActivity(limit = 20): Promise<Activity[]> {
+  await requireAdmin();
+  const chapterColumns = {
+    nickname: readers.nickname,
+    novelId: chapters.novelId,
+    chapterId: chapters.id,
+    position: chapters.position,
+    chapterTitle: chapters.title,
+  };
+  const [likes, reads, joins] = await Promise.all([
+    db
+      .select({ at: chapterLikes.createdAt, ...chapterColumns })
+      .from(chapterLikes)
+      .innerJoin(readers, eq(readers.id, chapterLikes.readerId))
+      .innerJoin(chapters, eq(chapters.id, chapterLikes.chapterId))
+      .orderBy(desc(chapterLikes.createdAt))
+      .limit(limit),
+    db
+      .select({ at: chapterViews.lastViewedAt, viewCount: chapterViews.viewCount, ...chapterColumns })
+      .from(chapterViews)
+      .innerJoin(readers, eq(readers.id, chapterViews.readerId))
+      .innerJoin(chapters, eq(chapters.id, chapterViews.chapterId))
+      .orderBy(desc(chapterViews.lastViewedAt))
+      .limit(limit),
+    db.select({ at: readers.createdAt, nickname: readers.nickname }).from(readers).orderBy(desc(readers.createdAt)).limit(limit),
+  ]);
+
+  return [
+    ...likes.map((row) => ({ kind: 'like' as const, ...row })),
+    ...reads.map((row) => ({ kind: 'read' as const, ...row })),
+    ...joins.map((row) => ({ kind: 'join' as const, ...row })),
+  ]
+    .sort((a, b) => b.at.getTime() - a.at.getTime())
+    .slice(0, limit);
+}
+
+/** 최근 24시간 요약: 읽은 사람 수, 좋아요 수, 새 길드원 수 */
+export async function adminLast24h() {
+  await requireAdmin();
+  const since = sql`now() - interval '24 hours'`;
+  const [[reads], [likes], [joins]] = await Promise.all([
+    db.select({ value: countDistinct(chapterViews.readerId) }).from(chapterViews).where(gt(chapterViews.lastViewedAt, since)),
+    db.select({ value: count() }).from(chapterLikes).where(gt(chapterLikes.createdAt, since)),
+    db.select({ value: count() }).from(readers).where(gt(readers.createdAt, since)),
+  ]);
+  return { readers: reads?.value ?? 0, likes: likes?.value ?? 0, joins: joins?.value ?? 0 };
 }
