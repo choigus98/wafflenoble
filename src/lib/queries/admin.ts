@@ -25,6 +25,7 @@ export async function adminListNovels() {
       title: novels.title,
       serialStatus: novels.serialStatus,
       isPublished: novels.isPublished,
+      coverColor: novels.coverColor,
       updatedAt: novels.updatedAt,
       totalChapters: novelChapterCount,
       publishedChapters: novelVisibleChapterCount,

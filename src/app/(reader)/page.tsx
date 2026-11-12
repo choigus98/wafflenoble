@@ -43,7 +43,7 @@ async function NovelGrid() {
       {novels.map((novel) => (
         <li key={novel.id}>
           <Link href={`/novels/${novel.id}`} className="group block rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent">
-            <NovelCover id={novel.id} title={novel.title} className="transition duration-200 group-hover:-translate-y-0.5 group-hover:shadow-md" />
+            <NovelCover id={novel.id} title={novel.title} color={novel.coverColor} className="transition duration-200 group-hover:-translate-y-0.5 group-hover:shadow-md" />
             <div className="mt-3 space-y-1.5">
               <p className="line-clamp-2 leading-snug font-semibold">{novel.title}</p>
               <div className="flex flex-wrap items-center gap-1.5 text-[13px] text-muted">

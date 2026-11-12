@@ -55,7 +55,7 @@ async function NovelList() {
           {novels.map((novel) => (
             <li key={novel.id}>
               <Link href={`/admin/novels/${novel.id}`} className="flex items-center gap-4 px-4 py-4 transition hover:bg-surface-2/60 sm:px-5">
-                <NovelCover id={novel.id} title={novel.title} size="sm" className="w-12 shrink-0 [&_p]:hidden" />
+                <NovelCover id={novel.id} title={novel.title} color={novel.coverColor} size="sm" className="w-12 shrink-0 [&_p]:hidden" />
                 <div className="min-w-0 flex-1 space-y-1.5">
                   <p className="truncate font-semibold">{novel.title}</p>
                   <div className="flex flex-wrap items-center gap-1.5 text-[13px] text-muted">

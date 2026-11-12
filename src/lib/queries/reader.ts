@@ -28,6 +28,7 @@ export async function listNovels() {
       description: novels.description,
       serialStatus: novels.serialStatus,
       isPublished: novels.isPublished,
+      coverColor: novels.coverColor,
       lastPublishedAt: novelLastVisibleAt,
       chapterCount: novelVisibleChapterCount,
     })

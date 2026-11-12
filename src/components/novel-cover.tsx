@@ -1,15 +1,8 @@
+import { COVER_COLORS, resolveCoverColor } from '@/lib/cover';
 import { cn } from '@/lib/utils';
 
-// 표지 이미지 없이 제목 + 작품마다 고정된 색으로 만드는 텍스트 표지. 와플 격자 무늬를 은은하게 깐다
-const PALETTE: Array<[background: string, foreground: string]> = [
-  ['#8a5a3b', '#f6e9dc'],
-  ['#3f5f73', '#e3edf2'],
-  ['#6b5986', '#eee7f5'],
-  ['#4e6a4a', '#e6eee2'],
-  ['#985049', '#f6e3df'],
-  ['#76663a', '#f3ecd9'],
-  ['#3d4f6e', '#e2e8f3'],
-];
+// 표지 이미지 없이 제목 + 색으로 만드는 텍스트 표지. 와플 격자 무늬를 은은하게 깐다.
+// 색은 관리자가 고른 색, 안 골랐으면 작품 번호로 정해진 색 (lib/cover.ts)
 
 const TITLE_SIZE = {
   sm: 'text-[13px] leading-snug',
@@ -20,15 +13,17 @@ const TITLE_SIZE = {
 export function NovelCover({
   id,
   title,
+  color,
   size = 'md',
   className,
 }: {
   id: number;
   title: string;
+  color?: string | null;
   size?: keyof typeof TITLE_SIZE;
   className?: string;
 }) {
-  const [background, foreground] = PALETTE[id % PALETTE.length];
+  const { background, foreground } = COVER_COLORS[resolveCoverColor(id, color)];
   return (
     <div
       className={cn('relative aspect-[3/4] overflow-hidden rounded-xl shadow-sm ring-1 ring-black/5', className)}

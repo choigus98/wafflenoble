@@ -28,7 +28,7 @@ async function NovelDetail({ params }: Pick<PageProps<'/novels/[novelId]'>, 'par
   return (
     <article className="pt-8">
       <header className="flex gap-5 sm:gap-7">
-        <NovelCover id={novel.id} title={novel.title} size="sm" className="w-28 shrink-0 sm:w-36" />
+        <NovelCover id={novel.id} title={novel.title} color={novel.coverColor} size="sm" className="w-28 shrink-0 sm:w-36" />
         <div className="min-w-0 flex-1 space-y-3 pt-1">
           <div className="flex flex-wrap gap-1.5">
             <Badge tone={novel.serialStatus === 'completed' ? 'neutral' : 'accent'}>

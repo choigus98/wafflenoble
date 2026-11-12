@@ -9,6 +9,7 @@ import { requireAdmin } from '@/lib/auth/guards';
 import { hashPassword } from '@/lib/auth/password';
 import { ADMIN_COOKIE } from '@/lib/auth/session';
 import { countCharacters, sanitizeChapterHtml } from '@/lib/content';
+import { COVER_COLOR_KEYS } from '@/lib/cover';
 import { db } from '@/lib/db';
 import { isUniqueViolation } from '@/lib/db/errors';
 import { chapters, novels, readers, settings } from '@/lib/db/schema';
@@ -26,6 +27,8 @@ const novelSchema = z.object({
   description: z.string().trim().max(2000, '소개는 2000자까지예요'),
   serialStatus: z.enum(['ongoing', 'completed', 'hiatus'], { error: '연재 상태를 골라 주세요' }),
   isPublished: z.boolean(),
+  // 정해진 색 이름만 받는다. null이면 작품 번호로 자동
+  coverColor: z.enum(COVER_COLOR_KEYS, { error: '표지 색을 다시 골라 주세요' }).nullable(),
 });
 
 function parseNovelForm(formData: FormData) {
@@ -34,6 +37,7 @@ function parseNovelForm(formData: FormData) {
     description: String(formData.get('description') ?? ''),
     serialStatus: formData.get('serialStatus'),
     isPublished: formData.get('isPublished') === 'on',
+    coverColor: String(formData.get('coverColor') ?? '') || null,
   });
 }
 
