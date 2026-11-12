@@ -23,6 +23,7 @@ import {
   type ChatData,
   type KakaoData,
   type PostData,
+  type SnsData,
   type StoryBlock,
   type SystemData,
 } from '@/lib/story-blocks';
@@ -33,7 +34,7 @@ import { cn } from '@/lib/utils';
 const COMMIT_DELAY_MS = 300;
 
 type CardBlock = Extract<StoryBlock, { kind: 'live' | 'donation' | 'news' | 'call' | 'note' }>;
-type ConversationBlock = Extract<StoryBlock, { kind: 'kakao' | 'chat' | 'post' | 'system' }>;
+type ConversationBlock = Extract<StoryBlock, { kind: 'kakao' | 'chat' | 'post' | 'system' | 'sns' }>;
 
 const TEXTAREA =
   'w-full resize-y rounded-2xl border border-line bg-surface px-4 py-3 text-base leading-relaxed text-fg field-sizing-content placeholder:text-muted/60 focus:border-accent focus:ring-3 focus:ring-accent/20 focus:outline-none';
@@ -43,6 +44,7 @@ const SCRIPT_PLACEHOLDER: Record<ConversationBlock['kind'], string> = {
   chat: '밥알: 연화님 ㅎㅇ\n감자도리: 오늘 뭐함?',
   post: '익명1: 와 이거 진짜임? [20:31]\nㄴ 글쓴이: ㅇㅇ 방금 봄',
   system: '「잃어버린 기억을 찾아라」\n제한 시간: 24시간\n--- 보상 ---\n???',
+  sns: '익명1: 어디예요?? [3분 전]\n익명2: 나도 가 봄 [1분 전]',
 };
 
 function useDraft<T extends StoryBlock>(block: T, onChange: (block: StoryBlock) => void) {
@@ -219,16 +221,22 @@ export function ConversationEditor({
   }, []);
 
   const lines = draft.kind === 'kakao' || draft.kind === 'chat' ? parseScript(draft.data.script) : [];
-  const comments = draft.kind === 'post' ? parseComments(draft.data.script) : [];
+  // 게시글 댓글·SNS 답글은 같은 대본 규칙
+  const comments = draft.kind === 'post' || draft.kind === 'sns' ? parseComments(draft.data.script) : [];
   // 시스템 창은 말하는 사람이 없어서 등장인물 칩을 안 보여 준다
-  const speakers = draft.kind === 'post' ? commentSpeakers(comments) : draft.kind === 'system' ? [] : scriptSpeakers(lines);
+  const speakers =
+    draft.kind === 'post' || draft.kind === 'sns' ? commentSpeakers(comments) : draft.kind === 'system' ? [] : scriptSpeakers(lines);
 
-  function setData(patch: Partial<KakaoData> | Partial<ChatData> | Partial<PostData> | Partial<SystemData>) {
+  function setData(patch: Partial<KakaoData> | Partial<ChatData> | Partial<PostData> | Partial<SystemData> | Partial<SnsData>) {
     update({ ...draft, data: { ...draft.data, ...patch } } as ConversationBlock);
   }
 
   function rename(from: string, to: string) {
     if (draft.kind === 'system') return;
+    if (draft.kind === 'sns') {
+      setData({ script: renameSpeaker(draft.data.script, from, to, { replies: true }) });
+      return;
+    }
     if (draft.kind === 'post') {
       const script = renameSpeaker(draft.data.script, from, to, { replies: true });
       setData({ script, author: draft.data.author === from ? to : draft.data.author });
@@ -307,6 +315,22 @@ export function ConversationEditor({
               />
             ) : null}
           </>
+        ) : draft.kind === 'sns' ? (
+          <>
+            <MiniInput label="이름" value={draft.data.name} maxLength={40} onChange={(name) => setData({ name })} inputClassName="w-28" />
+            <MiniInput label="아이디" value={draft.data.handle} maxLength={40} onChange={(handle) => setData({ handle })} inputClassName="w-28" />
+            <MiniInput label="시각" value={draft.data.date} maxLength={40} onChange={(date) => setData({ date })} inputClassName="w-36" />
+            <MiniInput
+              label="답글"
+              value={draft.data.replies}
+              maxLength={20}
+              placeholder={String(comments.filter((line) => line.type === 'comment').length)}
+              onChange={(replies) => setData({ replies })}
+              inputClassName="w-12"
+            />
+            <MiniInput label="재게시" value={draft.data.reposts} maxLength={20} onChange={(reposts) => setData({ reposts })} inputClassName="w-12" />
+            <MiniInput label="좋아요" value={draft.data.likes} maxLength={20} onChange={(likes) => setData({ likes })} inputClassName="w-14" />
+          </>
         ) : draft.kind === 'system' ? (
           <MiniInput
             label="제목"
@@ -355,6 +379,9 @@ export function ConversationEditor({
       {draft.kind === 'post' ? (
         <div className="mt-1.5 text-xs text-muted">게시판·조회·추천은 비우면 안 보이고, 댓글 수는 비우면 아래 댓글 개수로 보여요</div>
       ) : null}
+      {draft.kind === 'sns' ? (
+        <div className="mt-1.5 text-xs text-muted">재게시·좋아요는 비우면 안 보이고, 답글 수는 비우면 아래 답글 개수로 보여요</div>
+      ) : null}
 
       {/* 넓으면 대본 | 미리보기 나란히 (대본이 길어져도 미리보기는 따라 내려옴), 좁으면 위아래 */}
       <div className="mt-3 grid items-start gap-3 @xl:grid-cols-2">
@@ -383,15 +410,30 @@ export function ConversationEditor({
               </span>
             </>
           ) : null}
+          {draft.kind === 'sns' ? (
+            <>
+              <textarea
+                value={draft.data.body}
+                onChange={(e) => setData({ body: e.target.value })}
+                aria-label="게시물 본문"
+                maxLength={LIMITS.message}
+                placeholder="게시물 본문"
+                className={cn(TEXTAREA, 'min-h-28')}
+              />
+              <span aria-hidden="true" className="mt-2 text-xs font-semibold text-muted">
+                답글
+              </span>
+            </>
+          ) : null}
           <textarea
             ref={scriptRef}
             value={draft.data.script}
             onChange={(e) => setData({ script: e.target.value })}
-            aria-label={draft.kind === 'post' ? '댓글 대본' : '대본'}
+            aria-label={draft.kind === 'post' ? '댓글 대본' : draft.kind === 'sns' ? '답글 대본' : '대본'}
             spellCheck={false}
             maxLength={LIMITS.script}
             placeholder={SCRIPT_PLACEHOLDER[draft.kind]}
-            className={cn(TEXTAREA, draft.kind === 'post' ? 'min-h-40' : 'min-h-60')}
+            className={cn(TEXTAREA, draft.kind === 'post' || draft.kind === 'sns' ? 'min-h-40' : 'min-h-60')}
           />
           <ScriptHelp kind={draft.kind} />
         </div>
@@ -487,6 +529,12 @@ const SCRIPT_HELP: Record<ConversationBlock['kind'], Array<[string, string]>> = 
     ['「…」 또는 […]', '가운데 굵게'],
     ['--- 보상 ---', '구분선'],
     ['그냥 쓰기', '안내 문장'],
+  ],
+  sns: [
+    ['닉네임: 답글', '한 줄에 하나'],
+    ['이름 없이 쓰기', '앞 답글에 줄바꿈'],
+    ['[3분 전]', '줄 끝에 시간'],
+    ['--- 안내 ---', '가운데 회색 줄'],
   ],
   post: [
     ['닉네임: 댓글', '한 줄에 하나'],

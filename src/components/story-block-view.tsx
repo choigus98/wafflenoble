@@ -19,6 +19,7 @@ import {
   type NewsData,
   type NoteData,
   type PostData,
+  type SnsData,
   type StoryBlock,
   type SystemData,
 } from '@/lib/story-blocks';
@@ -64,6 +65,8 @@ export function StoryBlockView({ block }: { block: StoryBlock }) {
       return <CallCard data={block.data} />;
     case 'note':
       return <NoteCard data={block.data} />;
+    case 'sns':
+      return <SnsCard data={block.data} />;
   }
 }
 
@@ -575,6 +578,92 @@ export function NoteCard({ data, field }: { data: NoteData; field?: FieldRendere
           <div className="text-right">{slot('from', '보낸 사람 (비우면 안 보여요)', 40, 'block w-full text-right')}</div>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+/** 프로필 동그라미 (이름 첫 글자) */
+function Avatar({ name, className }: { name: string; className: string }) {
+  return (
+    <span aria-hidden="true" className={cn('grid shrink-0 place-items-center rounded-full bg-(--wn-sns-avatar-bg) font-semibold text-(--wn-fg)', className)}>
+      {[...name.trim()][0] ?? '?'}
+    </span>
+  );
+}
+
+function SnsStat({ label, value, children }: { label: string; value: string; children: ReactNode }) {
+  return (
+    <span className="flex items-center gap-1.5 tabular-nums">
+      {children}
+      <span>
+        <span className="sr-only">{label} </span>
+        {value}
+      </span>
+    </span>
+  );
+}
+
+/** SNS 게시물: 프로필 · 글 · 시각 · 답글/재게시/좋아요 수 · 답글 목록 (답글은 커뮤니티 댓글과 같은 대본 규칙) */
+function SnsCard({ data }: { data: SnsData }) {
+  const replies = parseComments(data.script);
+  const replyCount = data.replies.trim() || String(replies.filter((line) => line.type === 'comment').length);
+  const handle = data.handle.trim() ? (data.handle.trim().startsWith('@') ? data.handle.trim() : `@${data.handle.trim()}`) : '';
+  const icon = 'size-4 shrink-0';
+
+  return (
+    <div className={cn(CARD, 'bg-(--wn-sns-bg) px-5 pt-4 pb-1')}>
+      <div className="flex items-center gap-3">
+        <Avatar name={data.name} className="size-11 text-lg" />
+        <div className="min-w-0">
+          <div className="truncate font-bold">{data.name}</div>
+          {handle ? <div className="truncate text-sm text-(--wn-muted)">{handle}</div> : null}
+        </div>
+      </div>
+      {data.body ? <div className="mt-3 text-[16px] leading-relaxed whitespace-pre-wrap">{data.body}</div> : null}
+      {data.date.trim() ? <div className="mt-3 text-[13px] text-(--wn-muted) tabular-nums">{data.date}</div> : null}
+      <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 border-t border-(--wn-line) py-3 text-[13px] text-(--wn-muted)">
+        <SnsStat label="답글" value={replyCount}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden="true" className={icon}>
+            <path d="M4 5h16v11H9l-5 4V5Z" />
+          </svg>
+        </SnsStat>
+        {data.reposts.trim() ? (
+          <SnsStat label="재게시" value={data.reposts.trim()}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={icon}>
+              <path d="M17 2l3 3-3 3M4 11V9a4 4 0 0 1 4-4h12M7 22l-3-3 3-3M20 13v2a4 4 0 0 1-4 4H4" />
+            </svg>
+          </SnsStat>
+        ) : null}
+        {data.likes.trim() ? (
+          <SnsStat label="좋아요" value={data.likes.trim()}>
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={cn(icon, 'text-(--wn-sns-like)')}>
+              <path d="M12 21s-7.5-4.6-9.5-9.3C1.2 8.3 3.4 5 6.8 5c2 0 3.4 1.1 4.2 2.4h2C13.8 6.1 15.2 5 17.2 5c3.4 0 5.6 3.3 4.3 6.7C19.5 16.4 12 21 12 21Z" />
+            </svg>
+          </SnsStat>
+        ) : null}
+      </div>
+      {replies.length > 0 ? (
+        <div className="divide-y divide-(--wn-line) border-t border-(--wn-line)">
+          {replies.map((reply, index) =>
+            reply.type === 'notice' ? (
+              <div key={index} className="py-3 text-center text-sm text-(--wn-muted)">
+                {reply.text}
+              </div>
+            ) : (
+              <div key={index} className="flex gap-2.5 py-3">
+                <Avatar name={reply.name} className="size-8 text-sm" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline gap-2">
+                    <span className="min-w-0 truncate text-sm font-bold">{reply.name}</span>
+                    {reply.time ? <span className="ml-auto shrink-0 text-xs text-(--wn-muted)">{reply.time}</span> : null}
+                  </div>
+                  {reply.text ? <div className="mt-0.5 leading-snug whitespace-pre-wrap">{reply.text}</div> : null}
+                </div>
+              </div>
+            ),
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }
