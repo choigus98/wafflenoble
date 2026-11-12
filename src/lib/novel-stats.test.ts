@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chapterStateSummary, novelStats } from '@/lib/novel-stats';
+import { chapterStateSummary, novelStats, lengthShare } from '@/lib/novel-stats';
 
 const chapter = (id: number, position: number, charCount: number, status: 'draft' | 'published' = 'published', scheduled = false) => ({
   id,
@@ -32,5 +32,15 @@ describe('작품 통계', () => {
     expect(chapterStateSummary({ all: 3, published: 2, scheduled: 0, draft: 1 })).toBe('발행 2 · 임시저장 1');
     expect(chapterStateSummary({ all: 4, published: 1, scheduled: 2, draft: 1 })).toBe('발행 1 · 예약 2 · 임시저장 1');
     expect(chapterStateSummary({ all: 0, published: 0, scheduled: 0, draft: 0 })).toBe('');
+  });
+});
+
+describe('회차별 글자수 막대', () => {
+  it('가장 긴 회차 대비 몫, 글자가 있으면 3 이상, 가장 긴 회차가 0자면 0', () => {
+    expect(lengthShare(4500, 4500)).toBe(100);
+    expect(lengthShare(1500, 4500)).toBe(33);
+    expect(lengthShare(10, 4500)).toBe(3);
+    expect(lengthShare(0, 4500)).toBe(0);
+    expect(lengthShare(0, 0)).toBe(0);
   });
 });

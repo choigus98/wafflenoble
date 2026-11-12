@@ -12,7 +12,7 @@ import { SubmitButton } from '@/components/submit-button';
 import { Badge, Card, Skeleton, buttonClass } from '@/components/ui';
 import { CHAPTER_FILTERS, countChapters, filterChapters, parseChapterFilter } from '@/lib/chapter-filter';
 import { formatDate, formatNumber, formatRelative, formatSchedule } from '@/lib/format';
-import { novelStats } from '@/lib/novel-stats';
+import { lengthShare, novelStats } from '@/lib/novel-stats';
 import { adminGetNovel } from '@/lib/queries/admin';
 import { cn, parseId } from '@/lib/utils';
 
@@ -40,6 +40,8 @@ async function NovelAdmin({ params, searchParams }: Pick<PageProps<'/admin/novel
   const filter = showFilters ? requestedFilter : 'all';
   const counts = countChapters(allChapters);
   const chapters = filterChapters(allChapters, filter);
+  // '회차별 글자수' 막대의 기준: 거르기와 상관없이 작품에서 가장 긴 회차
+  const longest = Math.max(0, ...allChapters.map((chapter) => chapter.charCount));
   // 순서 바꾸기는 '전체'에서만 (거른 목록에서 위·아래는 보이지 않는 회차와 자리를 바꿔 헷갈림)
   const canMove = filter === 'all' && showFilters;
   const filterLabel = CHAPTER_FILTERS.find((item) => item.key === filter)?.label ?? '전체';
@@ -124,7 +126,7 @@ async function NovelAdmin({ params, searchParams }: Pick<PageProps<'/admin/novel
                       <Badge tone={chapter.scheduled ? 'neutral' : chapter.status === 'published' ? 'accent' : 'muted'}>
                         {chapter.scheduled ? '예약' : chapter.status === 'published' ? '발행' : '임시저장'}
                       </Badge>
-                      <span>{formatNumber(chapter.charCount)}자</span>
+                      <LengthBar count={chapter.charCount} longest={longest} />
                       <span>
                         {chapter.scheduled && chapter.publishedAt
                           ? `${formatSchedule(chapter.publishedAt)} 공개 예정`
@@ -209,6 +211,21 @@ async function NovelAdmin({ params, searchParams }: Pick<PageProps<'/admin/novel
         </Card>
       </section>
     </div>
+  );
+}
+
+/** 회차 줄의 글자수 + 작품에서 가장 긴 회차 대비 짧은 막대 (길이 비교, 막대는 글과 같은 내용이라 낭독기에서는 건너뜀) */
+function LengthBar({ count, longest }: { count: number; longest: number }) {
+  const share = lengthShare(count, longest);
+  return (
+    <span className="flex items-center gap-1.5" title={longest > 0 ? `가장 긴 회차(${formatNumber(longest)}자)의 ${Math.round((count / longest) * 100)}%` : undefined}>
+      {longest > 0 ? (
+        <span aria-hidden="true" className="block h-1 w-10 overflow-hidden rounded-full bg-surface-2">
+          <span className="block h-full rounded-full bg-muted/70" style={{ width: `${share}%` }} />
+        </span>
+      ) : null}
+      <span className="tabular-nums">{formatNumber(count)}자</span>
+    </span>
   );
 }
 

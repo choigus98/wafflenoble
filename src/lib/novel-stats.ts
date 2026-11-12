@@ -50,3 +50,12 @@ export function chapterStateSummary(counts: Record<ChapterFilter, number>): stri
     .map(([label, value]) => `${label} ${value}`)
     .join(' · ');
 }
+
+/**
+ * 관리자 작품 화면 '회차별 글자수' 막대: 작품에서 가장 긴 회차 대비 몫 0~100 (거르기와 상관없이 작품 전체 기준).
+ * 글자가 있는 회차는 너무 짧아도 3은 보이게, 가장 긴 회차가 0자면 0
+ */
+export function lengthShare(count: number, longest: number): number {
+  if (longest <= 0 || count <= 0) return 0;
+  return Math.max(3, Math.min(100, Math.round((count / longest) * 100)));
+}
