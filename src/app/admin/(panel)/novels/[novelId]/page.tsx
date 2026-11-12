@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import { createChapter } from '@/app/admin/actions';
+import { ChapterMoveButtons } from '@/components/admin/chapter-move-buttons';
 import { DeleteNovelForm } from '@/components/admin/delete-novel-form';
 import { NovelForm } from '@/components/admin/novel-form';
 import { SubmitButton } from '@/components/submit-button';
@@ -57,11 +58,11 @@ async function NovelAdmin({ params }: Pick<PageProps<'/admin/novels/[novelId]'>,
           </p>
         ) : (
           <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
-            {chapters.map((chapter) => (
-              <li key={chapter.id}>
+            {chapters.map((chapter, index) => (
+              <li key={chapter.id} className="flex items-stretch">
                 <Link
                   href={`/admin/novels/${novel.id}/chapters/${chapter.id}`}
-                  className="flex items-center gap-3 px-4 py-3.5 transition hover:bg-surface-2/60 sm:px-5"
+                  className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3.5 transition hover:bg-surface-2/60 sm:px-5"
                 >
                   <span className="w-11 shrink-0 text-sm font-semibold text-accent tabular-nums">{chapter.position}화</span>
                   <span className="min-w-0 flex-1 space-y-1">
@@ -86,6 +87,15 @@ async function NovelAdmin({ params }: Pick<PageProps<'/admin/novels/[novelId]'>,
                     <span className="text-like">♥ {chapter.likeCount}</span>
                   </span>
                 </Link>
+                {/* 순서 바꾸기: 옆 회차와 'N화' 번호를 맞바꾼다 (링크는 그대로) */}
+                {chapters.length > 1 ? (
+                  <ChapterMoveButtons
+                    chapterId={chapter.id}
+                    label={`${chapter.position}화 「${chapter.title || '제목 없음'}」`}
+                    isFirst={index === 0}
+                    isLast={index === chapters.length - 1}
+                  />
+                ) : null}
               </li>
             ))}
           </ul>

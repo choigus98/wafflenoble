@@ -1,6 +1,6 @@
 'use server';
 
-import { and, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, sql } from 'drizzle-orm';
 import { refresh } from 'next/cache';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { requireAdmin } from '@/lib/auth/guards';
 import { hashPassword } from '@/lib/auth/password';
 import { ADMIN_COOKIE } from '@/lib/auth/session';
+import { MAX_POSITION, planChapterMove } from '@/lib/chapter-order';
 import { countCharacters, sanitizeChapterHtml } from '@/lib/content';
 import { COVER_COLOR_KEYS } from '@/lib/cover';
 import { db } from '@/lib/db';
@@ -102,14 +103,17 @@ export async function createChapter(novelId: number): Promise<void> {
   redirect(`/admin/novels/${novelId}/chapters/${created.id}`);
 }
 
+const positionSchema = z
+  .number({ error: '회차 번호를 숫자로 입력해 주세요' })
+  .int('회차 번호는 정수로 입력해 주세요')
+  .min(1, '회차 번호는 1 이상이에요')
+  .max(MAX_POSITION, '회차 번호가 너무 커요');
+
 const chapterInputSchema = z.object({
   id: idSchema,
   title: z.string().trim().max(100, '회차 제목은 100자까지예요'),
-  position: z
-    .number({ error: '회차 번호를 숫자로 입력해 주세요' })
-    .int('회차 번호는 정수로 입력해 주세요')
-    .min(1, '회차 번호는 1 이상이에요')
-    .max(9999, '회차 번호가 너무 커요'),
+  // 에디터에서 번호를 직접 고쳤을 때만 보낸다. 다른 탭에서 순서를 바꾼 뒤 열려 있던 에디터가 옛 번호로 되돌리지 않게
+  position: positionSchema.optional(),
   contentHtml: z.string().max(2_000_000, '본문이 너무 길어요'),
 });
 
@@ -128,11 +132,42 @@ export async function saveChapter(input: z.input<typeof chapterInputSchema>): Pr
   const stored = charCount === 0 && !clean.includes('<hr') && !hasStoryBlocks(clean) ? '' : clean;
   const [saved] = await db
     .update(chapters)
-    .set({ title, position, contentHtml: stored, charCount })
+    .set({ title, contentHtml: stored, charCount, ...(position === undefined ? {} : { position }) })
     .where(eq(chapters.id, id))
     .returning({ updatedAt: chapters.updatedAt });
   if (!saved) return { ok: false, message: '회차를 찾을 수 없어요. 삭제됐을 수 있어요' };
   return { ok: true, savedAt: saved.updatedAt.toISOString() };
+}
+
+/**
+ * 관리자 회차 목록에서 한 칸 위/아래로 옮기기. 바로 옆 회차와 'N화' 번호를 맞바꾼다 (URL은 id라 링크는 그대로).
+ * 순서만 바꾸는 일이라 회차의 '수정 시각'은 건드리지 않는다.
+ */
+export async function moveChapter(chapterId: number, direction: 'up' | 'down'): Promise<{ position: number } | null> {
+  await requireAdmin();
+  if (!idSchema.safeParse(chapterId).success || (direction !== 'up' && direction !== 'down')) return null;
+
+  const moved = await db.transaction(async (tx) => {
+    const [target] = await tx.select({ novelId: chapters.novelId }).from(chapters).where(eq(chapters.id, chapterId));
+    if (!target) return null;
+    const list = await tx
+      .select({ id: chapters.id, position: chapters.position })
+      .from(chapters)
+      .where(eq(chapters.novelId, target.novelId))
+      .orderBy(asc(chapters.position), asc(chapters.id))
+      .for('update');
+    const plan = planChapterMove(list, chapterId, direction);
+    if (!plan) return null;
+    for (const { id, position } of plan.updates) {
+      await tx
+        .update(chapters)
+        .set({ position, updatedAt: sql`${chapters.updatedAt}` }) // 수정 시각은 그대로
+        .where(eq(chapters.id, id));
+    }
+    return { position: plan.position };
+  });
+  if (moved) refresh();
+  return moved;
 }
 
 export type ChapterStatusResult =

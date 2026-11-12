@@ -204,8 +204,10 @@ export const loginAttempts = pgTable('login_attempts', {
 - `/admin`: 작품 표 — 제목, 공개 여부, 연재 상태, 회차 수(발행/전체), 최근 수정일 + "새 작품"
 - `/admin/novels/new` → `createNovel` → 생성 후 작품 편집 화면으로 이동
 - `/admin/novels/[novelId]`
-  - `NovelForm`: 제목, 소개, 연재 상태, 공개 여부 → `updateNovel`
+  - `NovelForm`: 제목, 표지 색(자동 + 10가지, 미리보기), 소개, 연재 상태, 공개 여부 → `updateNovel`
   - `ChapterTable`: N화, 제목, 상태, 글자수, 발행일, 읽은 인원, ♥ 수, [편집]
+    - 위/아래 버튼(`chapter-move-buttons.tsx` → `moveChapter`): 바로 옆 회차와 'N화' 번호를 맞바꾼다. 번호가 겹친 곳만 앞 번호 + 1로 밀어 순서를 만든다 (`lib/chapter-order.ts`). 회차 수정 시각은 그대로
+    - 에디터는 번호를 직접 고쳤을 때만 번호를 저장한다 (다른 탭에서 순서를 바꾼 뒤 열려 있던 에디터가 옛 번호로 되돌리지 않게)
   - "새 회차" → `createChapter(novelId)`: `position = max(position) + 1`, draft로 생성 → 에디터로 이동
   - 작품 삭제: 제목을 직접 입력해야 버튼 활성화 (cascade로 회차·반응까지 전부 삭제)
 - `actions.ts`의 모든 action: 첫 줄 `requireAdmin()` → zod 검증 → 쿼리 → `revalidatePath`

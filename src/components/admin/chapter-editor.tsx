@@ -102,6 +102,9 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
   });
 
   const draftRef = useRef<Draft>({ title: chapter.title, position: String(chapter.position), html: chapter.contentHtml });
+  // 이 에디터가 마지막으로 서버에 맞춘 회차 번호. 여기서 번호를 고쳤을 때만 번호를 보낸다
+  // (목록에서 순서를 바꾼 뒤 열려 있던 에디터가 저장하면서 옛 번호로 되돌리지 않게)
+  const savedPositionRef = useRef(String(chapter.position));
   const statusRef = useRef(chapter.status);
   const scheduledRef = useRef(chapter.scheduled);
   const timerRef = useRef<number | null>(null);
@@ -144,12 +147,14 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
       return false;
     }
 
+    const positionChanged = snapshot.position !== savedPositionRef.current;
+
     setSaveState('saving');
     try {
       const result = await saveChapter({
         id: chapter.id,
         title: snapshot.title,
-        position: positionNumber,
+        ...(positionChanged ? { position: positionNumber } : {}),
         contentHtml: snapshot.html,
       });
       if (!result.ok) {
@@ -157,6 +162,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
         setMessage({ tone: 'error', text: result.message });
         return false;
       }
+      if (positionChanged) savedPositionRef.current = snapshot.position;
       setSavedAt(result.savedAt);
       setMessage((current) => (current?.tone === 'error' ? null : current));
       const latest = draftRef.current;
