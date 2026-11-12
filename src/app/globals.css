@@ -11,7 +11,7 @@
   --accent: #935812; /* 글자·흰 글씨 버튼·연한 배지 모두 대비 4.5:1 이상 */
   --accent-fg: #ffffff;
   --accent-soft: #f6e7d0;
-  --danger: #c0392f;
+  --danger: #b33229; /* 연한 빨강 배지 위에서도 대비 4.5:1 이상 */
   --like: #c23a27;
   --find-bg: #fdeccb;
   --find-current-bg: #f8cd7a;
