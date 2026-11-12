@@ -23,7 +23,7 @@ export type DocNode = { type: string; text?: string; attrs?: Record<string, unkn
 
 const SCENE_BREAK = '* * *';
 
-function inlineText(node: DocNode): string {
+export function inlineText(node: DocNode): string {
   return (node.content ?? []).map((child) => (child.type === 'text' ? (child.text ?? '') : child.type === 'hardBreak' ? '\n' : inlineText(child))).join('');
 }
 

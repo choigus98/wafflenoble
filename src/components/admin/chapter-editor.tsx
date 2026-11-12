@@ -12,6 +12,7 @@ import {
   createTemplateEditingStore,
   useEditingTemplateUid,
 } from '@/components/admin/story-block/story-block-node';
+import { ChangesDialog } from '@/components/admin/changes-dialog';
 import { CharGoal } from '@/components/admin/char-goal';
 import { FindBar, FindReplace } from '@/components/admin/find-replace';
 import { ShortcutGuide } from '@/components/admin/shortcut-guide';
@@ -24,6 +25,7 @@ import { formatDateTime, formatNumber, formatSchedule, formatTime } from '@/lib/
 import { announce } from '@/lib/announce';
 import { bodyStats, dialogueShare } from '@/lib/body-stats';
 import { chapterFileName, chapterToText, type DocNode } from '@/lib/chapter-text';
+import { compareChapter, type ChapterChanges } from '@/lib/paragraph-diff';
 import { plainTextToBlocks } from '@/lib/paste';
 import { punctuationEdits } from '@/lib/punctuation';
 import type { RevisionItem } from '@/lib/queries/admin';
@@ -117,6 +119,10 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
   const [message, setMessage] = useState<{ tone: 'info' | 'error'; text: string } | null>(null);
   const [savedAt, setSavedAt] = useState(chapter.updatedAt);
   const [counts, setCounts] = useState({ all: 0, noSpace: 0, paragraphs: 0, dialogue: 0, templates: 0 });
+  // 서버에 있는 마지막 내용 (길드원에게 보이는 회차면 곧 마지막 발행본). '바뀐 곳 보기'의 비교 기준, 수정 반영·되돌리기 뒤에 바뀐다
+  const [serverCopy, setServerCopy] = useState(() => ({ html: chapter.contentHtml, title: chapter.title, authorNote: chapter.authorNote }));
+  const changesDialogRef = useRef<HTMLDialogElement>(null);
+  const [changes, setChanges] = useState<ChapterChanges | null>(null);
   const [statusPending, startStatusTransition] = useTransition();
   // 지금 편집 중인 템플릿 (한 번에 하나만). 편집 중에는 발행·수정 반영을 막는다
   const [templateStore] = useState(createTemplateEditingStore);
@@ -177,6 +183,13 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
     }
     setMessage({ tone: 'info', text });
     announce(text);
+  };
+
+  /** '바뀐 곳 보기': 마지막 발행본(서버 내용)과 지금 에디터 내용을 문단 단위로 비교해서 창을 연다 (lib/paragraph-diff.ts) */
+  const showChanges = () => {
+    if (!editor) return;
+    setChanges(compareChapter(serverCopy, { doc: editor.getJSON() as DocNode, title, authorNote }));
+    changesDialogRef.current?.showModal();
   };
 
   /** 이 회차를 .txt로 내려받기: 지금 에디터 내용 그대로라 저장 안 한 수정도 들어간다 (글로 푸는 규칙은 lib/chapter-text.ts) */
@@ -249,6 +262,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
         return false;
       }
       if (positionChanged) savedPositionRef.current = snapshot.position;
+      setServerCopy({ html: snapshot.html, title: snapshot.title, authorNote: snapshot.authorNote });
       setSavedAt(result.savedAt);
       setMessage((current) => (current?.tone === 'error' ? null : current));
       const latest = draftRef.current;
@@ -431,6 +445,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
         html: editor ? editor.getHTML() : result.chapter.contentHtml,
         authorNote: result.chapter.authorNote,
       };
+      setServerCopy({ html: result.chapter.contentHtml, title: result.chapter.title, authorNote: result.chapter.authorNote });
       setTitle(result.chapter.title);
       setAuthorNote(result.chapter.authorNote);
       setSavedAt(result.chapter.updatedAt);
@@ -670,6 +685,17 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
                 >
                   발행 취소
                 </Button>
+                {/* 반영 전에 길드원에게 어떻게 바뀌어 보일지 (고친 게 있을 때만) */}
+                {saveState !== 'saved' ? (
+                  <button
+                    type="button"
+                    aria-haspopup="dialog"
+                    onClick={showChanges}
+                    className={buttonClass('secondary', 'sm')}
+                  >
+                    바뀐 곳 보기
+                  </button>
+                ) : null}
                 <Button
                   type="button"
                   size="sm"
@@ -687,6 +713,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
       </div>
 
       <EditorContent editor={editor} className="mt-2 rounded-2xl border border-line bg-surface" />
+      <ChangesDialog result={changes} dialogRef={changesDialogRef} />
 
       <div className="mt-3 flex flex-wrap items-start justify-between gap-2">
         {message ? (
