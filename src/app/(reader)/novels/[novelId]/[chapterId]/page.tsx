@@ -59,6 +59,15 @@ async function ChapterView({ params }: Pick<PageProps<'/novels/[novelId]/[chapte
         <p className="py-16 text-center text-muted">아직 본문이 없어요.</p>
       )}
 
+      {chapter.authorNote ? (
+        <aside aria-labelledby="author-note-title" className="mb-10 rounded-2xl bg-surface-2 px-5 py-4">
+          <h2 id="author-note-title" className="text-xs font-semibold text-muted">
+            작가의 말
+          </h2>
+          <p className="mt-1.5 text-[15px] leading-relaxed whitespace-pre-line break-keep">{chapter.authorNote}</p>
+        </aside>
+      ) : null}
+
       <footer className="space-y-7 border-t border-line pt-7">
         <div className="flex flex-col items-center gap-3">
           <LikeButton

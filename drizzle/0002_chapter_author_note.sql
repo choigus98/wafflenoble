@@ -1,0 +1,1 @@
+ALTER TABLE "chapters" ADD COLUMN "author_note" text DEFAULT '' NOT NULL;

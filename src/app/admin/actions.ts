@@ -115,6 +115,8 @@ const chapterInputSchema = z.object({
   // 에디터에서 번호를 직접 고쳤을 때만 보낸다. 다른 탭에서 순서를 바꾼 뒤 열려 있던 에디터가 옛 번호로 되돌리지 않게
   position: positionSchema.optional(),
   contentHtml: z.string().max(2_000_000, '본문이 너무 길어요'),
+  // 회차 끝 '작가의 말'. 이 칸을 모르는 예전 에디터가 저장해도 지워지지 않게 보낼 때만 바꾼다
+  authorNote: z.string().trim().max(2000, '작가의 말은 2,000자까지예요').optional(),
 });
 
 export type SaveChapterResult = { ok: true; savedAt: string } | { ok: false; message: string };
@@ -125,14 +127,20 @@ export async function saveChapter(input: z.input<typeof chapterInputSchema>): Pr
   const parsed = chapterInputSchema.safeParse(input);
   if (!parsed.success) return { ok: false, message: firstIssue(parsed.error) };
 
-  const { id, title, position, contentHtml } = parsed.data;
+  const { id, title, position, contentHtml, authorNote } = parsed.data;
   const clean = sanitizeChapterHtml(contentHtml);
   const charCount = countCharacters(clean);
   // 에디터는 빈 문서도 <p></p>로 내보내므로, 글자도 장면 전환도 템플릿도 없으면 빈 본문으로 저장
   const stored = charCount === 0 && !clean.includes('<hr') && !hasStoryBlocks(clean) ? '' : clean;
   const [saved] = await db
     .update(chapters)
-    .set({ title, contentHtml: stored, charCount, ...(position === undefined ? {} : { position }) })
+    .set({
+      title,
+      contentHtml: stored,
+      charCount,
+      ...(position === undefined ? {} : { position }),
+      ...(authorNote === undefined ? {} : { authorNote }),
+    })
     .where(eq(chapters.id, id))
     .returning({ updatedAt: chapters.updatedAt });
   if (!saved) return { ok: false, message: '회차를 찾을 수 없어요. 삭제됐을 수 있어요' };

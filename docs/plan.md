@@ -119,7 +119,8 @@ export const chapters = pgTable('chapters', {
   novelId: integer('novel_id').notNull().references(() => novels.id, { onDelete: 'cascade' }),
   position: integer('position').notNull(),                  // 'N화' 표시·정렬용. URL은 id라 번호 바꿔도 링크 유지
   title: varchar('title', { length: 100 }).notNull().default(''),
-  contentHtml: text('content_html').notNull().default(''),  // sanitize 후 저장
+  contentHtml: text('content_html').notNull().default(''),
+  authorNote: text('author_note').notNull().default(''),        // 회차 끝 '작가의 말' (서식 없는 글) — 0002 마이그레이션  // sanitize 후 저장
   charCount: integer('char_count').notNull().default(0),    // 공백 포함 글자수
   status: chapterStatus('status').notNull().default('draft'),
   publishedAt: timestamp('published_at', { withTimezone: true }), // 최초 발행 시각

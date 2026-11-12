@@ -60,6 +60,7 @@ export const chapters = pgTable(
     position: integer('position').notNull(), // 'N화' 표시·정렬용. URL은 id라 번호를 바꿔도 링크가 유지됨
     title: varchar('title', { length: 100 }).notNull().default(''),
     contentHtml: text('content_html').notNull().default(''), // 저장할 때 sanitize
+    authorNote: text('author_note').notNull().default(''), // 회차 끝 '작가의 말' (서식 없는 글). 비면 안 보임
     charCount: integer('char_count').notNull().default(0), // 공백 포함 글자수
     status: chapterStatus('status').notNull().default('draft'),
     publishedAt: timestamp('published_at', { withTimezone: true }), // 최초 발행 시각

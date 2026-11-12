@@ -26,6 +26,7 @@ export type EditorChapter = {
   title: string;
   position: number;
   contentHtml: string;
+  authorNote: string;
   status: 'draft' | 'published';
   updatedAt: string;
   publishedAt: string | null;
@@ -33,7 +34,7 @@ export type EditorChapter = {
 };
 
 type SaveState = 'saved' | 'dirty' | 'saving' | 'error';
-type Draft = { title: string; position: string; html: string };
+type Draft = { title: string; position: string; html: string; authorNote: string };
 type LocalCopy = Draft & { at: number };
 
 const AUTOSAVE_DELAY_MS = 2000;
@@ -45,7 +46,13 @@ function readLocalCopy(chapterId: number): LocalCopy | null {
     if (!raw) return null;
     const value = JSON.parse(raw);
     if (typeof value?.html !== 'string' || typeof value?.at !== 'number') return null;
-    return { title: String(value.title ?? ''), position: String(value.position ?? ''), html: value.html, at: value.at };
+    return {
+      title: String(value.title ?? ''),
+      position: String(value.position ?? ''),
+      html: value.html,
+      authorNote: String(value.authorNote ?? ''),
+      at: value.at,
+    };
   } catch {
     return null;
   }
@@ -80,6 +87,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
   const storageKey = storageKeyOf(chapter.id);
   const [title, setTitle] = useState(chapter.title);
   const [position, setPosition] = useState(String(chapter.position));
+  const [authorNote, setAuthorNote] = useState(chapter.authorNote);
   const [status, setStatus] = useState(chapter.status);
   const [publishAt, setPublishAt] = useState(chapter.publishedAt);
   const [scheduled, setScheduled] = useState(chapter.scheduled);
@@ -99,11 +107,19 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
     const copy = readLocalCopy(chapter.id);
     if (!copy) return null;
     const differs =
-      copy.html !== chapter.contentHtml || copy.title !== chapter.title || copy.position !== String(chapter.position);
+      copy.html !== chapter.contentHtml ||
+      copy.title !== chapter.title ||
+      copy.position !== String(chapter.position) ||
+      copy.authorNote !== chapter.authorNote;
     return differs && copy.at > Date.parse(chapter.updatedAt) ? copy : null;
   });
 
-  const draftRef = useRef<Draft>({ title: chapter.title, position: String(chapter.position), html: chapter.contentHtml });
+  const draftRef = useRef<Draft>({
+    title: chapter.title,
+    position: String(chapter.position),
+    html: chapter.contentHtml,
+    authorNote: chapter.authorNote,
+  });
   // 이 에디터가 마지막으로 서버에 맞춘 회차 번호. 여기서 번호를 고쳤을 때만 번호를 보낸다
   // (목록에서 순서를 바꾼 뒤 열려 있던 에디터가 저장하면서 옛 번호로 되돌리지 않게)
   const savedPositionRef = useRef(String(chapter.position));
@@ -158,6 +174,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
         title: snapshot.title,
         ...(positionChanged ? { position: positionNumber } : {}),
         contentHtml: snapshot.html,
+        authorNote: snapshot.authorNote,
       });
       if (!result.ok) {
         setSaveState('error');
@@ -169,7 +186,10 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
       setMessage((current) => (current?.tone === 'error' ? null : current));
       const latest = draftRef.current;
       const unchanged =
-        latest.html === snapshot.html && latest.title === snapshot.title && latest.position === snapshot.position;
+        latest.html === snapshot.html &&
+        latest.title === snapshot.title &&
+        latest.position === snapshot.position &&
+        latest.authorNote === snapshot.authorNote;
       if (unchanged) {
         setSaveState('saved');
         try {
@@ -286,6 +306,12 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
     handleChange();
   }
 
+  function updateAuthorNote(value: string) {
+    setAuthorNote(value);
+    draftRef.current.authorNote = value;
+    handleChange();
+  }
+
   function updatePosition(value: string) {
     const digits = value.replace(/[^0-9]/g, '').slice(0, 4);
     setPosition(digits);
@@ -296,9 +322,15 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
   function restoreLocalCopy() {
     if (!recovery || !editor) return;
     editor.commands.setContent(recovery.html);
-    draftRef.current = { title: recovery.title, position: recovery.position, html: editor.getHTML() };
+    draftRef.current = {
+      title: recovery.title,
+      position: recovery.position,
+      html: editor.getHTML(),
+      authorNote: recovery.authorNote,
+    };
     setTitle(recovery.title);
     setPosition(recovery.position);
+    setAuthorNote(recovery.authorNote);
     setCounts(countText(editor));
     setRecovery(null);
     handleChange();
@@ -555,6 +587,25 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
         <p className="text-[13px] text-muted tabular-nums">
           공백 포함 {formatNumber(counts.all)}자 · 공백 제외 {formatNumber(counts.noSpace)}자
         </p>
+      </div>
+
+      {/* 회차 끝 '작가의 말': 본문과 같은 저장 흐름(자동저장·수정 반영·로컬 사본)을 탄다 */}
+      <div className="mt-8 space-y-1.5">
+        <label htmlFor="author-note" className="block text-sm font-semibold">
+          작가의 말 <span className="font-normal text-muted">(선택)</span>
+        </label>
+        <p id="author-note-hint" className="text-xs text-muted">
+          회차 맨 아래에 상자로 보여요. 비워 두면 안 보여요. 글자수에는 들어가지 않아요.
+        </p>
+        <textarea
+          id="author-note"
+          aria-describedby="author-note-hint"
+          value={authorNote}
+          onChange={(event) => updateAuthorNote(event.target.value)}
+          maxLength={2000}
+          placeholder="이번 화 뒷이야기, 다음 화 예고, 감사 인사 같은 것"
+          className="min-h-24 w-full resize-y rounded-2xl border border-line bg-surface px-4 py-3 text-base leading-relaxed field-sizing-content placeholder:text-muted/70 focus:border-accent focus:ring-3 focus:ring-accent/20 focus:outline-none"
+        />
       </div>
 
       <div className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-6">

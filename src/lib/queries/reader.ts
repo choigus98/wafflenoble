@@ -116,6 +116,7 @@ export async function getChapterView(novelId: number, chapterId: number) {
         position: chapters.position,
         title: chapters.title,
         contentHtml: chapters.contentHtml,
+        authorNote: chapters.authorNote,
         status: chapters.status,
         publishedAt: chapters.publishedAt,
         visibleNow: isVisibleChapter,

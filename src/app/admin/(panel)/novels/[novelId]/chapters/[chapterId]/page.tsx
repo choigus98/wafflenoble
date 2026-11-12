@@ -36,6 +36,7 @@ async function ChapterAdmin({ params }: Pick<PageProps<'/admin/novels/[novelId]/
           title: chapter.title,
           position: chapter.position,
           contentHtml: chapter.contentHtml,
+          authorNote: chapter.authorNote,
           status: chapter.status,
           updatedAt: chapter.updatedAt.toISOString(),
           publishedAt: chapter.publishedAt?.toISOString() ?? null,

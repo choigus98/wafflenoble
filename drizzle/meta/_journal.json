@@ -15,6 +15,13 @@
       "when": 1794477821825,
       "tag": "0001_cover_color",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794480467086,
+      "tag": "0002_chapter_author_note",
+      "breakpoints": true
     }
   ]
 }
