@@ -22,6 +22,7 @@ import { PrivateNote } from '@/components/admin/private-note';
 import { useDismiss } from '@/components/use-dismiss';
 import { formatDateTime, formatNumber, formatSchedule, formatTime } from '@/lib/format';
 import { announce } from '@/lib/announce';
+import { bodyStats, dialogueShare } from '@/lib/body-stats';
 import { chapterFileName, chapterToText, type DocNode } from '@/lib/chapter-text';
 import { plainTextToBlocks } from '@/lib/paste';
 import { punctuationEdits } from '@/lib/punctuation';
@@ -82,9 +83,10 @@ function plainTextSlice(text: string, schema: Schema): Slice {
   return new Slice(Fragment.from(nodes), openStart, openEnd);
 }
 
+/** 글자수 + 본문 통계(문단 · 대사 · 템플릿, lib/body-stats.ts) */
 function countText(editor: Editor) {
   const text = editor.state.doc.textContent;
-  return { all: [...text].length, noSpace: [...text.replace(/\s/g, '')].length };
+  return { all: [...text].length, noSpace: [...text.replace(/\s/g, '')].length, ...bodyStats(editor.state.doc) };
 }
 
 /**
@@ -114,7 +116,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
   const [saveState, setSaveState] = useState<SaveState>('saved');
   const [message, setMessage] = useState<{ tone: 'info' | 'error'; text: string } | null>(null);
   const [savedAt, setSavedAt] = useState(chapter.updatedAt);
-  const [counts, setCounts] = useState({ all: 0, noSpace: 0 });
+  const [counts, setCounts] = useState({ all: 0, noSpace: 0, paragraphs: 0, dialogue: 0, templates: 0 });
   const [statusPending, startStatusTransition] = useTransition();
   // 지금 편집 중인 템플릿 (한 번에 하나만). 편집 중에는 발행·수정 반영을 막는다
   const [templateStore] = useState(createTemplateEditingStore);
@@ -698,6 +700,13 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
           <p className="text-[13px] text-muted tabular-nums">
             공백 포함 {formatNumber(counts.all)}자 · 공백 제외 {formatNumber(counts.noSpace)}자
           </p>
+          {/* 본문 통계: 대사는 따옴표로 시작하는 문단 (빈 문단·템플릿 안의 글은 안 셈) */}
+          {counts.paragraphs > 0 || counts.templates > 0 ? (
+            <p className="text-[13px] text-muted tabular-nums">
+              문단 {formatNumber(counts.paragraphs)} · 대사 {formatNumber(counts.dialogue)} ({dialogueShare(counts)}%)
+              {counts.templates > 0 ? ` · 템플릿 ${formatNumber(counts.templates)}` : ''}
+            </p>
+          ) : null}
           {/* 목표는 공백 포함 글자수 기준 */}
           <CharGoal count={counts.all} />
         </div>
