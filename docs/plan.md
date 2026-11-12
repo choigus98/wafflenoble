@@ -2,6 +2,7 @@
 
 > 참고 문서: 없음 (대화에서 정한 기획 내용 기반)
 > 레포: `choigus98/wafflenoble` — 빈 레포에서 시작. 아래 파일은 전부 신규 생성
+> 진행 상황 (2026-11-12): 0~7단계 로컬 구현·브라우저 확인 완료. 남은 것은 1-9 배포(Vercel·Neon 연결)
 
 ## 기획 요약
 
@@ -38,20 +39,24 @@
 
 ### 1-1. 프로젝트 셋업
 
-**파일**: `package.json`, `next.config.ts`, `drizzle.config.ts`, `.env.example`, `src/app/layout.tsx`, `src/app/globals.css`, `src/app/robots.ts`, `src/app/fonts/PretendardVariable.woff2`
+**파일**: `package.json`, `next.config.ts`, `postcss.config.mjs`, `compose.yaml`, `drizzle.config.ts`, `.env.example`, `src/app/layout.tsx`, `src/app/globals.css`, `src/app/robots.ts`, `src/app/icon.svg`
 
 - `pnpm create next-app@latest . --ts --tailwind --eslint --app --src-dir --use-pnpm`
 - 추가 패키지
 
 | 용도 | 패키지 |
 |------|--------|
-| DB | `drizzle-orm`, `@neondatabase/serverless`, `drizzle-kit`(dev) |
+| DB | `drizzle-orm`, `pg`, `@vercel/functions`(유휴 커넥션 정리), `drizzle-kit`(dev) |
 | 세션 | `jose` (JWT 서명/검증) |
-| 에디터 | `@tiptap/react`, `@tiptap/pm`, `@tiptap/starter-kit` + 글자수·placeholder 확장 |
+| 에디터 | `@tiptap/react`, `@tiptap/pm`, `@tiptap/starter-kit`, `@tiptap/extensions`(placeholder) |
 | 본문 정제 | `sanitize-html` |
 | 입력 검증 | `zod` |
+| 글꼴 | `pretendard` (한글 다이내믹 서브셋 CSS) |
+| 스타일 | `tailwindcss` + `@tailwindcss/postcss` |
 
-- 스크립트: `db:generate` (drizzle-kit generate), `db:migrate` (drizzle-kit migrate)
+- Tailwind는 PostCSS 플러그인으로 연결. create-next-app 16.4 기본값인 `@tailwindcss/turbopack` 로더는 개발 서버에서 CSS 수정이 반영되지 않는 경우가 있어서 교체함 (되돌리기 수정이 캐시 때문에 안 보임)
+- 스크립트: `db:up` (로컬 Docker Postgres), `db:generate`, `db:migrate`, `typecheck`
+- 로컬 DB: `compose.yaml`의 Postgres 17 (포트 54329). 배포 DB(Neon)와 같은 `pg` 드라이버로 붙는다
 - `drizzle.config.ts`: drizzle-kit은 `.env.local`을 자동으로 안 읽음 → 파일이 있을 때만 `process.loadEnvFile('.env.local')` (Vercel 빌드에는 파일이 없으므로 존재 여부 체크 필수). 마이그레이션 연결은 unpooled URL 사용
 - `.env.example`
 
@@ -65,16 +70,17 @@ SESSION_SECRET=   # `openssl rand -base64 32`
 - `layout.tsx`
   - `metadata`: `title: { default: '와플노블', template: '%s · 와플노블' }`, `openGraph: { title: '와플노블', siteName: '와플노블' }`, `robots: { index: false, follow: false }`
   - description과 OG 이미지는 넣지 않음 → 링크 미리보기엔 항상 "와플노블"만 뜸 (1-3 proxy 참고)
-  - 폰트: Pretendard는 `next/font/local`, Noto Serif KR은 `next/font/google`
+  - 폰트: Pretendard는 npm 패키지의 다이내믹 서브셋 CSS(화면에 쓰인 글자 묶음만 내려받음), 명조 옵션용 Noto Serif KR은 `next/font/google`
   - `<html suppressHydrationWarning>` + 리더 설정 초기화 인라인 스크립트 (1-6 참고)
 - `robots.ts`: 전체 disallow
 - Next 16 주의: page의 `params`·`searchParams`, `cookies()` 전부 async → `await` 필요
+- **Cache Components 켜짐** (16.4 기본값이고 다음 메이저부터는 항상 켜짐): 세션·DB·`params`·`usePathname()`을 읽는 부분은 반드시 `<Suspense>` 안에 둔다. 레이아웃 최상단에서 세션을 읽지 않는다 → 정적 뼈대를 먼저 보내고 동적 부분은 스트리밍
 
 ### 1-2. DB 스키마
 
 **파일**: `src/lib/db/schema.ts`, `src/lib/db/index.ts`, `drizzle/` (마이그레이션 산출물)
 
-- `index.ts`: `drizzle-orm/neon-http` 사용. **neon-http는 인터랙티브 트랜잭션 미지원** → 쓰기는 단일 쿼리(upsert)나 `db.batch()`로 처리
+- `index.ts`: `drizzle-orm/node-postgres` + `pg` Pool. 로컬 Docker와 Neon에 같은 코드로 붙고 `db.transaction()`도 쓸 수 있다. Vercel에서는 `attachDatabasePool`로 유휴 커넥션을 정리
 
 ```ts
 export const serialStatus = pgEnum('serial_status', ['ongoing', 'completed', 'hiatus']); // 연재중 / 완결 / 휴재
@@ -190,7 +196,7 @@ export const loginAttempts = pgTable('login_attempts', {
 
 ### 1-4. 관리자 — 작품·회차 관리
 
-**파일**: `src/app/admin/(panel)/layout.tsx`, `src/app/admin/(panel)/page.tsx`, `src/app/admin/(panel)/novels/new/page.tsx`, `src/app/admin/(panel)/novels/[novelId]/page.tsx`, `src/app/admin/actions.ts`, `src/components/admin/NovelForm.tsx`, `src/components/admin/ChapterTable.tsx`, `src/lib/queries/admin.ts`
+**파일**: `src/app/admin/(panel)/layout.tsx`, `src/app/admin/(panel)/page.tsx`, `src/app/admin/(panel)/novels/new/page.tsx`, `src/app/admin/(panel)/novels/[novelId]/page.tsx`, `src/app/admin/actions.ts`, `src/components/admin/admin-nav.tsx`, `src/components/admin/novel-form.tsx`, `src/components/admin/delete-novel-form.tsx`, `src/lib/queries/admin.ts`
 
 - `(panel)` 라우트 그룹으로 묶어서 `/admin/login`만 레이아웃 밖에 둠. 레이아웃: 상단 내비 (작품 / 길드원 / 설정 / 열람 화면 보기 / 로그아웃)
   - 레이아웃은 클라이언트 이동 때 다시 렌더되지 않을 수 있어서, 각 page와 Server Action에서 `requireAdmin()`을 따로 호출
@@ -205,7 +211,7 @@ export const loginAttempts = pgTable('login_attempts', {
 
 ### 1-5. 관리자 — 회차 에디터
 
-**파일**: `src/app/admin/(panel)/novels/[novelId]/chapters/[chapterId]/page.tsx`, `src/components/admin/ChapterEditor.tsx`, `src/components/admin/EditorToolbar.tsx`, `src/lib/content/sanitize.ts`, `src/lib/content/text.ts`
+**파일**: `src/app/admin/(panel)/novels/[novelId]/chapters/[chapterId]/page.tsx`, `src/components/admin/chapter-editor.tsx` (툴바 포함), `src/components/admin/chapter-editor-loader.tsx` (브라우저 전용 로딩), `src/lib/content.ts` (정제·글자수)
 
 - Tiptap `useEditor({ immediatelyRender: false, ... })` — SSR 하이드레이션 불일치 방지 (Next에서 필수)
 - 툴바: 굵게 · 기울임 · 취소선 · 장면 전환(구분선) · 인용 / placeholder "여기에 본문을 써 주세요"
@@ -220,15 +226,15 @@ export const loginAttempts = pgTable('login_attempts', {
 - 진입 시 localStorage 사본이 서버본보다 최신이면 "저장 안 된 수정본이 있어요 — 복구 / 버리기" 배너
 - 저장 안 된 변경이 있으면 `beforeunload` 경고
 - `saveChapter({ id, title, position, contentHtml })`: `sanitize.ts`로 정제 (허용 태그 `p, br, strong, em, s, hr, blockquote`) → `text.ts`로 글자수 계산 → 저장
-- `publishChapter(id)`: `status = 'published'`, `publishedAt`이 null일 때만 now(), `novels.lastPublishedAt = now()` → `db.batch`로 묶음
-- `unpublishChapter(id)`: draft로 되돌림 (publishedAt은 유지)
+- `setChapterStatus(id, 'published')`: `status = 'published'`, `publishedAt`이 null일 때만 now(), `novels.lastPublishedAt = now()` → `db.transaction`으로 묶음
+- `setChapterStatus(id, 'draft')`: draft로 되돌림 (publishedAt은 유지)
 - `deleteChapter(id)`: 확인 모달 후 삭제
 - "미리보기": 열람 화면을 새 탭으로 엶 (관리자는 draft도 열람 가능)
 - 사이드 패널: 이 회차 반응 — 읽은 사람 이름과 횟수, 좋아요 누른 사람 이름
 
 ### 1-6. 열람 화면 (길드원)
 
-**파일**: `src/app/(reader)/layout.tsx`, `src/app/(reader)/page.tsx`, `src/app/(reader)/novels/[novelId]/page.tsx`, `src/app/(reader)/novels/[novelId]/[chapterId]/page.tsx`, `src/components/reader/NovelCard.tsx`, `src/components/reader/ChapterContent.tsx`, `src/components/reader/ChapterNav.tsx`, `src/components/reader/ReaderSettings.tsx`, `src/lib/queries/reader.ts`
+**파일**: `src/app/(reader)/layout.tsx`, `src/app/(reader)/page.tsx`, `src/app/(reader)/novels/[novelId]/page.tsx`, `src/app/(reader)/novels/[novelId]/[chapterId]/page.tsx`, `src/components/novel-cover.tsx`, `src/components/reader/reader-settings.tsx`, `src/components/reader/nickname-menu.tsx`, `src/lib/queries/reader.ts`
 
 - 모든 쿼리 함수 첫 줄에서 `requireReader()`. 길드원에게는 `isPublished = true` 작품의 `status = 'published'` 회차만, 관리자에게는 전부 노출 (draft엔 "미리보기" 뱃지)
 - 쿠키 확인 때문에 전부 동적 렌더링 — 길드 규모라 캐시는 생략
@@ -248,7 +254,7 @@ export const loginAttempts = pgTable('login_attempts', {
 
 ### 1-7. 좋아요·조회수
 
-**파일**: `src/app/(reader)/actions.ts`, `src/components/reader/LikeButton.tsx`, `src/components/reader/ViewTracker.tsx`, `src/app/admin/(panel)/readers/page.tsx`
+**파일**: `src/app/(reader)/actions.ts`, `src/components/reader/like-button.tsx`, `src/components/reader/view-tracker.tsx`, `src/lib/queries/reactions.ts`, `src/app/admin/(panel)/readers/page.tsx`, `src/components/admin/reader-row.tsx`
 
 - `toggleLike(chapterId)`: `requireReader()` (관리자에겐 버튼 숨김) → 이미 눌렀으면 delete, 아니면 `insert ... on conflict do nothing` → 새 count와 이름 목록 반환. `LikeButton`은 `useOptimistic`으로 즉시 반영
 - `recordView(chapterId)`: `ViewTracker`(클라이언트 컴포넌트)가 마운트될 때 호출. 렌더 중에 기록하면 Link 프리페치까지 조회로 잡혀서 이렇게 함. 관리자면 무시
@@ -268,7 +274,7 @@ on conflict (chapter_id, reader_id) do update
 
 ### 1-8. 관리자 설정·백업
 
-**파일**: `src/app/admin/(panel)/settings/page.tsx`, `src/app/admin/export/route.ts`
+**파일**: `src/app/admin/(panel)/settings/page.tsx`, `src/components/admin/guild-password-form.tsx`, `src/app/admin/export/route.ts`
 
 - 길드 열람 비밀번호 설정·변경 → `updateGuildPassword`: scrypt 해시 저장 + `guildPasswordVersion + 1` → 길드원 전원 다시 입장 (이름은 미리 채워짐)
 - 백업 다운로드: `GET /admin/export` (route 안에서도 `requireAdmin()`) → 작품·회차 전체 JSON, `Content-Disposition: attachment; filename=wafflenoble-backup-{YYYYMMDD}.json`
