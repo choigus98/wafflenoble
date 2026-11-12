@@ -109,6 +109,17 @@ export function storyBlockToText(block: StoryBlock): string {
           data.date.trim() && `일시: ${data.date.trim()}`,
         );
       }
+      case 'music': {
+        const { data } = block;
+        const time = [data.elapsed, data.duration].map((value) => value.trim()).filter(Boolean).join(' / ');
+        const lyric = data.lyric
+          .split('\n')
+          .map((line) => line.trim())
+          .filter(Boolean)
+          .map((line) => `♪ ${line}`)
+          .join('\n');
+        return lines(data.app, data.title, data.artist, time, lyric);
+      }
       case 'item': {
         const { data } = block;
         return lines(data.title, data.name, [data.grade.trim() && `[${data.grade.trim()}]`, data.category.trim()].filter(Boolean).join(' '), data.script);

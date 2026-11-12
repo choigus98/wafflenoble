@@ -3,6 +3,7 @@ import { sanitizeChapterHtml } from '@/lib/content';
 import {
   alarmDays,
   chatColorKey,
+  clockSeconds,
   eventDateParts,
   itemGradeKey,
   commentDisplayName,
@@ -11,6 +12,7 @@ import {
   isMine,
   isPostAuthor,
   kakaoTitle,
+  musicProgress,
   parseComments,
   parsePollScript,
   parsePushScript,
@@ -72,6 +74,7 @@ const KEYS: TemplateKey[] = [
   'alarm',
   'event',
   'item',
+  'music',
 ];
 
 function withTrickyText(block: StoryBlock): StoryBlock {
@@ -118,6 +121,8 @@ function withTrickyText(block: StoryBlock): StoryBlock {
       return { ...block, data: { ...block.data, title: TRICKY, note: `${TRICKY}\n둘째 줄` } };
     case 'item':
       return { ...block, data: { ...block.data, name: '<b>전설</b>의 "뒤집개" & 😀', script: `${block.data.script}\n${TRICKY}: +1` } };
+    case 'music':
+      return { ...block, data: { ...block.data, title: '<b>밤</b>의 "와플" & 😀', lyric: `${TRICKY}\n둘째 줄` } };
     case 'receipt':
       return { ...block, data: { ...block.data, store: '가게 <b>&</b> "따옴표"', script: `${block.data.script}\n${TRICKY}: 1,000원` } };
     case 'push':
@@ -621,5 +626,28 @@ describe('아이템 등급 색', () => {
   it('모르는 이름이거나 비면 일반 색', () => {
     expect(itemGradeKey('')).toBe('common');
     expect(itemGradeKey('S+')).toBe('common');
+  });
+});
+
+describe('음악 재생 막대', () => {
+  it('시각 글자를 초로: 분:초 · 시:분:초 · 전각 쌍점, 못 읽으면 null', () => {
+    expect(clockSeconds('3:45')).toBe(225);
+    expect(clockSeconds(' 01:24 ')).toBe(84);
+    expect(clockSeconds('1:02:03')).toBe(3723);
+    expect(clockSeconds('3：45')).toBe(225);
+    expect(clockSeconds('125:00')).toBe(7500);
+    expect(clockSeconds('3:75')).toBeNull();
+    expect(clockSeconds('1:75:00')).toBeNull();
+    expect(clockSeconds('3분 45초')).toBeNull();
+    expect(clockSeconds('')).toBeNull();
+  });
+
+  it('비율: 재생 위치 / 전체 길이, 비어 있으면 0, 넘치면 1, 전체 길이를 못 읽으면 null', () => {
+    expect(musicProgress('1:30', '3:00')).toBe(0.5);
+    expect(musicProgress('', '3:00')).toBe(0);
+    expect(musicProgress('5:00', '3:00')).toBe(1);
+    expect(musicProgress('1:30', 'LIVE')).toBeNull();
+    expect(musicProgress('1:30', '0:00')).toBeNull();
+    expect(musicProgress('곧', '3:00')).toBeNull();
   });
 });

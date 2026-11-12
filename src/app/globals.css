@@ -146,6 +146,17 @@
   --wn-item-epic: #8b35d6;
   --wn-item-legendary: #b45309;
   --wn-item-mythic: #c0262c;
+  /* 음악 재생: 아래 단추·막대는 그림이라 대비 기준(3:1)만, 글자(--wn-music-muted)는 연보라 바탕에서도 5:1 이상 */
+  --wn-music-bg-from: #fff4f7;
+  --wn-music-bg-to: #f1ecff;
+  --wn-music-fg: #1e1628;
+  --wn-music-muted: #66597a;
+  --wn-music-accent: #d6336c;
+  --wn-music-accent-fg: #ffffff;
+  --wn-music-track: rgb(0 0 0 / 0.1);
+  --wn-music-chip-bg: rgb(255 255 255 / 0.7);
+  --wn-music-art-from: #ff8fb1;
+  --wn-music-art-to: #7b61ff;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -293,6 +304,16 @@
     --wn-item-epic: #c79bff;
     --wn-item-legendary: #ffb547;
     --wn-item-mythic: #ff7b7b;
+    --wn-music-bg-from: #251a30;
+    --wn-music-bg-to: #141119;
+    --wn-music-fg: #f7f2fc;
+    --wn-music-muted: rgb(255 255 255 / 0.66);
+    --wn-music-accent: #ff7aa8;
+    --wn-music-accent-fg: #1f0f1a;
+    --wn-music-track: rgb(255 255 255 / 0.16);
+    --wn-music-chip-bg: rgb(255 255 255 / 0.07);
+    --wn-music-art-from: #ff6b9b;
+    --wn-music-art-to: #6a4cff;
   }
 }
 
@@ -439,6 +460,16 @@
   --wn-item-epic: #c79bff;
   --wn-item-legendary: #ffb547;
   --wn-item-mythic: #ff7b7b;
+  --wn-music-bg-from: #251a30;
+  --wn-music-bg-to: #141119;
+  --wn-music-fg: #f7f2fc;
+  --wn-music-muted: rgb(255 255 255 / 0.66);
+  --wn-music-accent: #ff7aa8;
+  --wn-music-accent-fg: #1f0f1a;
+  --wn-music-track: rgb(255 255 255 / 0.16);
+  --wn-music-chip-bg: rgb(255 255 255 / 0.07);
+  --wn-music-art-from: #ff6b9b;
+  --wn-music-art-to: #6a4cff;
 }
 
 @theme inline {

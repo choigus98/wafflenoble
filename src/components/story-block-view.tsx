@@ -6,6 +6,7 @@ import {
   chatColorKey,
   eventDateParts,
   itemGradeKey,
+  musicProgress,
   commentDisplayName,
   isMine,
   isPostAuthor,
@@ -35,6 +36,7 @@ import {
   type LiveData,
   type LocationData,
   type MailData,
+  type MusicData,
   type NewsData,
   type NoteData,
   type PollData,
@@ -115,6 +117,8 @@ export function StoryBlockView({ block }: { block: StoryBlock }) {
       return <EventCard data={block.data} />;
     case 'item':
       return <ItemCard data={block.data} />;
+    case 'music':
+      return <MusicCard data={block.data} />;
   }
 }
 
@@ -1422,6 +1426,113 @@ function ItemCard({ data }: { data: ItemData }) {
           })}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * 음악 재생: 음악 앱의 '지금 재생 중' 화면 (앨범 그림 자리 · 곡 제목 · 가수 · 가사 · 재생 막대와 시간 · 재생 단추 모양).
+ * 막대 길이는 적은 재생 위치/전체 길이로 정하고(musicProgress), 시각으로 못 읽으면 막대 없이 적은 글자만.
+ * 아래 단추들은 화면 모양일 뿐이라 그림으로만 그리고 낭독기에서는 숨긴다 (낭독기에는 '재생 위치 1:24 / 3:45')
+ */
+export function MusicCard({ data, field }: { data: MusicData; field?: FieldRenderer }) {
+  const editing = Boolean(field);
+  const slot = (name: keyof MusicData, label: string, maxLength: number, className: string, wrap = false, multiline = false) =>
+    field ? (
+      field({ name, value: data[name], label, placeholder: label, maxLength, className, wrap, multiline })
+    ) : (
+      <span className={className}>{data[name]}</span>
+    );
+  const progress = musicProgress(data.elapsed, data.duration);
+  const percent = `${((progress ?? 0) * 100).toFixed(1)}%`;
+  const elapsed = data.elapsed.trim() || (progress !== null ? '0:00' : '');
+  const duration = data.duration.trim();
+  const icon = 'size-5 shrink-0';
+
+  return (
+    <div className="wn-block mx-auto w-full max-w-[380px] rounded-[26px] border border-(--wn-border) bg-linear-to-b from-(--wn-music-bg-from) to-(--wn-music-bg-to) px-5 pt-4 pb-5 text-(--wn-music-fg) shadow-sm">
+      {editing || data.app.trim() ? (
+        <div className="mb-3.5 flex items-center gap-1.5 text-xs font-semibold text-(--wn-music-muted)">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="size-3.5 shrink-0 text-(--wn-music-accent)">
+            <rect x="3" y="10" width="4" height="11" rx="1.5" />
+            <rect x="10" y="3" width="4" height="18" rx="1.5" />
+            <rect x="17" y="13" width="4" height="8" rx="1.5" />
+          </svg>
+          {slot('app', '위쪽 문구 (비우면 안 보여요)', 30, 'max-w-full')}
+        </div>
+      ) : null}
+      <div className="flex items-center gap-3.5">
+        <span
+          aria-hidden="true"
+          className="grid size-16 shrink-0 place-items-center rounded-2xl bg-linear-to-br from-(--wn-music-art-from) to-(--wn-music-art-to) text-white shadow-sm"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-7">
+            <path d="M9 18V5l11-2v13" />
+            <circle cx="6.5" cy="18" r="2.5" />
+            <circle cx="17.5" cy="16" r="2.5" />
+          </svg>
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-[17px] leading-snug font-bold break-keep">{slot('title', '곡 제목', 80, 'block w-full', true)}</div>
+          <div className="mt-0.5 text-sm break-keep text-(--wn-music-muted)">{slot('artist', '가수', 60, 'block w-full', true)}</div>
+        </div>
+      </div>
+      {editing || data.lyric.trim() ? (
+        <div className="mt-4 rounded-xl bg-(--wn-music-chip-bg) px-3.5 py-2.5 text-[15px] leading-relaxed font-medium break-keep whitespace-pre-wrap">
+          {editing ? null : <span className="sr-only">가사 </span>}
+          {slot('lyric', '가사 (비우면 안 보여요)', 200, 'block w-full whitespace-pre-wrap', false, true)}
+        </div>
+      ) : null}
+      {editing || elapsed || duration ? (
+        <div className="mt-4">
+          {editing || progress !== null ? (
+            <div aria-hidden="true" className="relative h-1 rounded-full bg-(--wn-music-track)">
+              <div className="h-full rounded-full bg-(--wn-music-accent)" style={{ width: percent }} />
+              <div className="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-(--wn-music-accent) shadow-sm" style={{ left: percent }} />
+            </div>
+          ) : null}
+          <div className="mt-2 flex justify-between gap-3 text-xs text-(--wn-music-muted) tabular-nums">
+            {editing ? (
+              <>
+                {slot('elapsed', '재생 위치 (예: 1:24)', 10, '')}
+                {slot('duration', '전체 길이 (예: 3:45)', 10, 'text-right')}
+              </>
+            ) : (
+              <>
+                <span className="sr-only">재생 위치 {[elapsed, duration].filter(Boolean).join(' / ')}</span>
+                <span aria-hidden="true">{elapsed}</span>
+                <span aria-hidden="true">{duration}</span>
+              </>
+            )}
+          </div>
+        </div>
+      ) : null}
+      {/* 화면 모양만 (누르는 단추가 아님): 섞어 듣기 · 이전 곡 · 일시 정지 · 다음 곡 · 반복 */}
+      <div aria-hidden="true" className="mt-4 flex items-center justify-between px-1.5">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn(icon, 'text-(--wn-music-muted)')}>
+          <path d="M3 7h3.5c2 0 3.2 1 4.3 2.6l2.4 4.8C14.3 16 15.5 17 17.5 17H21" />
+          <path d="M3 17h3.5c1.4 0 2.4-.5 3.3-1.4M14.2 8.4c.9-.9 1.9-1.4 3.3-1.4H21" />
+          <path d="M18 4l3 3-3 3M18 14l3 3-3 3" />
+        </svg>
+        <svg viewBox="0 0 24 24" fill="currentColor" className="size-6 shrink-0">
+          <path d="M18 5.5v13a1 1 0 0 1-1.55.83L7.5 13.2V18a1 1 0 0 1-2 0V6a1 1 0 0 1 2 0v4.8l8.95-6.13A1 1 0 0 1 18 5.5z" />
+        </svg>
+        <span className="grid size-14 shrink-0 place-items-center rounded-full bg-(--wn-music-accent) text-(--wn-music-accent-fg) shadow-sm">
+          <svg viewBox="0 0 24 24" fill="currentColor" className="size-6">
+            <rect x="6.5" y="5" width="4" height="14" rx="1.2" />
+            <rect x="13.5" y="5" width="4" height="14" rx="1.2" />
+          </svg>
+        </span>
+        <svg viewBox="0 0 24 24" fill="currentColor" className="size-6 shrink-0">
+          <path d="M6 5.5v13a1 1 0 0 0 1.55.83l8.95-6.13V18a1 1 0 0 0 2 0V6a1 1 0 0 0-2 0v4.8L7.55 4.67A1 1 0 0 0 6 5.5z" />
+        </svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn(icon, 'text-(--wn-music-muted)')}>
+          <path d="M17 3l3 3-3 3" />
+          <path d="M4 11.5V10a4 4 0 0 1 4-4h12" />
+          <path d="M7 21l-3-3 3-3" />
+          <path d="M20 12.5V14a4 4 0 0 1-4 4H4" />
+        </svg>
+      </div>
     </div>
   );
 }

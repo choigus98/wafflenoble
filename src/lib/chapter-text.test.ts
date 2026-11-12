@@ -75,6 +75,12 @@ describe('회차 텍스트로 내보내기', () => {
     const alarm = createTemplate('alarm');
     if (alarm.kind !== 'alarm') throw new Error('알람 템플릿이 아니에요');
     expect(storyBlockToText({ ...alarm, data: { ...alarm.data, date: '' } })).toBe(['[알람]', '오전 6:30', '일어나! 와플 가게 문 여는 날', '반복: 월 화 수 목 금'].join('\n'));
+    const music = createTemplate('music');
+    if (music.kind !== 'music') throw new Error('음악 재생 템플릿이 아니에요');
+    expect(storyBlockToText({ ...music, data: { ...music.data, lyric: '첫 줄\n\n 둘째 줄 ' } })).toBe(
+      ['[음악 재생]', '지금 재생 중', '골목 끝의 단맛', '시럽 밴드', '1:24 / 3:45', '♪ 첫 줄', '♪ 둘째 줄'].join('\n'),
+    );
+    expect(storyBlockToText({ ...music, data: { ...music.data, app: '', elapsed: '', duration: '', lyric: '' } })).toBe(['[음악 재생]', '골목 끝의 단맛', '시럽 밴드'].join('\n'));
   });
 
   it('투표·영수증은 자동으로 낸 값(참여 인원·합계)도', () => {
@@ -85,7 +91,7 @@ describe('회차 텍스트로 내보내기', () => {
   });
 
   it('모든 템플릿이 머리 한 줄 + 글로 풀린다 (빈 줄 없이)', () => {
-    const keys = ['kakao-dm', 'kakao-group', 'live', 'chat', 'donation', 'post', 'system-quest', 'system-status', 'news', 'call-incoming', 'call-active', 'note', 'sns', 'mail', 'search', 'push', 'sms', 'receipt', 'location', 'poll', 'transfer', 'alarm', 'event', 'item'] as const;
+    const keys = ['kakao-dm', 'kakao-group', 'live', 'chat', 'donation', 'post', 'system-quest', 'system-status', 'news', 'call-incoming', 'call-active', 'note', 'sns', 'mail', 'search', 'push', 'sms', 'receipt', 'location', 'poll', 'transfer', 'alarm', 'event', 'item', 'music'] as const;
     for (const key of keys) {
       const text = storyBlockToText(createTemplate(key));
       const [head, ...rest] = text.split('\n');

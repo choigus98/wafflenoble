@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물, 이메일, 검색 결과, 휴대폰 알림, 문자 메시지, 영수증, 위치 공유, 투표, 송금 완료, 알람, 일정, 아이템 획득).
+// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물, 이메일, 검색 결과, 휴대폰 알림, 문자 메시지, 영수증, 위치 공유, 투표, 송금 완료, 알람, 일정, 아이템 획득, 음악 재생).
 // 저장 형식: <div data-wn-block="종류" data-wn-data="JSON"></div>
 // 에디터(Tiptap 노드), 서버(저장할 때 검증), 열람 화면(렌더링)이 모두 이 파일을 같이 쓴다.
 //
@@ -194,6 +194,15 @@ const eventSchema = z.object({
   note: text(200), // 메모. 비우면 안 보임
 });
 
+const musicSchema = z.object({
+  app: text(30), // 위쪽 작은 문구 ('지금 재생 중', 앱 이름). 비우면 안 보임
+  title: text(80), // 곡 제목
+  artist: text(60), // 가수 (앨범까지 '시럽 밴드 · 첫 앨범'처럼 적어도 됨)
+  elapsed: text(10), // 재생 위치 ('1:24'). 비우면 0:00
+  duration: text(10), // 전체 길이 ('3:45'). 시각으로 읽히면 재생 막대를 그 비율만큼 (musicProgress). 둘 다 비우면 막대·시간 없음
+  lyric: text(200), // 가사 (여러 줄 가능). 비우면 안 보임
+});
+
 const itemSchema = z.object({
   title: text(40), // 위쪽 알림 문구 ('아이템을 획득했습니다!'). 비우면 안 보임
   name: text(60), // 아이템 이름
@@ -228,6 +237,7 @@ export const storyBlockSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('alarm'), data: alarmSchema }),
   z.object({ kind: z.literal('event'), data: eventSchema }),
   z.object({ kind: z.literal('item'), data: itemSchema }),
+  z.object({ kind: z.literal('music'), data: musicSchema }),
 ]);
 
 export type StoryBlock = z.infer<typeof storyBlockSchema>;
@@ -252,6 +262,7 @@ export type TransferData = z.infer<typeof transferSchema>;
 export type AlarmData = z.infer<typeof alarmSchema>;
 export type EventData = z.infer<typeof eventSchema>;
 export type ItemData = z.infer<typeof itemSchema>;
+export type MusicData = z.infer<typeof musicSchema>;
 
 /** 메일 보낸 사람 '김지은 <jieun@example.com>' → 이름과 주소. 꺾쇠가 없으면 적은 그대로 이름으로 */
 export function splitMailSender(from: string): { name: string; address: string } {
@@ -725,6 +736,28 @@ export function itemGradeKey(grade: string): ItemGrade {
   return ITEM_GRADE_WORDS.find(([, words]) => words.some((word) => text.includes(word)))?.[0] ?? 'common';
 }
 
+// ─── 음악 재생 막대 ──────────────────────────────────────
+// '1:24'·'01:24'·'1:02:03'처럼 적은 재생 위치와 전체 길이로 막대 길이를 정한다. 시각으로 못 읽으면 막대 없이 적은 글자만
+const CLOCK = /^(?:(\d{1,2})[:：])?(\d{1,3})[:：](\d{2})$/;
+
+/** '3:45' → 225(초). 못 읽으면 null */
+export function clockSeconds(text: string): number | null {
+  const match = text.trim().match(CLOCK);
+  if (!match) return null;
+  const [, hours, minutes, seconds] = match;
+  if (Number(seconds) > 59 || (hours !== undefined && Number(minutes) > 59)) return null;
+  return Number(hours ?? 0) * 3600 + Number(minutes) * 60 + Number(seconds);
+}
+
+/** 재생 막대 비율(0~1). 전체 길이를 못 읽거나 0이면 null, 재생 위치가 비어 있으면 0, 전체보다 길면 1 */
+export function musicProgress(elapsed: string, duration: string): number | null {
+  const total = clockSeconds(duration);
+  if (!total) return null;
+  if (!elapsed.trim()) return 0;
+  const now = clockSeconds(elapsed);
+  return now === null ? null : Math.min(now / total, 1);
+}
+
 /** 제목 옆·댓글 머리에 보일 댓글 수. 직접 적은 값이 먼저, 없으면 실제 댓글 개수 */
 export function postCommentCount(data: PostData, lines: CommentLine[]): string {
   return data.commentCount.trim() || String(lines.filter((line) => line.type === 'comment').length);
@@ -756,7 +789,8 @@ export type TemplateKey =
   | 'transfer'
   | 'alarm'
   | 'event'
-  | 'item';
+  | 'item'
+  | 'music';
 
 export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }> = [
   { key: 'kakao-dm', label: '카톡 1:1 대화', hint: '두 사람의 메신저 대화' },
@@ -783,6 +817,7 @@ export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }>
   { key: 'alarm', label: '알람', hint: '큰 시각 · 알람 이름 · 반복 요일' },
   { key: 'event', label: '일정', hint: '캘린더 일정 · 날짜 · 시간 · 장소' },
   { key: 'item', label: '아이템 획득', hint: '이름 · 등급 색 · 능력치' },
+  { key: 'music', label: '음악 재생', hint: '노래 제목 · 가수 · 재생 막대 · 가사' },
 ];
 
 export function templateLabel(block: StoryBlock): string {
@@ -913,6 +948,11 @@ export function createTemplate(key: TemplateKey): StoryBlock {
       return {
         kind: 'location',
         data: { badge: '위치 공유', place: '골목 끝 와플 가게', address: '와플시 반죽구 시럽로 12, 1층', note: '여기서 기다릴게' },
+      };
+    case 'music':
+      return {
+        kind: 'music',
+        data: { app: '지금 재생 중', title: '골목 끝의 단맛', artist: '시럽 밴드', elapsed: '1:24', duration: '3:45', lyric: '오늘 밤도 이 골목 끝에서 널 기다릴게' },
       };
     case 'item':
       return {
