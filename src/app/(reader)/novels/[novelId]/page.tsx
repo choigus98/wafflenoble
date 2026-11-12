@@ -8,6 +8,7 @@ import { TocOrderToggle } from '@/components/reader/toc-order-toggle';
 import { Badge, ButtonLink, Skeleton } from '@/components/ui';
 import { parseCharacters, type Character } from '@/lib/characters';
 import { formatDate, formatSchedule } from '@/lib/format';
+import { formatReadingTime, readingMinutes } from '@/lib/reading-time';
 import { getNovelDetail } from '@/lib/queries/reader';
 import { TOC_ORDER_COOKIE, orderChapters, parseTocOrder } from '@/lib/toc-order';
 import { SERIAL_STATUS_LABEL, cn, parseId } from '@/lib/utils';
@@ -131,6 +132,7 @@ async function NovelDetail({ params }: Pick<PageProps<'/novels/[novelId]'>, 'par
                     </span>
                     <span className="mt-0.5 flex items-center gap-2 text-xs text-muted">
                       {chapter.publishedAt && !chapter.scheduled ? formatDate(chapter.publishedAt) : null}
+                      <ReadingTime charCount={chapter.charCount} />
                       {chapter.status === 'draft' ? <Badge tone="muted">임시저장</Badge> : null}
                       {chapter.scheduled && chapter.publishedAt ? (
                         <Badge tone="muted">예약 · {formatSchedule(chapter.publishedAt)}</Badge>
@@ -146,6 +148,18 @@ async function NovelDetail({ params }: Pick<PageProps<'/novels/[novelId]'>, 'par
         )}
       </section>
     </article>
+  );
+}
+
+/** 목차 한 줄의 읽는 시간 '약 8분' (화면 낭독기는 '읽는 시간 약 8분') */
+function ReadingTime({ charCount }: { charCount: number }) {
+  const minutes = readingMinutes(charCount);
+  if (minutes === null) return null;
+  return (
+    <span>
+      <span className="sr-only">읽는 시간 </span>
+      {formatReadingTime(minutes)}
+    </span>
   );
 }
 

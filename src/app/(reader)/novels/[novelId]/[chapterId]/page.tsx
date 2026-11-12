@@ -11,6 +11,7 @@ import { ReadingProgress } from '@/components/reader/reading-progress';
 import { ViewTracker } from '@/components/reader/view-tracker';
 import { Badge, ButtonLink, Skeleton } from '@/components/ui';
 import { formatDate, formatNumber, formatSchedule } from '@/lib/format';
+import { formatReadingTime, readingMinutes } from '@/lib/reading-time';
 import { getChapterView } from '@/lib/queries/reader';
 import { parseId } from '@/lib/utils';
 
@@ -32,6 +33,7 @@ async function ChapterView({ params }: Pick<PageProps<'/novels/[novelId]/[chapte
 
   const { viewer, novel, chapter, prev, next, toc, nextScheduledAt, likes, readCount } = data;
   const isReader = viewer.kind === 'reader';
+  const minutes = readingMinutes(chapter.charCount);
 
   return (
     <article className="pt-6">
@@ -50,8 +52,20 @@ async function ChapterView({ params }: Pick<PageProps<'/novels/[novelId]/[chapte
           >
             <span className="mr-1 text-muted">{chapter.position}화</span> {chapter.title}
           </h1>
-          <p className="flex items-center gap-2 text-xs text-muted">
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
             {chapter.publishedAt && chapter.visibleNow ? formatDate(chapter.publishedAt) : null}
+            {minutes !== null ? (
+              <span className="flex items-center gap-1">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-3.5">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M12 7v5l3 2" />
+                </svg>
+                <span>
+                  <span className="sr-only">읽는 시간 </span>
+                  {formatReadingTime(minutes)}
+                </span>
+              </span>
+            ) : null}
             {chapter.status === 'draft' ? <Badge tone="danger">미리보기 · 임시저장</Badge> : null}
             {chapter.status === 'published' && !chapter.visibleNow && chapter.publishedAt ? (
               <Badge tone="danger">미리보기 · {formatSchedule(chapter.publishedAt)} 공개 예정</Badge>

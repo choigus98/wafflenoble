@@ -73,6 +73,7 @@ export async function getNovelDetail(novelId: number) {
         publishedAt: chapters.publishedAt,
         scheduled: isScheduledChapter,
         likeCount: chapterLikeCount,
+        charCount: chapters.charCount, // 읽는 시간 어림용
         readByMe,
         isNew,
       })
@@ -117,6 +118,7 @@ export async function getChapterView(novelId: number, chapterId: number) {
         title: chapters.title,
         contentHtml: chapters.contentHtml,
         authorNote: chapters.authorNote,
+        charCount: chapters.charCount,
         status: chapters.status,
         publishedAt: chapters.publishedAt,
         visibleNow: isVisibleChapter,
