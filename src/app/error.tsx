@@ -5,7 +5,7 @@ import { Button } from '@/components/ui';
 
 export default function ErrorPage({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-6 px-6 text-center">
+    <main id="main" tabIndex={-1} className="outline-none mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-6 px-6 text-center">
       <Logo />
       <div className="space-y-2">
         <h1 className="text-xl font-bold">잠깐 문제가 생겼어요</h1>

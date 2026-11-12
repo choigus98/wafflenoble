@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { scrollBehavior } from '@/lib/motion';
 
 // 회차 읽기 진행 막대 + 읽던 위치 기억 (이 기기의 localStorage에만, 회차마다)
 // - 스크롤할 때마다 React를 다시 그리지 않도록 막대는 DOM 스타일만 직접 바꾼다
@@ -90,7 +91,7 @@ export function ReadingProgress({ chapterId }: { chapterId: number }) {
   function resume() {
     const result = measure();
     if (result && offer !== null) {
-      window.scrollTo({ top: result.top + offer * result.span - window.innerHeight * 0.2, behavior: 'smooth' });
+      window.scrollTo({ top: result.top + offer * result.span - window.innerHeight * 0.2, behavior: scrollBehavior() });
     }
     setOffer(null);
   }

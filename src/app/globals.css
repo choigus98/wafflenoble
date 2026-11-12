@@ -6,13 +6,13 @@
   --surface: #ffffff;
   --surface-2: #f3ece2;
   --fg: #2b221c;
-  --muted: #7c6e63;
+  --muted: #716458;
   --line: #e8ddcf;
-  --accent: #b8741f;
+  --accent: #935812; /* 글자·흰 글씨 버튼·연한 배지 모두 대비 4.5:1 이상 */
   --accent-fg: #ffffff;
   --accent-soft: #f6e7d0;
   --danger: #c0392f;
-  --like: #e0503c;
+  --like: #c23a27;
   color-scheme: light;
 
   /* 이야기 속 화면 템플릿 — 밝은 화면 */
@@ -23,34 +23,34 @@
   --wn-stage: #ebe5dc; /* 에디터 미리보기 바탕 */
   --wn-live-bg: #ffffff;
   --wn-live-badge-bg: #ffe4e6;
-  --wn-live-badge-fg: #e5484d;
-  --wn-live-viewers: #d64f7a;
+  --wn-live-badge-fg: #c0262c;
+  --wn-live-viewers: #c23d68;
   --wn-live-dot-ring: #ffd3df;
   --wn-chat-bg: #ffffff;
   --wn-don-bg: #ffffff;
   --wn-don-accent: #10a35a;
   --wn-don-badge-bg: #dcf6e8;
-  --wn-don-badge-fg: #0f8f4f;
+  --wn-don-badge-fg: #0a7540;
   --wn-don-box: #f2f3f5;
   --wn-kakao-bg: #bacee0;
   --wn-kakao-head: #a9bfd3;
   --wn-kakao-head-fg: #17181c;
-  --wn-kakao-sub: #3e5266;
-  --wn-kakao-pill-bg: rgb(0 0 0 / 0.16);
+  --wn-kakao-sub: #34475a;
+  --wn-kakao-pill-bg: rgb(0 0 0 / 0.45); /* 흰 글씨 대비 4.5:1 이상 */
   --wn-kakao-pill-fg: #ffffff;
   --wn-kakao-other-bg: #ffffff;
   --wn-kakao-other-fg: #191919;
   --wn-kakao-me-bg: #f6b8cd;
   --wn-kakao-me-fg: #1d1a1b;
   --wn-kakao-name: #3e5266;
-  --wn-kakao-time: #4c6075;
+  --wn-kakao-time: #3e5266;
   --wn-nick-blue: #2f6fd6;
   --wn-nick-purple: #8a4fd8;
-  --wn-nick-green: #23924a;
-  --wn-nick-yellow: #b7791f;
-  --wn-nick-pink: #d6457a;
-  --wn-nick-teal: #138f88;
-  --wn-nick-orange: #d4662a;
+  --wn-nick-green: #1f8443;
+  --wn-nick-yellow: #956110;
+  --wn-nick-pink: #c43a6c;
+  --wn-nick-teal: #0f7f79;
+  --wn-nick-orange: #b8511e;
   --wn-post-bg: #ffffff;
   --wn-post-accent: #3563d1;
   --wn-post-comments: #f6f7f9;
@@ -263,6 +263,18 @@ body {
   white-space: normal;
   word-break: keep-all;
   overflow-wrap: anywhere;
+}
+
+/* 기기 설정에서 '동작 줄이기'를 켜면 깜빡임·전환·부드러운 스크롤을 끈다 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* 에디터 */

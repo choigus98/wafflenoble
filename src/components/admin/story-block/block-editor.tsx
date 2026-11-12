@@ -24,6 +24,7 @@ import {
   type PostData,
   type StoryBlock,
 } from '@/lib/story-blocks';
+import { scrollBehavior } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 
 // 입력은 화면에 바로 보이고, 문서(→ 자동저장)에는 잠깐 모았다가 반영한다 (커서 튐 방지, 저장 횟수 줄이기)
@@ -162,7 +163,7 @@ export function ConversationEditor({
 
   // 열리면 편집 창 머리가 위쪽 고정 툴바에 가리지 않게 스크롤하고, 커서를 둔다 (게시글은 제목 끝, 나머지는 대본 끝)
   useEffect(() => {
-    rootRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    rootRef.current?.scrollIntoView({ block: 'start', behavior: scrollBehavior() });
     const target = titleRef.current ?? scriptRef.current;
     if (target) {
       target.focus({ preventScroll: true });

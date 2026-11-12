@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useId, useRef, useState, useSyncExternalStore } from 'react';
+import { useDismiss } from '@/components/use-dismiss';
 import { cn } from '@/lib/utils';
 
 type Settings = {
@@ -62,27 +63,15 @@ export function ReaderSettings() {
   const settings = parse(raw);
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const close = (event: MouseEvent | KeyboardEvent) => {
-      if (event instanceof KeyboardEvent ? event.key === 'Escape' : !rootRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', close);
-    document.addEventListener('keydown', close);
-    return () => {
-      document.removeEventListener('mousedown', close);
-      document.removeEventListener('keydown', close);
-    };
-  }, [open]);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  useDismiss({ open, onClose: () => setOpen(false), rootRef, triggerRef });
 
   const update = (patch: Settings) => save({ ...settings, ...patch });
 
   return (
     <div ref={rootRef} className="relative shrink-0">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
@@ -134,10 +123,14 @@ function Option({
   selected: number;
   onSelect: (index: number) => void;
 }) {
+  // 화면 낭독기가 '보통'만이 아니라 '글자 크기, 보통'으로 읽도록 버튼 묶음에 이름을 붙인다
+  const labelId = useId();
   return (
     <div className="space-y-1.5">
-      <p className="text-xs font-semibold text-muted">{label}</p>
-      <div className="flex rounded-xl bg-surface-2 p-1">
+      <p id={labelId} className="text-xs font-semibold text-muted">
+        {label}
+      </p>
+      <div role="group" aria-labelledby={labelId} className="flex rounded-xl bg-surface-2 p-1">
         {options.map((option, index) => (
           <button
             key={option}

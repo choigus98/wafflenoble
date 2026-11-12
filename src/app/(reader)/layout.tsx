@@ -19,7 +19,7 @@ export default function ReaderLayout({ children }: { children: React.ReactNode }
           </Suspense>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 pb-20">{children}</main>
+      <main id="main" tabIndex={-1} className="outline-none mx-auto w-full max-w-3xl flex-1 px-4 pb-20">{children}</main>
     </div>
   );
 }

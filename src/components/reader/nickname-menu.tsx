@@ -1,7 +1,8 @@
 'use client';
 
-import { startTransition, useActionState, useEffect, useRef, useState, type FormEvent } from 'react';
+import { startTransition, useActionState, useRef, useState, type FormEvent } from 'react';
 import { changeNickname, leaveGuild } from '@/app/(reader)/actions';
+import { useDismiss } from '@/components/use-dismiss';
 import { Button, FormMessage, Input } from '@/components/ui';
 import { IDLE } from '@/lib/action-state';
 import { NICKNAME_MAX } from '@/lib/utils';
@@ -11,23 +12,18 @@ export function NicknameMenu({ name }: { name: string }) {
   const [editing, setEditing] = useState(false);
   const [state, dispatch, pending] = useActionState(changeNickname, IDLE);
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
-  // 바깥을 누르거나 Esc를 누르면 닫기
-  useEffect(() => {
-    if (!open) return;
-    const close = (event: MouseEvent | KeyboardEvent) => {
-      if (event instanceof KeyboardEvent ? event.key === 'Escape' : !rootRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-        setEditing(false);
-      }
-    };
-    document.addEventListener('mousedown', close);
-    document.addEventListener('keydown', close);
-    return () => {
-      document.removeEventListener('mousedown', close);
-      document.removeEventListener('keydown', close);
-    };
-  }, [open]);
+  // 바깥을 누르거나 Esc를 누르면 닫기 (Esc면 이름 버튼으로 포커스를 돌려준다)
+  useDismiss({
+    open,
+    onClose: () => {
+      setOpen(false);
+      setEditing(false);
+    },
+    rootRef,
+    triggerRef,
+  });
 
   function handleRename(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -38,12 +34,13 @@ export function NicknameMenu({ name }: { name: string }) {
   return (
     <div ref={rootRef} className="relative">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
         className="flex h-9 max-w-44 items-center gap-1.5 rounded-full border border-line bg-surface pr-3 pl-1.5 text-sm font-semibold transition hover:bg-surface-2"
       >
-        <span className="grid size-6 place-items-center rounded-full bg-accent-soft text-xs text-accent">
+        <span aria-hidden="true" className="grid size-6 place-items-center rounded-full bg-accent-soft text-xs text-accent">
           {[...name][0]}
         </span>
         <span className="truncate">{name}님</span>

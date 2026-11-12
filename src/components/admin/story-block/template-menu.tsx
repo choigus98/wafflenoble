@@ -2,28 +2,16 @@
 
 import { NodeSelection } from '@tiptap/pm/state';
 import type { Editor } from '@tiptap/react';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
+import { useDismiss } from '@/components/use-dismiss';
 import { TEMPLATES, createTemplate, newId, type TemplateKey } from '@/lib/story-blocks';
 
 /** 툴바의 '＋ 템플릿' 메뉴. 고르면 커서 위치에 넣고 편집 창을 바로 연다 */
 export function TemplateMenu({ editor }: { editor: Editor }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const close = (event: MouseEvent | KeyboardEvent) => {
-      if (event instanceof KeyboardEvent ? event.key === 'Escape' : !rootRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', close);
-    document.addEventListener('keydown', close);
-    return () => {
-      document.removeEventListener('mousedown', close);
-      document.removeEventListener('keydown', close);
-    };
-  }, [open]);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  useDismiss({ open, onClose: () => setOpen(false), rootRef, triggerRef });
 
   function insert(key: TemplateKey) {
     const block = createTemplate(key);
@@ -54,6 +42,7 @@ export function TemplateMenu({ editor }: { editor: Editor }) {
   return (
     <div ref={rootRef} className="relative">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}

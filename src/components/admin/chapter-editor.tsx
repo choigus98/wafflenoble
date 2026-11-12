@@ -5,7 +5,7 @@ import { Fragment, Slice, type Schema } from '@tiptap/pm/model';
 import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from 'next/link';
-import { useEffect, useRef, useState, useTransition, type ReactNode } from 'react';
+import { useEffect, useRef, useState, useTransition, type ReactNode, type RefObject } from 'react';
 import { deleteChapter, saveChapter, scheduleChapter, setChapterStatus } from '@/app/admin/actions';
 import {
   StoryBlockNode,
@@ -15,6 +15,7 @@ import {
 import { TemplateMenu } from '@/components/admin/story-block/template-menu';
 import { SubmitButton } from '@/components/submit-button';
 import { Badge, Button, buttonClass } from '@/components/ui';
+import { useDismiss } from '@/components/use-dismiss';
 import { formatNumber, formatSchedule, formatTime } from '@/lib/format';
 import { plainTextToBlocks } from '@/lib/paste';
 import { cn } from '@/lib/utils';
@@ -84,6 +85,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
   const [scheduled, setScheduled] = useState(chapter.scheduled);
   // 예약 창에 띄울 기본 시각 (창이 열려 있을 때만 값이 있음)
   const [scheduleDraft, setScheduleDraft] = useState<string | null>(null);
+  const scheduleButtonRef = useRef<HTMLButtonElement>(null);
   const [saveState, setSaveState] = useState<SaveState>('saved');
   const [message, setMessage] = useState<{ tone: 'info' | 'error'; text: string } | null>(null);
   const [savedAt, setSavedAt] = useState(chapter.updatedAt);
@@ -373,6 +375,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
       setScheduled(true);
       setPublishAt(result.publishedAt);
       setScheduleDraft(null);
+      scheduleButtonRef.current?.focus(); // 예약 창이 닫혀도 키보드 위치는 '예약 변경' 버튼에
       setMessage({
         tone: 'info',
         text: `${result.publishedAt ? formatSchedule(new Date(result.publishedAt)) : '예약한 시각'}에 공개돼요. 그 전까지는 지금처럼 자동저장돼요`,
@@ -478,6 +481,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
                 </Button>
                 <div className="relative">
                   <Button
+                    ref={scheduleButtonRef}
                     type="button"
                     variant="secondary"
                     size="sm"
@@ -493,6 +497,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
                       pending={statusPending}
                       onConfirm={schedule}
                       onClose={() => setScheduleDraft(null)}
+                      triggerRef={scheduleButtonRef}
                     />
                   ) : null}
                 </div>
@@ -601,34 +606,24 @@ function SchedulePopover({
   pending,
   onConfirm,
   onClose,
+  triggerRef,
 }: {
   defaultValue: string;
   pending: boolean;
   onConfirm: (value: string) => void;
   onClose: () => void;
+  triggerRef: RefObject<HTMLButtonElement | null>;
 }) {
   const [value, setValue] = useState(defaultValue);
   const rootRef = useRef<HTMLDivElement>(null);
-  const onCloseRef = useRef(onClose);
 
-  useEffect(() => {
-    onCloseRef.current = onClose;
-  });
+  // 바깥을 누르거나 Esc를 누르면 닫기 (Esc면 '예약' 버튼으로 포커스를 돌려준다)
+  useDismiss({ open: true, onClose, rootRef, triggerRef });
 
-  // 바깥을 누르거나 Esc를 누르면 닫기
-  useEffect(() => {
-    const close = (event: MouseEvent | KeyboardEvent) => {
-      if (event instanceof KeyboardEvent ? event.key === 'Escape' : !rootRef.current?.contains(event.target as Node)) {
-        onCloseRef.current();
-      }
-    };
-    document.addEventListener('mousedown', close);
-    document.addEventListener('keydown', close);
-    return () => {
-      document.removeEventListener('mousedown', close);
-      document.removeEventListener('keydown', close);
-    };
-  }, []);
+  function cancel() {
+    onClose();
+    triggerRef.current?.focus();
+  }
 
   return (
     <div
@@ -642,13 +637,15 @@ function SchedulePopover({
         <input
           type="datetime-local"
           value={value}
+          // 열리면 바로 시각을 고를 수 있게 (키보드로 연 경우 포커스가 창 안으로 들어옴)
+          autoFocus
           onChange={(event) => setValue(event.target.value)}
           className="h-11 w-full rounded-xl border border-line bg-surface px-3 text-base text-fg focus:border-accent focus:ring-3 focus:ring-accent/20 focus:outline-none"
         />
       </label>
       <p className="mt-2 text-xs leading-relaxed text-muted">이 시각이 되면 길드원에게 보여요. 그 전까지는 임시저장처럼 자동저장돼요.</p>
       <div className="mt-3 flex justify-end gap-2">
-        <Button type="button" variant="ghost" size="sm" onClick={onClose}>
+        <Button type="button" variant="ghost" size="sm" onClick={cancel}>
           취소
         </Button>
         <Button type="button" size="sm" disabled={!value || pending} onClick={() => onConfirm(value)}>

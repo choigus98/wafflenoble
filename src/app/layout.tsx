@@ -38,7 +38,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script dangerouslySetInnerHTML={{ __html: readerSettingsScript }} />
       </head>
-      <body className="min-h-dvh bg-bg font-sans text-fg antialiased">{children}</body>
+      <body className="min-h-dvh bg-bg font-sans text-fg antialiased">
+        {/* 키보드로 쓰는 사람이 머리 메뉴를 건너뛰고 바로 본문으로 */}
+        <a
+          href="#main"
+          className="sr-only rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-fg focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50"
+        >
+          본문으로 건너뛰기
+        </a>
+        {children}
+      </body>
     </html>
   );
 }

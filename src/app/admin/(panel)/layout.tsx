@@ -31,7 +31,7 @@ export default function AdminPanelLayout({ children }: { children: React.ReactNo
           <AdminNav />
         </div>
       </header>
-      <main className="mx-auto w-full max-w-5xl flex-1 px-4 pt-8 pb-20">{children}</main>
+      <main id="main" tabIndex={-1} className="outline-none mx-auto w-full max-w-5xl flex-1 px-4 pt-8 pb-20">{children}</main>
     </div>
   );
 }

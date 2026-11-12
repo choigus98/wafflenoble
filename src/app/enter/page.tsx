@@ -11,7 +11,7 @@ import { EnterForm } from './enter-form';
 
 export default function EnterPage({ searchParams }: PageProps<'/enter'>) {
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-sm flex-col justify-center px-6 py-12">
+    <main id="main" tabIndex={-1} className="outline-none mx-auto flex min-h-dvh w-full max-w-sm flex-col justify-center px-6 py-12">
       <div className="mb-9 flex flex-col items-center gap-4 text-center">
         <WaffleIcon className="size-14" />
         <div className="space-y-1.5">
