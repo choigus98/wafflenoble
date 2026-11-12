@@ -160,7 +160,8 @@ export function InlineCardEditor({
         }
         onBlur={flush}
         style={wrap && !value ? { minWidth: placeholderWidth(placeholder) } : undefined}
-        className={cn(className, INLINE_EDIT, 'resize-none field-sizing-content')}
+        // 줄바꿈 칸은 값이 짧으면('평일') 너무 좁아져 누르기 어려워서 최소 32px
+        className={cn(className, INLINE_EDIT, 'resize-none field-sizing-content', wrap && 'min-w-8')}
       />
     ) : (
       <input

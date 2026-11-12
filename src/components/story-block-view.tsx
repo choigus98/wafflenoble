@@ -1215,7 +1215,8 @@ export function AlarmCard({ data, field }: { data: AlarmData; field?: FieldRende
   const repeat = editing ? null : alarmDays(data.days);
 
   return (
-    <div className="wn-block mx-auto w-full max-w-[340px] rounded-[28px] border border-(--wn-border) bg-linear-to-b from-(--wn-alarm-bg-from) to-(--wn-alarm-bg-to) px-6 pt-6 pb-6 text-center text-(--wn-alarm-fg) shadow-sm">
+    // @container: 큰 시각 글씨를 카드 너비에 맞춰 줄인다 (좁은 화면 에디터에서 '12:59:59'가 칸 밖으로 잘리지 않게, 넓으면 64px 그대로)
+    <div className="wn-block @container mx-auto w-full max-w-[340px] rounded-[28px] border border-(--wn-border) bg-linear-to-b from-(--wn-alarm-bg-from) to-(--wn-alarm-bg-to) px-6 pt-6 pb-6 text-center text-(--wn-alarm-fg) shadow-sm">
       {editing || data.date.trim() ? (
         <div className="text-[13px] font-medium text-(--wn-alarm-muted)">{slot('date', '날짜 (비우면 안 보여요)', 40, 'max-w-full text-center')}</div>
       ) : null}
@@ -1223,7 +1224,7 @@ export function AlarmCard({ data, field }: { data: AlarmData; field?: FieldRende
         {editing || data.period.trim() ? (
           <div className="text-[17px] font-medium text-(--wn-alarm-muted)">{slot('period', '오전·오후 (비우면 안 보여요)', 10, 'max-w-full text-center')}</div>
         ) : null}
-        <div className="max-w-full text-[64px] leading-none font-light tracking-tight tabular-nums">{slot('time', '시각', 10, 'max-w-full text-center')}</div>
+        <div className="max-w-full text-[min(64px,25cqi)] leading-none font-light tracking-tight tabular-nums">{slot('time', '시각', 10, 'max-w-full text-center')}</div>
       </div>
       {editing || data.label.trim() ? (
         <div className="mt-4 text-[16px] font-semibold break-keep">{slot('label', '알람 이름 (비우면 안 보여요)', 40, 'max-w-full text-center', true)}</div>
