@@ -13,6 +13,7 @@ import {
   useEditingTemplateUid,
 } from '@/components/admin/story-block/story-block-node';
 import { ChangesDialog } from '@/components/admin/changes-dialog';
+import { CharacterPanel } from '@/components/admin/character-panel';
 import { CheckMenu, type CheckTool } from '@/components/admin/check-menu';
 import { CharGoal } from '@/components/admin/char-goal';
 import { FindBar, FindReplace } from '@/components/admin/find-replace';
@@ -51,6 +52,7 @@ export type EditorChapter = {
   scheduled: boolean; // 예약 발행 대기 중 (공개 시각 전이라 길드원에게 아직 안 보임)
   revisions: RevisionItem[]; // 이전 발행본 (최근 것부터)
   privateNote: string; // 작가 메모 (나만 보기, 따로 저장)
+  characters: string[]; // 작품 정보의 등장인물 이름 ('등장인물 횟수' 창)
 };
 
 type SaveState = 'saved' | 'dirty' | 'saving' | 'error';
@@ -750,6 +752,9 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
         </div>
         {panel === 'find' && editor ? <FindBar key={findSession} editor={editor} initialQuery={findQuery} onClose={() => closePanel('find')} /> : null}
         {panel === 'repeats' && editor ? <RepeatPanel editor={editor} onFind={findWord} onClose={() => closePanel('repeats')} /> : null}
+        {panel === 'characters' && editor ? (
+          <CharacterPanel editor={editor} names={chapter.characters} novelId={chapter.novelId} onFind={findWord} onClose={() => closePanel('characters')} />
+        ) : null}
         {panel === 'long' && editor ? <LongSentencePanel editor={editor} onClose={() => closePanel('long')} /> : null}
         {panel === 'speak' && editor ? <SpeakPanel editor={editor} onClose={() => closePanel('speak')} /> : null}
         {panel === 'spelling' && editor ? <SpellingPanel editor={editor} onClose={() => closePanel('spelling')} /> : null}

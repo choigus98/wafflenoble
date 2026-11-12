@@ -2,6 +2,7 @@ import 'server-only';
 import { and, asc, count, countDistinct, desc, eq, gt, sql } from 'drizzle-orm';
 import { requireAdmin } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
+import { parseCharacters } from '@/lib/characters';
 import { htmlExcerpt } from '@/lib/content';
 import { chapterLikes, chapterNotes, chapterRevisions, chapterViews, chapters, novels, readers } from '@/lib/db/schema';
 import { getGuildSettings } from '@/lib/settings';
@@ -135,7 +136,7 @@ export async function adminListRevisions(chapterId: number): Promise<RevisionIte
 export async function adminGetChapter(novelId: number, chapterId: number) {
   await requireAdmin();
   const [row] = await db
-    .select({ chapter: chapters, novelTitle: novels.title, scheduled: isScheduledChapter })
+    .select({ chapter: chapters, novelTitle: novels.title, novelCharacters: novels.characters, scheduled: isScheduledChapter })
     .from(chapters)
     .innerJoin(novels, eq(novels.id, chapters.novelId))
     .where(and(eq(chapters.id, chapterId), eq(chapters.novelId, novelId)))
@@ -169,6 +170,8 @@ export async function adminGetChapter(novelId: number, chapterId: number) {
     privateNote: note?.body ?? '',
     scheduled: row.scheduled,
     novelTitle: row.novelTitle,
+    // 에디터 '등장인물 횟수' 창에 쓸 이름들 (작품 정보의 등장인물 칸)
+    characters: parseCharacters(row.novelCharacters).map((character) => character.name),
     viewers,
     likers: likers.map((liker) => liker.nickname),
     revisions,

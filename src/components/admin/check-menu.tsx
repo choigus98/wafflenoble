@@ -5,12 +5,13 @@ import { useDismiss } from '@/components/use-dismiss';
 import { cn } from '@/lib/utils';
 
 /** 도구 막대 아래에 여는 점검 창 */
-export type CheckTool = 'spelling' | 'repeats' | 'long' | 'scenes' | 'speak';
+export type CheckTool = 'spelling' | 'repeats' | 'characters' | 'long' | 'scenes' | 'speak';
 
 const ITEMS: Array<{ key: CheckTool | 'polish'; label: string; hint: string }> = [
   { key: 'polish', label: '문장 부호 다듬기', hint: '... → … · 곧은 따옴표 → 둥근 따옴표 (바로 바꿈)' },
   { key: 'spelling', label: '자주 틀리는 말', hint: '됬 → 됐 · 몇일 → 며칠 · 할께 → 할게' },
   { key: 'repeats', label: '반복되는 말', hint: '세 번 이상 나온 낱말과 횟수' },
+  { key: 'characters', label: '등장인물 횟수', hint: '작품 등장인물이 이 회차에 몇 번 나오는지' },
   { key: 'long', label: '긴 문장', hint: '80 · 100 · 150자보다 긴 문장' },
   { key: 'scenes', label: '장면 바로가기', hint: '장면 전환(✦)으로 나뉜 장면 목록' },
   { key: 'speak', label: '소리 내어 읽기', hint: '브라우저 목소리로 지금 문단부터 (귀로 다듬기)' },
@@ -19,7 +20,7 @@ const ITEMS: Array<{ key: CheckTool | 'polish'; label: string; hint: string }> =
 const MENU_WIDTH = 272;
 
 /**
- * 에디터 도구 막대의 '글 점검' 메뉴: 문장 부호 다듬기(바로 실행)와 점검 창 네 가지(도구 막대 아래에 열림).
+ * 에디터 도구 막대의 '글 점검' 메뉴: 문장 부호 다듬기(바로 실행)와 점검 창들(도구 막대 아래에 열림).
  * 휴대폰에서 도구 막대가 세 줄로 늘어나지 않게 하나로 묶었다. 그림 단추 대신 이름과 설명이 보여서 데스크톱에서도 알아보기 쉽다.
  * 열면 열린 창의 항목(없으면 첫 항목)에 포커스, ↑/↓·Home/End로 고르고 Enter, Esc는 닫고 단추로 돌아간다.
  * 열린 창은 체크 표시(낭독기에는 '선택됨'), 다시 고르면 닫힌다
@@ -98,7 +99,7 @@ export function CheckMenu({ openTool, onPolish, onTool }: { openTool: CheckTool 
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
-        title="글 점검: 문장 부호 · 자주 틀리는 말 · 반복되는 말 · 긴 문장 · 장면 · 소리 내어 읽기"
+        title="글 점검: 문장 부호 · 자주 틀리는 말 · 반복되는 말 · 등장인물 · 긴 문장 · 장면 · 소리 내어 읽기"
         onClick={() => toggle(!open)}
         onKeyDown={(event) => {
           if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
