@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import { ChapterBody } from '@/components/reader/chapter-body';
+import { ChapterToc } from '@/components/reader/chapter-toc';
 import { ChapterKeyNav } from '@/components/reader/chapter-key-nav';
 import { LikeButton } from '@/components/reader/like-button';
 import { ReaderSettings } from '@/components/reader/reader-settings';
@@ -29,7 +30,7 @@ async function ChapterView({ params }: Pick<PageProps<'/novels/[novelId]/[chapte
   const data = await getChapterView(novelId, chapterId);
   if (!data) notFound();
 
-  const { viewer, novel, chapter, prev, next, nextScheduledAt, likes, readCount } = data;
+  const { viewer, novel, chapter, prev, next, toc, nextScheduledAt, likes, readCount } = data;
   const isReader = viewer.kind === 'reader';
 
   return (
@@ -40,9 +41,14 @@ async function ChapterView({ params }: Pick<PageProps<'/novels/[novelId]/[chapte
             {novel.title}
           </Link>
           {/* '맨 위로'를 누르면 포커스가 여기로 온다 */}
-          <h1 id="chapter-title" tabIndex={-1} className="text-xl leading-snug font-bold tracking-tight break-keep outline-none sm:text-2xl">
-            <span className="mr-2 text-muted">{chapter.position}화</span>
-            {chapter.title}
+          <h1
+            id="chapter-title"
+            tabIndex={-1}
+            // 화면 낭독기가 '3화템플릿'처럼 붙여 읽지 않게 이름을 직접 준다 (글자 사이 띄어쓰기는 낭독기에서 빠질 수 있어서)
+            aria-label={chapter.title ? `${chapter.position}화 ${chapter.title}` : `${chapter.position}화`}
+            className="text-xl leading-snug font-bold tracking-tight break-keep outline-none sm:text-2xl"
+          >
+            <span className="mr-1 text-muted">{chapter.position}화</span> {chapter.title}
           </h1>
           <p className="flex items-center gap-2 text-xs text-muted">
             {chapter.publishedAt && chapter.visibleNow ? formatDate(chapter.publishedAt) : null}
@@ -52,7 +58,25 @@ async function ChapterView({ params }: Pick<PageProps<'/novels/[novelId]/[chapte
             ) : null}
           </p>
         </div>
-        <ReaderSettings />
+        {/* 목차 목록은 이 묶음의 오른쪽 끝에 맞춰 펼쳐진다 */}
+        <div className="relative flex shrink-0 gap-2">
+          {toc.length > 1 ? (
+            <ChapterToc
+              // 다른 회차로 가면 닫힌 상태로 새로 그린다
+              key={chapter.id}
+              novelId={novel.id}
+              currentId={chapter.id}
+              items={toc.map((item) => ({
+                id: item.id,
+                position: item.position,
+                title: item.title,
+                read: item.readByMe,
+                note: item.status === 'draft' ? '임시저장' : item.scheduled ? '예약' : null,
+              }))}
+            />
+          ) : null}
+          <ReaderSettings />
+        </div>
       </header>
 
       {chapter.contentHtml ? (

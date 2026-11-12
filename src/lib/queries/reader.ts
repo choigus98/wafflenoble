@@ -1,5 +1,5 @@
 import 'server-only';
-import { and, asc, count, desc, eq, gt, lt, or, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, sql } from 'drizzle-orm';
 import { requireViewer } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { chapterViews, chapters, novels } from '@/lib/db/schema';
@@ -134,37 +134,22 @@ export async function getChapterView(novelId: number, chapterId: number) {
   const visible = isAdmin
     ? eq(chapters.novelId, novelId)
     : and(eq(chapters.novelId, novelId), isVisibleChapter);
-  const navColumns = { id: chapters.id, position: chapters.position, title: chapters.title };
+  const readByMe = readerId ? chapterReadBy(readerId) : sql<boolean>`false`;
 
-  const [[prev], [next], likes, [reads], [myView], nextAt] = await Promise.all([
+  // 목차(회차 화면 머리의 '목차' 단추)와 이전·다음 화를 한 번에: 이 사람에게 보이는 회차 전부, 번호 순
+  const [toc, likes, [reads], [myView], nextAt] = await Promise.all([
     db
-      .select(navColumns)
+      .select({
+        id: chapters.id,
+        position: chapters.position,
+        title: chapters.title,
+        status: chapters.status,
+        scheduled: isScheduledChapter,
+        readByMe,
+      })
       .from(chapters)
-      .where(
-        and(
-          visible,
-          or(
-            lt(chapters.position, chapter.position),
-            and(eq(chapters.position, chapter.position), lt(chapters.id, chapter.id)),
-          ),
-        ),
-      )
-      .orderBy(desc(chapters.position), desc(chapters.id))
-      .limit(1),
-    db
-      .select(navColumns)
-      .from(chapters)
-      .where(
-        and(
-          visible,
-          or(
-            gt(chapters.position, chapter.position),
-            and(eq(chapters.position, chapter.position), gt(chapters.id, chapter.id)),
-          ),
-        ),
-      )
-      .orderBy(asc(chapters.position), asc(chapters.id))
-      .limit(1),
+      .where(visible)
+      .orderBy(asc(chapters.position), asc(chapters.id)),
     getLikeSummary(chapter.id, readerId),
     db.select({ readers: count() }).from(chapterViews).where(eq(chapterViews.chapterId, chapter.id)),
     readerId
@@ -179,13 +164,17 @@ export async function getChapterView(novelId: number, chapterId: number) {
 
   // 열람 기록은 화면이 뜬 뒤에 저장되므로, 처음 여는 길드원은 본인을 미리 세어 준다
   const countsSelf = readerId !== null && chapter.visibleNow && !myView;
+  const index = toc.findIndex((item) => item.id === chapter.id);
+  const prev = index > 0 ? toc[index - 1] : null;
+  const next = index !== -1 && index < toc.length - 1 ? toc[index + 1] : null;
 
   return {
     viewer,
     novel: { id: row.novel.id, title: row.novel.title },
     chapter,
-    prev: prev ?? null,
-    next: next ?? null,
+    prev,
+    next,
+    toc,
     // 다음 회차가 아직 없을 때 '다음 화는 언제' 안내용
     nextScheduledAt: nextAt,
     likes,
