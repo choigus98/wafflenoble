@@ -116,6 +116,12 @@
   --wn-loc-pin: #e5484d;
   --wn-loc-badge: #2f7a43;
   --wn-loc-note-bg: #f2f4f1;
+  --wn-poll-bg: #ffffff;
+  --wn-poll-accent: #8a5a00; /* 흰 바탕 대비 5.9:1 */
+  --wn-poll-border: rgb(0 0 0 / 0.1);
+  --wn-poll-bar: #eef0f3;
+  --wn-poll-bar-mine: #ffe68a;
+  --wn-poll-muted: #4b5563; /* 노란 막대 위에서도 대비 4.5:1 이상 */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -234,6 +240,12 @@
     --wn-loc-pin: #ff6b6f;
     --wn-loc-badge: #7fd29a;
     --wn-loc-note-bg: rgb(255 255 255 / 0.07);
+    --wn-poll-bg: #17191e;
+    --wn-poll-accent: #ffd25e;
+    --wn-poll-border: rgb(255 255 255 / 0.12);
+    --wn-poll-bar: rgb(255 255 255 / 0.08);
+    --wn-poll-bar-mine: rgb(255 210 94 / 0.22);
+    --wn-poll-muted: rgb(255 255 255 / 0.72);
   }
 }
 
@@ -351,6 +363,12 @@
   --wn-loc-pin: #ff6b6f;
   --wn-loc-badge: #7fd29a;
   --wn-loc-note-bg: rgb(255 255 255 / 0.07);
+  --wn-poll-bg: #17191e;
+  --wn-poll-accent: #ffd25e;
+  --wn-poll-border: rgb(255 255 255 / 0.12);
+  --wn-poll-bar: rgb(255 255 255 / 0.08);
+  --wn-poll-bar-mine: rgb(255 210 94 / 0.22);
+  --wn-poll-muted: rgb(255 255 255 / 0.72);
 }
 
 @theme inline {

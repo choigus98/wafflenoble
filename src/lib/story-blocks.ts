@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물, 이메일, 검색 결과, 휴대폰 알림, 문자 메시지, 영수증, 위치 공유).
+// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물, 이메일, 검색 결과, 휴대폰 알림, 문자 메시지, 영수증, 위치 공유, 투표).
 // 저장 형식: <div data-wn-block="종류" data-wn-data="JSON"></div>
 // 에디터(Tiptap 노드), 서버(저장할 때 검증), 열람 화면(렌더링)이 모두 이 파일을 같이 쓴다.
 //
@@ -159,6 +159,13 @@ const locationSchema = z.object({
   note: text(120), // 한 줄 메모 ('여기서 기다릴게'). 비우면 안 보임
 });
 
+const pollSchema = z.object({
+  badge: text(40), // 위쪽 작은 표시 ('익명 투표 · 오늘 자정 마감'). 비우면 안 보임
+  question: text(120), // 질문
+  script: text(LIMITS.script), // 선택지 대본 (규칙은 parsePollScript 위 설명)
+  status: text(60), // 맨 아래 한 줄. 비우면 표 수를 더해서 'N명 참여' (표 수가 없으면 안 보임)
+});
+
 /** 전화 화면 모드를 바꿀 때, 아직 고치지 않은 기본 문구는 새 모드에 맞게 바꿔 준다 */
 export const CALL_DETAIL_DEFAULT = { incoming: '휴대전화', active: '00:12' } as const;
 
@@ -180,6 +187,7 @@ export const storyBlockSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('sms'), data: smsSchema }),
   z.object({ kind: z.literal('receipt'), data: receiptSchema }),
   z.object({ kind: z.literal('location'), data: locationSchema }),
+  z.object({ kind: z.literal('poll'), data: pollSchema }),
 ]);
 
 export type StoryBlock = z.infer<typeof storyBlockSchema>;
@@ -199,6 +207,7 @@ export type PushData = z.infer<typeof pushSchema>;
 export type SmsData = z.infer<typeof smsSchema>;
 export type ReceiptData = z.infer<typeof receiptSchema>;
 export type LocationData = z.infer<typeof locationSchema>;
+export type PollData = z.infer<typeof pollSchema>;
 
 /** 메일 보낸 사람 '김지은 <jieun@example.com>' → 이름과 주소. 꺾쇠가 없으면 적은 그대로 이름으로 */
 export function splitMailSender(from: string): { name: string; address: string } {
@@ -546,6 +555,68 @@ export function receiptTotal(data: ReceiptData, lines: ReceiptLine[]): string {
   return `${sum.toLocaleString('ko-KR', { maximumFractionDigits: 2 })}${units[0] ?? ''}`;
 }
 
+// ─── 투표 대본 ──────────────────────────────────────
+// 선택지 하나에 한 줄
+//   떡볶이: 12            ← '선택지: 표 수'. 숫자만 쓰면 '12표', 단위를 붙이면 그대로 ('12명')
+//   * 치킨: 7             ← 앞에 *를 붙이면 내가 고른 선택지 (체크 표시)
+//   라면                  ← 표 수 없이 쓰면 0표. 모든 줄을 이렇게 쓰면 '투표 전' 모양 (막대·표 수 없이)
+// 선택지 이름에 쌍점이 있어도 되게 마지막 쌍점에서 나누고, 쌍점 뒤가 숫자가 아니면 줄 전체가 이름
+
+export type PollOption = { text: string; votes: number | null; label: string; mine: boolean };
+
+const POLL_MINE = /^[*＊]\s*/;
+const POLL_VOTES = /^(\d[\d,]*)\s*([^\d\s,][^\d]{0,5})?$/;
+
+export function parsePollScript(script: string): PollOption[] {
+  const options: PollOption[] = [];
+  for (const raw of script.split(/\r?\n/)) {
+    if (options.length >= LIMITS.lines) break;
+    let line = raw.trim();
+    if (!line) continue;
+    const mine = POLL_MINE.test(line);
+    if (mine) line = line.replace(POLL_MINE, '').trim();
+    if (!line) continue;
+    const colon = Math.max(line.lastIndexOf(':'), line.lastIndexOf('：'));
+    const match = colon > 0 ? line.slice(colon + 1).trim().match(POLL_VOTES) : null;
+    if (!match) {
+      options.push({ text: line, votes: null, label: '', mine });
+      continue;
+    }
+    const votes = Number(match[1].replace(/,/g, ''));
+    options.push({
+      text: line.slice(0, colon).trim(),
+      votes: Number.isFinite(votes) ? votes : null,
+      label: `${match[1]}${match[2]?.trim() || '표'}`,
+      mine,
+    });
+  }
+  // 표 수를 안 쓴 선택지는 0표로 (다른 선택지와 같은 단위)
+  const unit = options.find((option) => option.votes !== null)?.label.replace(/^[\d,]+/, '');
+  if (unit !== undefined) {
+    for (const option of options) {
+      if (option.votes === null) Object.assign(option, { votes: 0, label: `0${unit}` });
+    }
+  }
+  return options;
+}
+
+/** 표 수 합 (투표 전이면 0) */
+export function pollTotal(options: PollOption[]): number {
+  return options.reduce((sum, option) => sum + (option.votes ?? 0), 0);
+}
+
+/** 선택지 하나의 비율(%), 반올림 */
+export function pollPercent(option: PollOption, total: number): number {
+  return total > 0 && option.votes !== null ? Math.round((option.votes / total) * 100) : 0;
+}
+
+/** 맨 아래 한 줄: 직접 적은 값이 먼저, 없으면 표 수를 더해서 'N명 참여' (투표 전이면 빈 값) */
+export function pollStatus(data: PollData, options: PollOption[]): string {
+  if (data.status.trim()) return data.status.trim();
+  if (!options.some((option) => option.votes !== null)) return '';
+  return `${pollTotal(options).toLocaleString('ko-KR')}명 참여`;
+}
+
 /** 제목 옆·댓글 머리에 보일 댓글 수. 직접 적은 값이 먼저, 없으면 실제 댓글 개수 */
 export function postCommentCount(data: PostData, lines: CommentLine[]): string {
   return data.commentCount.trim() || String(lines.filter((line) => line.type === 'comment').length);
@@ -572,7 +643,8 @@ export type TemplateKey =
   | 'push'
   | 'sms'
   | 'receipt'
-  | 'location';
+  | 'location'
+  | 'poll';
 
 export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }> = [
   { key: 'kakao-dm', label: '카톡 1:1 대화', hint: '두 사람의 메신저 대화' },
@@ -594,6 +666,7 @@ export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }>
   { key: 'sms', label: '문자 메시지', hint: '회색·파란 말풍선 문자' },
   { key: 'receipt', label: '영수증', hint: '가게 · 품목 · 합계' },
   { key: 'location', label: '위치 공유', hint: '장소 · 주소 · 지도 그림' },
+  { key: 'poll', label: '투표', hint: '질문 · 선택지 · 표 수 막대' },
 ];
 
 export function templateLabel(block: StoryBlock): string {
@@ -724,6 +797,16 @@ export function createTemplate(key: TemplateKey): StoryBlock {
       return {
         kind: 'location',
         data: { badge: '위치 공유', place: '골목 끝 와플 가게', address: '와플시 반죽구 시럽로 12, 1층', note: '여기서 기다릴게' },
+      };
+    case 'poll':
+      return {
+        kind: 'poll',
+        data: {
+          badge: '익명 투표 · 오늘 자정 마감',
+          question: '오늘 야식 뭐 먹을까?',
+          script: ['* 떡볶이: 12', '치킨: 7', '와플: 3', '라면: 0'].join('\n'),
+          status: '',
+        },
       };
     case 'receipt':
       return {

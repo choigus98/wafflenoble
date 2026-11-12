@@ -7,11 +7,15 @@ import {
   isPostAuthor,
   kakaoTitle,
   parseComments,
+  parsePollScript,
   parsePushScript,
   parseReceiptScript,
   parseScript,
   parseSearchResults,
   parseSystemScript,
+  pollPercent,
+  pollStatus,
+  pollTotal,
   postCommentCount,
   receiptTotal,
   scriptSpeakers,
@@ -26,6 +30,7 @@ import {
   type MailData,
   type NewsData,
   type NoteData,
+  type PollData,
   type PostData,
   type PushData,
   type ReceiptData,
@@ -91,6 +96,8 @@ export function StoryBlockView({ block }: { block: StoryBlock }) {
       return <ReceiptCard data={block.data} />;
     case 'location':
       return <LocationCard data={block.data} />;
+    case 'poll':
+      return <PollCard data={block.data} />;
   }
 }
 
@@ -1030,6 +1037,85 @@ export function LocationCard({ data, field }: { data: LocationData; field?: Fiel
           <div className="mt-2.5 rounded-xl bg-(--wn-loc-note-bg) px-3 py-2 text-sm">{slot('note', '한 줄 메모 (비우면 안 보여요)', 120, 'block w-full break-keep')}</div>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+/**
+ * 투표: 위쪽 표시 · 질문 · 선택지(표 수 막대) · 맨 아래 한 줄.
+ * 막대는 그림일 뿐이라 숨기고, 화면 낭독기는 '떡볶이, 내 선택, 12표 55%'처럼 글자로 읽는다
+ */
+function PollCard({ data }: { data: PollData }) {
+  const options = parsePollScript(data.script);
+  const voted = options.some((option) => option.votes !== null);
+  const total = pollTotal(options);
+  const top = Math.max(0, ...options.map((option) => option.votes ?? 0));
+  const status = pollStatus(data, options);
+  // 투표 전이거나 내가 고른 게 있으면 동그라미 자리를 둔다 (글자 줄이 맞게)
+  const marks = !voted || options.some((option) => option.mine);
+
+  return (
+    <div className={cn(CARD, 'bg-(--wn-poll-bg) px-4 pt-4 pb-3.5')}>
+      {data.badge.trim() ? (
+        <div className="flex items-center gap-1.5 text-xs font-semibold text-(--wn-poll-accent)">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="size-3.5 shrink-0">
+            <rect x="4" y="12" width="4" height="8" rx="1" />
+            <rect x="10" y="4" width="4" height="16" rx="1" />
+            <rect x="16" y="8" width="4" height="12" rx="1" />
+          </svg>
+          <span className="min-w-0">{data.badge}</span>
+        </div>
+      ) : null}
+      {data.question.trim() ? <div className="mt-1.5 text-[17px] leading-snug font-bold break-keep">{data.question}</div> : null}
+      {options.length > 0 ? (
+        <ul aria-label="선택지" className="mt-3 space-y-2">
+          {options.map((option, index) => {
+            const percent = pollPercent(option, total);
+            const leading = voted && top > 0 && option.votes === top;
+            return (
+              <li
+                key={index}
+                className={cn(
+                  'relative overflow-hidden rounded-xl border',
+                  option.mine ? 'border-(--wn-poll-accent)' : 'border-(--wn-poll-border)',
+                )}
+              >
+                {voted ? (
+                  <span
+                    aria-hidden="true"
+                    className={cn('absolute inset-y-0 left-0', option.mine ? 'bg-(--wn-poll-bar-mine)' : 'bg-(--wn-poll-bar)')}
+                    style={{ width: `${percent}%` }}
+                  />
+                ) : null}
+                <span className="relative flex items-center gap-2.5 px-3 py-2.5 text-sm">
+                  {marks ? (
+                    option.mine ? (
+                      <svg viewBox="0 0 20 20" aria-hidden="true" className="size-[18px] shrink-0">
+                        <circle cx="10" cy="10" r="9" fill="var(--wn-poll-accent)" />
+                        <path d="M6 10.4l2.6 2.6L14.2 7.4" fill="none" stroke="var(--wn-poll-bg)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    ) : (
+                      <span aria-hidden="true" className="size-[18px] shrink-0 rounded-full border-[1.5px] border-(--wn-poll-muted)" />
+                    )
+                  ) : null}
+                  <span className={cn('min-w-0 flex-1 break-keep', leading && 'font-bold')}>
+                    {option.text}
+                    {option.mine ? <span className="sr-only">, 내 선택</span> : null}
+                  </span>
+                  {voted ? (
+                    <span className="shrink-0 text-xs text-(--wn-poll-muted) tabular-nums">
+                      <span className="sr-only">, </span>
+                      {/* 표 수와 % 사이는 진짜 띄어쓰기 (낭독기가 '12표55%'로 붙여 읽지 않게) */}
+                      {option.label} <span className={cn('ml-0.5', leading && 'font-bold text-(--wn-fg)')}>{percent}%</span>
+                    </span>
+                  ) : null}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+      {status ? <div className="mt-3 text-xs text-(--wn-muted)">{status}</div> : null}
     </div>
   );
 }

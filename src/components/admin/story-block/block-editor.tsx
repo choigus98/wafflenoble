@@ -14,8 +14,10 @@ import {
   isPostAuthor,
   kakaoTitle,
   parseComments,
+  parsePollScript,
   parseScript,
   parseReceiptScript,
+  pollStatus,
   postCommentCount,
   receiptTotal,
   renameSpeaker,
@@ -25,6 +27,7 @@ import {
   type ChatColor,
   type ChatData,
   type KakaoData,
+  type PollData,
   type PostData,
   type PushData,
   type ReceiptData,
@@ -41,7 +44,7 @@ import { cn } from '@/lib/utils';
 const COMMIT_DELAY_MS = 300;
 
 type CardBlock = Extract<StoryBlock, { kind: 'live' | 'donation' | 'news' | 'call' | 'note' | 'mail' | 'location' }>;
-type ConversationBlock = Extract<StoryBlock, { kind: 'kakao' | 'chat' | 'post' | 'system' | 'sns' | 'search' | 'push' | 'sms' | 'receipt' }>;
+type ConversationBlock = Extract<StoryBlock, { kind: 'kakao' | 'chat' | 'post' | 'system' | 'sns' | 'search' | 'push' | 'sms' | 'receipt' | 'poll' }>;
 
 const TEXTAREA =
   'w-full resize-y rounded-2xl border border-line bg-surface px-4 py-3 text-base leading-relaxed text-fg field-sizing-content placeholder:text-muted/60 focus:border-accent focus:ring-3 focus:ring-accent/20 focus:outline-none';
@@ -56,6 +59,7 @@ const SCRIPT_PLACEHOLDER: Record<ConversationBlock['kind'], string> = {
   push: '카톡 · 엄마: 어디야? [방금]\n은행: 입금 10,000원 [3분 전]',
   sms: '엄마: 어디야? [오후 11:52]\n나: 금방 가요',
   receipt: '버터 와플 ×2: 7,000원\n아메리카노: 4,500원',
+  poll: '* 떡볶이: 12\n치킨: 7\n와플: 3',
 };
 
 function useDraft<T extends StoryBlock>(block: T, onChange: (block: StoryBlock) => void) {
@@ -243,7 +247,7 @@ export function ConversationEditor({
   const speakers =
     draft.kind === 'post' || draft.kind === 'sns'
       ? commentSpeakers(comments)
-      : draft.kind === 'system' || draft.kind === 'search' || draft.kind === 'push' || draft.kind === 'receipt'
+      : draft.kind === 'system' || draft.kind === 'search' || draft.kind === 'push' || draft.kind === 'receipt' || draft.kind === 'poll'
         ? []
         : scriptSpeakers(lines);
 
@@ -257,13 +261,14 @@ export function ConversationEditor({
       | Partial<SearchData>
       | Partial<PushData>
       | Partial<SmsData>
-      | Partial<ReceiptData>,
+      | Partial<ReceiptData>
+      | Partial<PollData>,
   ) {
     update({ ...draft, data: { ...draft.data, ...patch } } as ConversationBlock);
   }
 
   function rename(from: string, to: string) {
-    if (draft.kind === 'system' || draft.kind === 'search' || draft.kind === 'push' || draft.kind === 'receipt') return;
+    if (draft.kind === 'system' || draft.kind === 'search' || draft.kind === 'push' || draft.kind === 'receipt' || draft.kind === 'poll') return;
     if (draft.kind === 'sns') {
       setData({ script: renameSpeaker(draft.data.script, from, to, { replies: true }) });
       return;
@@ -406,6 +411,35 @@ export function ConversationEditor({
               maxLength={120}
               placeholder="비우면 안 보여요"
               onChange={(footer) => setData({ footer })}
+              className="w-full"
+              inputClassName="flex-1"
+            />
+          </>
+        ) : draft.kind === 'poll' ? (
+          <>
+            <MiniInput
+              label="질문"
+              value={draft.data.question}
+              maxLength={120}
+              onChange={(question) => setData({ question })}
+              className="w-full"
+              inputClassName="flex-1"
+            />
+            <MiniInput
+              label="위쪽 표시"
+              value={draft.data.badge}
+              maxLength={40}
+              placeholder="비우면 안 보여요"
+              onChange={(badge) => setData({ badge })}
+              className="w-full"
+              inputClassName="flex-1"
+            />
+            <MiniInput
+              label="맨 아래"
+              value={draft.data.status}
+              maxLength={60}
+              placeholder={pollStatus({ ...draft.data, status: '' }, parsePollScript(draft.data.script)) || '비우면 안 보여요'}
+              onChange={(status) => setData({ status })}
               className="w-full"
               inputClassName="flex-1"
             />
@@ -563,7 +597,7 @@ export function ConversationEditor({
             ref={scriptRef}
             value={draft.data.script}
             onChange={(e) => setData({ script: e.target.value })}
-            aria-label={draft.kind === 'post' ? '댓글 대본' : draft.kind === 'sns' ? '답글 대본' : draft.kind === 'search' ? '검색 결과 대본' : draft.kind === 'push' ? '알림 대본' : draft.kind === 'receipt' ? '품목 대본' : '대본'}
+            aria-label={draft.kind === 'post' ? '댓글 대본' : draft.kind === 'sns' ? '답글 대본' : draft.kind === 'search' ? '검색 결과 대본' : draft.kind === 'push' ? '알림 대본' : draft.kind === 'receipt' ? '품목 대본' : draft.kind === 'poll' ? '선택지 대본' : '대본'}
             spellCheck={false}
             maxLength={LIMITS.script}
             placeholder={SCRIPT_PLACEHOLDER[draft.kind]}
@@ -669,6 +703,12 @@ const SCRIPT_HELP: Record<ConversationBlock['kind'], Array<[string, string]>> = 
     ['이름 없이 쓰기', '앞 답글에 줄바꿈'],
     ['[3분 전]', '줄 끝에 시간'],
     ['--- 안내 ---', '가운데 회색 줄'],
+  ],
+  poll: [
+    ['선택지: 12', '표 수'],
+    ['* 선택지: 12', '내가 고른 것'],
+    ['선택지: 12명', '단위 그대로'],
+    ['선택지만 쓰기', '0표 (모두 그러면 투표 전)'],
   ],
   receipt: [
     ['이름: 금액', '품목 하나'],

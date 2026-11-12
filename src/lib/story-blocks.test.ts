@@ -9,11 +9,15 @@ import {
   isPostAuthor,
   kakaoTitle,
   parseComments,
+  parsePollScript,
   parsePushScript,
   parseReceiptScript,
   parseScript,
   parseSearchResults,
   parseSystemScript,
+  pollPercent,
+  pollStatus,
+  pollTotal,
   postCommentCount,
   receiptTotal,
   renameSpeaker,
@@ -59,6 +63,7 @@ const KEYS: TemplateKey[] = [
   'sms',
   'receipt',
   'location',
+  'poll',
 ];
 
 function withTrickyText(block: StoryBlock): StoryBlock {
@@ -95,6 +100,8 @@ function withTrickyText(block: StoryBlock): StoryBlock {
       return { ...block, data: { ...block.data, query: TRICKY, script: `${block.data.script}\n\n${TRICKY}\nexample.com/?q="x"&y=<1>` } };
     case 'location':
       return { ...block, data: { ...block.data, place: '와플 <가게> & "1층"', note: TRICKY } };
+    case 'poll':
+      return { ...block, data: { ...block.data, question: TRICKY, script: `${block.data.script}\n* ${TRICKY}: 1,000표` } };
     case 'receipt':
       return { ...block, data: { ...block.data, store: '가게 <b>&</b> "따옴표"', script: `${block.data.script}\n${TRICKY}: 1,000원` } };
     case 'push':
@@ -483,5 +490,54 @@ describe('영수증 대본', () => {
     const block = createTemplate('receipt');
     if (block.kind !== 'receipt') throw new Error('영수증 템플릿이 아니에요');
     expect(receiptTotal(block.data, parseReceiptScript(block.data.script))).toBe('10,500원');
+  });
+});
+
+describe('투표 대본', () => {
+  const data = { badge: '', question: '야식?', script: '', status: '' };
+
+  it("'선택지: 표 수', 숫자만 쓰면 '표', 단위는 그대로, 마지막 쌍점에서 나눔", () => {
+    expect(parsePollScript('떡볶이: 12\n치킨: 1,234명\nA안: 떡볶이: 3 표')).toEqual([
+      { text: '떡볶이', votes: 12, label: '12표', mine: false },
+      { text: '치킨', votes: 1234, label: '1,234명', mine: false },
+      { text: 'A안: 떡볶이', votes: 3, label: '3표', mine: false },
+    ]);
+  });
+
+  it('*는 내 선택, 표 수 없는 줄은 같은 단위로 0, 쌍점 뒤가 숫자가 아니면 줄 전체가 이름', () => {
+    expect(parsePollScript('* 떡볶이: 12명\n\n＊치킨\n시간: 맵게')).toEqual([
+      { text: '떡볶이', votes: 12, label: '12명', mine: true },
+      { text: '치킨', votes: 0, label: '0명', mine: true },
+      { text: '시간: 맵게', votes: 0, label: '0명', mine: false },
+    ]);
+  });
+
+  it('모든 줄에 표 수가 없으면 투표 전: 표 수·비율·맨 아래 한 줄 없음', () => {
+    const options = parsePollScript('떡볶이\n치킨\n*');
+    expect(options).toEqual([
+      { text: '떡볶이', votes: null, label: '', mine: false },
+      { text: '치킨', votes: null, label: '', mine: false },
+    ]);
+    expect(pollTotal(options)).toBe(0);
+    expect(pollPercent(options[0], 0)).toBe(0);
+    expect(pollStatus(data, options)).toBe('');
+    expect(pollStatus({ ...data, status: '오늘 자정 마감' }, options)).toBe('오늘 자정 마감');
+  });
+
+  it("맨 아래 한 줄: 직접 적은 값이 먼저, 없으면 표 수를 더해서 'N명 참여'", () => {
+    const options = parsePollScript('가: 1,200\n나: 300');
+    expect(pollTotal(options)).toBe(1500);
+    expect(options.map((option) => pollPercent(option, 1500))).toEqual([80, 20]);
+    expect(pollStatus(data, options)).toBe('1,500명 참여');
+    expect(pollStatus({ ...data, status: '  투표 마감  ' }, options)).toBe('투표 마감');
+  });
+
+  it('새 투표 템플릿 예시: 22명 참여, 내 선택은 떡볶이(55%)', () => {
+    const block = createTemplate('poll');
+    if (block.kind !== 'poll') throw new Error('투표 템플릿이 아니에요');
+    const options = parsePollScript(block.data.script);
+    expect(pollStatus(block.data, options)).toBe('22명 참여');
+    expect(options.filter((option) => option.mine).map((option) => option.text)).toEqual(['떡볶이']);
+    expect(options.map((option) => pollPercent(option, pollTotal(options)))).toEqual([55, 32, 14, 0]);
   });
 });
