@@ -3,15 +3,14 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import { NovelCover } from '@/components/novel-cover';
-import { ChapterReadStatus } from '@/components/reader/chapter-read-status';
+import { TocList } from '@/components/reader/toc-list';
 import { TocOrderToggle } from '@/components/reader/toc-order-toggle';
 import { Badge, ButtonLink, Skeleton } from '@/components/ui';
 import { parseCharacters, type Character } from '@/lib/characters';
-import { formatDate, formatSchedule } from '@/lib/format';
-import { formatReadingTime, readingMinutes } from '@/lib/reading-time';
+import { formatSchedule } from '@/lib/format';
 import { getNovelDetail } from '@/lib/queries/reader';
 import { TOC_ORDER_COOKIE, orderChapters, parseTocOrder } from '@/lib/toc-order';
-import { SERIAL_STATUS_LABEL, cn, parseId } from '@/lib/utils';
+import { SERIAL_STATUS_LABEL, parseId } from '@/lib/utils';
 
 export default function NovelPage({ params }: PageProps<'/novels/[novelId]'>) {
   return (
@@ -108,58 +107,24 @@ async function NovelDetail({ params }: Pick<PageProps<'/novels/[novelId]'>, 'par
             아직 올라온 회차가 없어요.
           </p>
         ) : (
-          <ol className="divide-y divide-line border-y border-line">
-            {listed.map((chapter) => (
-              <li key={chapter.id}>
-                <Link
-                  href={`/novels/${novel.id}/${chapter.id}`}
-                  className="flex items-center gap-3 px-1 py-4 transition hover:bg-surface-2/60"
-                >
-                  <span className={cn('w-10 shrink-0 text-sm font-semibold tabular-nums', chapter.readByMe ? 'text-muted' : 'text-accent')}>
-                    {chapter.position}화
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-1.5">
-                      <span className={cn('min-w-0 truncate font-medium', chapter.readByMe && 'text-muted')}>
-                        {chapter.title || `${chapter.position}화`}
-                      </span>
-                      {chapter.isNew ? (
-                        <span className="shrink-0 rounded-full bg-accent px-1.5 py-px text-[10px] leading-4 font-bold tracking-wide text-accent-fg">
-                          <span aria-hidden="true">NEW</span>
-                          <span className="sr-only">새 회차</span>
-                        </span>
-                      ) : null}
-                    </span>
-                    <span className="mt-0.5 flex items-center gap-2 text-xs text-muted">
-                      {chapter.publishedAt && !chapter.scheduled ? formatDate(chapter.publishedAt) : null}
-                      <ReadingTime charCount={chapter.charCount} />
-                      {chapter.status === 'draft' ? <Badge tone="muted">임시저장</Badge> : null}
-                      {chapter.scheduled && chapter.publishedAt ? (
-                        <Badge tone="muted">예약 · {formatSchedule(chapter.publishedAt)}</Badge>
-                      ) : null}
-                      {chapter.likeCount > 0 ? <span className="text-like">♥ {chapter.likeCount}</span> : null}
-                    </span>
-                  </span>
-                  <ChapterReadStatus chapterId={chapter.id} readByMe={chapter.readByMe} />
-                </Link>
-              </li>
-            ))}
-          </ol>
+          <TocList
+            novelId={novel.id}
+            items={listed.map((chapter) => ({
+              id: chapter.id,
+              position: chapter.position,
+              title: chapter.title,
+              status: chapter.status,
+              scheduled: chapter.scheduled,
+              publishedAt: chapter.publishedAt ? chapter.publishedAt.toISOString() : null,
+              likeCount: chapter.likeCount,
+              readByMe: chapter.readByMe,
+              isNew: chapter.isNew,
+              charCount: chapter.charCount,
+            }))}
+          />
         )}
       </section>
     </article>
-  );
-}
-
-/** 목차 한 줄의 읽는 시간 '약 8분' (화면 낭독기는 '읽는 시간 약 8분') */
-function ReadingTime({ charCount }: { charCount: number }) {
-  const minutes = readingMinutes(charCount);
-  if (minutes === null) return null;
-  return (
-    <span>
-      <span className="sr-only">읽는 시간 </span>
-      {formatReadingTime(minutes)}
-    </span>
   );
 }
 
