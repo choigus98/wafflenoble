@@ -7,27 +7,37 @@ import { DeleteNovelForm } from '@/components/admin/delete-novel-form';
 import { NovelForm } from '@/components/admin/novel-form';
 import { SubmitButton } from '@/components/submit-button';
 import { Badge, Card, Skeleton } from '@/components/ui';
+import { CHAPTER_FILTERS, countChapters, filterChapters, parseChapterFilter } from '@/lib/chapter-filter';
 import { formatDate, formatNumber, formatRelative, formatSchedule } from '@/lib/format';
 import { adminGetNovel } from '@/lib/queries/admin';
-import { parseId } from '@/lib/utils';
+import { cn, parseId } from '@/lib/utils';
 
-export default function AdminNovelPage({ params }: PageProps<'/admin/novels/[novelId]'>) {
+export default function AdminNovelPage({ params, searchParams }: PageProps<'/admin/novels/[novelId]'>) {
   return (
     <Suspense fallback={<NovelAdminSkeleton />}>
-      <NovelAdmin params={params} />
+      <NovelAdmin params={params} searchParams={searchParams} />
     </Suspense>
   );
 }
 
-async function NovelAdmin({ params }: Pick<PageProps<'/admin/novels/[novelId]'>, 'params'>) {
+async function NovelAdmin({ params, searchParams }: Pick<PageProps<'/admin/novels/[novelId]'>, 'params' | 'searchParams'>) {
   const { novelId: rawId } = await params;
+  // 회차 목록 거르기 (?show=published · scheduled · draft)
+  const requestedFilter = parseChapterFilter((await searchParams).show);
   const novelId = parseId(rawId);
   if (!novelId) notFound();
   const data = await adminGetNovel(novelId);
   if (!data) notFound();
 
-  const { novel, chapters, totalReaders } = data;
+  const { novel, chapters: allChapters, totalReaders } = data;
   const now = new Date();
+  // 회차가 하나뿐이면 거르기 줄을 숨기므로, 예전 주소의 ?show=가 남아 있어도 전체를 보여 준다 (되돌아갈 버튼이 없어서)
+  const showFilters = allChapters.length > 1;
+  const filter = showFilters ? requestedFilter : 'all';
+  const counts = countChapters(allChapters);
+  const chapters = filterChapters(allChapters, filter);
+  // 순서 바꾸기는 '전체'에서만 (거른 목록에서 위·아래는 보이지 않는 회차와 자리를 바꿔 헷갈림)
+  const canMove = filter === 'all' && showFilters;
 
   return (
     <div className="space-y-10">
@@ -45,16 +55,39 @@ async function NovelAdmin({ params }: Pick<PageProps<'/admin/novels/[novelId]'>,
 
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="font-bold">회차 {chapters.length > 0 ? <span className="text-muted">{chapters.length}</span> : null}</h2>
+          <h2 className="font-bold">회차 {allChapters.length > 0 ? <span className="text-muted">{allChapters.length}</span> : null}</h2>
           <form action={createChapter.bind(null, novel.id)}>
             <SubmitButton size="sm" pendingText="만드는 중…">
               + 새 회차 쓰기
             </SubmitButton>
           </form>
         </div>
-        {chapters.length === 0 ? (
+        {showFilters ? (
+          <nav aria-label="회차 거르기" className="flex flex-wrap items-center gap-1.5">
+            {CHAPTER_FILTERS.map((item) => (
+              <Link
+                key={item.key}
+                href={item.key === 'all' ? `/admin/novels/${novel.id}` : `/admin/novels/${novel.id}?show=${item.key}`}
+                aria-current={filter === item.key ? 'page' : undefined}
+                scroll={false}
+                className={cn(
+                  'inline-flex h-8 items-center gap-1 rounded-full border px-3 text-[13px] font-semibold transition',
+                  filter === item.key ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-surface text-muted hover:text-fg',
+                )}
+              >
+                {item.label} <span className="font-normal tabular-nums">{counts[item.key]}</span>
+              </Link>
+            ))}
+            {filter !== 'all' ? <span className="text-xs text-muted">순서 바꾸기는 ‘전체’에서 할 수 있어요</span> : null}
+          </nav>
+        ) : null}
+        {allChapters.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-line px-6 py-12 text-center text-muted">
             아직 회차가 없어요. 첫 회차를 써 보세요.
+          </p>
+        ) : chapters.length === 0 ? (
+          <p className="rounded-2xl border border-dashed border-line px-6 py-10 text-center text-sm text-muted">
+            {CHAPTER_FILTERS.find((item) => item.key === filter)?.label} 회차가 없어요.
           </p>
         ) : (
           <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
@@ -90,7 +123,7 @@ async function NovelAdmin({ params }: Pick<PageProps<'/admin/novels/[novelId]'>,
                   />
                 </Link>
                 {/* 순서 바꾸기: 옆 회차와 'N화' 번호를 맞바꾼다 (링크는 그대로) */}
-                {chapters.length > 1 ? (
+                {canMove ? (
                   <ChapterMoveButtons
                     chapterId={chapter.id}
                     label={`${chapter.position}화 「${chapter.title || '제목 없음'}」`}
