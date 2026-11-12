@@ -12,6 +12,7 @@ import {
   createTemplateEditingStore,
   useEditingTemplateUid,
 } from '@/components/admin/story-block/story-block-node';
+import { FindBar, FindReplace } from '@/components/admin/find-replace';
 import { TemplateMenu } from '@/components/admin/story-block/template-menu';
 import { SubmitButton } from '@/components/submit-button';
 import { Badge, Button, buttonClass } from '@/components/ui';
@@ -94,6 +95,9 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
   // 예약 창에 띄울 기본 시각 (창이 열려 있을 때만 값이 있음)
   const [scheduleDraft, setScheduleDraft] = useState<string | null>(null);
   const scheduleButtonRef = useRef<HTMLButtonElement>(null);
+  // 찾기·바꾸기 창. 열 때마다 번호를 올려서, 열린 상태에서 다시 열면(Cmd+F) 고른 글자로 새로 찾는다
+  const [findSession, setFindSession] = useState(0);
+  const [findOpen, setFindOpen] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>('saved');
   const [message, setMessage] = useState<{ tone: 'info' | 'error'; text: string } | null>(null);
   const [savedAt, setSavedAt] = useState(chapter.updatedAt);
@@ -129,6 +133,11 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
   // Tiptap 콜백과 타이머가 항상 최신 함수를 부르도록 ref로 잡아 둔다
   const saveRef = useRef<() => Promise<boolean>>(async () => true);
   const changeRef = useRef<() => void>(() => {});
+  // setState 함수만 쓰므로 에디터 확장에 그대로 넘겨도 늘 같은 동작
+  const openFind = () => {
+    setFindOpen(true);
+    setFindSession((value) => value + 1);
+  };
 
   function clearTimer() {
     if (timerRef.current !== null) {
@@ -237,6 +246,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
       }),
       Placeholder.configure({ placeholder: '여기에 본문을 써 주세요' }),
       StoryBlockNode.configure({ editingStore: templateStore }),
+      FindReplace.configure({ onOpen: openFind }),
     ],
     content: chapter.contentHtml,
     editorProps: {
@@ -485,7 +495,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
 
       <div className="sticky top-0 z-20 -mx-1 mt-5 bg-bg/90 px-1 py-2 backdrop-blur-md">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          {editor ? <Toolbar editor={editor} /> : <div className="h-10" />}
+          {editor ? <Toolbar editor={editor} onFind={openFind} /> : <div className="h-10" />}
           <div className="flex flex-wrap items-center justify-end gap-2">
             {editingTemplate ? (
               // 편집 중에는 발행이 막힌다는 걸 알려 주고, 여기서 바로 편집을 마칠 수 있게
@@ -572,6 +582,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
             )}
           </div>
         </div>
+        {findOpen && editor ? <FindBar key={findSession} editor={editor} onClose={() => setFindOpen(false)} /> : null}
       </div>
 
       <EditorContent editor={editor} className="mt-2 rounded-2xl border border-line bg-surface" />
@@ -707,7 +718,7 @@ function SchedulePopover({
   );
 }
 
-function Toolbar({ editor }: { editor: Editor }) {
+function Toolbar({ editor, onFind }: { editor: Editor; onFind: () => void }) {
   const active = useEditorState({
     editor,
     selector: ({ editor: current }) => ({
@@ -746,6 +757,19 @@ function Toolbar({ editor }: { editor: Editor }) {
           {item.icon}
         </button>
       ))}
+      <span aria-hidden="true" className="mx-0.5 h-5 w-px bg-line" />
+      <button
+        type="button"
+        onClick={onFind}
+        title="찾기·바꾸기 (Ctrl+F / ⌘F)"
+        aria-label="찾기·바꾸기"
+        className="grid h-8 min-w-8 place-items-center rounded-lg px-2 text-fg transition hover:bg-surface-2"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true" className="size-4">
+          <circle cx="11" cy="11" r="6.5" />
+          <path d="M16 16l4.5 4.5" />
+        </svg>
+      </button>
     </div>
   );
 }

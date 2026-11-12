@@ -236,6 +236,8 @@ export const loginAttempts = pgTable('login_attempts', {
 - "미리보기": 열람 화면을 새 탭으로 엶 (관리자는 draft도 열람 가능)
 - 사이드 패널: 이 회차 반응 — 읽은 사람 이름과 횟수, 좋아요 누른 사람 이름
 
+- 찾기·바꾸기 (`find-replace.tsx`, `lib/find.ts`): 툴바 돋보기·Cmd+F, 본문 문단만 찾고(템플릿 제외) 모두 바꾸기는 되돌리기 한 번으로 복구
+
 ### 1-6. 열람 화면 (길드원)
 
 **파일**: `src/app/(reader)/layout.tsx`, `src/app/(reader)/page.tsx`, `src/app/(reader)/novels/[novelId]/page.tsx`, `src/app/(reader)/novels/[novelId]/[chapterId]/page.tsx`, `src/components/novel-cover.tsx`, `src/components/reader/reader-settings.tsx`, `src/components/reader/nickname-menu.tsx`, `src/lib/queries/reader.ts`

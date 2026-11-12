@@ -13,6 +13,8 @@
   --accent-soft: #f6e7d0;
   --danger: #c0392f;
   --like: #c23a27;
+  --find-bg: #fdeccb;
+  --find-current-bg: #f8cd7a;
   color-scheme: light;
 
   /* 이야기 속 화면 템플릿 — 밝은 화면 */
@@ -71,6 +73,8 @@
     --accent-soft: #3a2b1b;
     --danger: #f06a60;
     --like: #ff6b5a;
+    --find-bg: rgb(226 164 87 / 0.22);
+    --find-current-bg: rgb(226 164 87 / 0.45);
     color-scheme: dark;
 
     /* 이야기 속 화면 템플릿 — 어두운 화면 */
@@ -129,6 +133,8 @@
   --accent-soft: #3a2b1b;
   --danger: #f06a60;
   --like: #ff6b5a;
+  --find-bg: rgb(226 164 87 / 0.22);
+  --find-current-bg: rgb(226 164 87 / 0.45);
   color-scheme: dark;
 
   --wn-fg: #f2f2f5;
@@ -288,6 +294,15 @@ body {
   color: var(--muted);
   opacity: 0.7;
   pointer-events: none;
+}
+/* 찾기·바꾸기: 찾은 곳 칠하기 (지금 고른 곳은 더 진하게) */
+.ProseMirror .wn-find-match {
+  border-radius: 2px;
+  background: var(--find-bg);
+}
+.ProseMirror .wn-find-current {
+  background: var(--find-current-bg);
+  box-shadow: 0 0 0 1px var(--accent);
 }
 .ProseMirror hr.ProseMirror-selectednode::after {
   color: var(--accent);
