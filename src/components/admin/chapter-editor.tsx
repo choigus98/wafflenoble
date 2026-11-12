@@ -15,6 +15,7 @@ import {
 import { ChangesDialog } from '@/components/admin/changes-dialog';
 import { CharGoal } from '@/components/admin/char-goal';
 import { FindBar, FindReplace } from '@/components/admin/find-replace';
+import { RepeatPanel } from '@/components/admin/repeat-panel';
 import { ScenePanel, jumpToScene } from '@/components/admin/scene-panel';
 import { SpellingCheck, SpellingPanel } from '@/components/admin/spelling-panel';
 import { ShortcutGuide } from '@/components/admin/shortcut-guide';
@@ -88,6 +89,9 @@ function plainTextSlice(text: string, schema: Schema): Slice {
 }
 
 /** 글자수 + 본문 통계(문단 · 대사 · 템플릿, lib/body-stats.ts) */
+/** 도구 막대 아래에 뜨는 창 (한 번에 하나만) */
+type EditorPanel = 'find' | 'spelling' | 'scenes' | 'repeats';
+
 function countText(editor: Editor) {
   const text = editor.state.doc.textContent;
   return { all: [...text].length, noSpace: [...text.replace(/\s/g, '')].length, ...bodyStats(editor.state.doc) };
@@ -114,8 +118,10 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
   const scheduleButtonRef = useRef<HTMLButtonElement>(null);
   // 찾기·바꾸기 창. 열 때마다 번호를 올려서, 열린 상태에서 다시 열면(Cmd+F) 고른 글자로 새로 찾는다
   const [findSession, setFindSession] = useState(0);
-  // 도구 막대 아래 창: 찾기·바꾸기 · 자주 틀리는 말 · 장면 바로가기 (같은 자리라 한 번에 하나만)
-  const [panel, setPanel] = useState<'find' | 'spelling' | 'scenes' | null>(null);
+  // 도구 막대 아래 창: 찾기·바꾸기 · 자주 틀리는 말 · 장면 바로가기 · 반복되는 말 (같은 자리라 한 번에 하나만)
+  const [panel, setPanel] = useState<EditorPanel | null>(null);
+  // 찾기 창을 열 때 처음 찾을 말 ('반복되는 말'에서 고른 낱말)
+  const [findQuery, setFindQuery] = useState<string | undefined>(undefined);
   // 화면 위에 붙는 도구 막대 (장면으로 갈 때 그 높이만큼 비켜서 스크롤)
   const barRef = useRef<HTMLDivElement>(null);
   // 집중 모드: 이 기기에 기억해 두고, 화면 맨 처음(layout의 스크립트)에 <html data-focus>로 반영된다
@@ -171,11 +177,17 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
 
   // setState 함수만 쓰므로 에디터 확장에 그대로 넘겨도 늘 같은 동작
   const openFind = () => {
+    setFindQuery(undefined);
     setPanel('find');
     setFindSession((value) => value + 1);
   };
-  const togglePanel = (name: 'spelling' | 'scenes') => setPanel((open) => (open === name ? null : name));
-  const closePanel = (name: 'find' | 'spelling' | 'scenes') => setPanel((open) => (open === name ? null : open));
+  const findWord = (word: string) => {
+    setFindQuery(word);
+    setPanel('find');
+    setFindSession((value) => value + 1);
+  };
+  const togglePanel = (name: Exclude<EditorPanel, 'find'>) => setPanel((open) => (open === name ? null : name));
+  const closePanel = (name: EditorPanel) => setPanel((open) => (open === name ? null : open));
 
   /** 문장 부호 다듬기: 본문 전체를 한 번에 (되돌리기 한 번이면 전부 원래대로). 템플릿 안은 그대로 (lib/punctuation.ts) */
   const polishPunctuation = () => {
@@ -725,7 +737,8 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
             )}
           </div>
         </div>
-        {panel === 'find' && editor ? <FindBar key={findSession} editor={editor} onClose={() => closePanel('find')} /> : null}
+        {panel === 'find' && editor ? <FindBar key={findSession} editor={editor} initialQuery={findQuery} onClose={() => closePanel('find')} /> : null}
+        {panel === 'repeats' && editor ? <RepeatPanel editor={editor} onFind={findWord} onClose={() => closePanel('repeats')} /> : null}
         {panel === 'spelling' && editor ? <SpellingPanel editor={editor} onClose={() => closePanel('spelling')} /> : null}
         {panel === 'scenes' && editor ? (
           <ScenePanel
@@ -953,8 +966,8 @@ function Toolbar({
   editor: Editor;
   onFind: () => void;
   onPolish: () => void;
-  panel: 'find' | 'spelling' | 'scenes' | null;
-  onTogglePanel: (name: 'spelling' | 'scenes') => void;
+  panel: EditorPanel | null;
+  onTogglePanel: (name: Exclude<EditorPanel, 'find'>) => void;
   focusMode: boolean;
   onToggleFocus: () => void;
 }) {
@@ -1061,6 +1074,19 @@ function Toolbar({
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-4">
           <path d="M5 9.5l3.5 3.5L16 5.5" />
           <path d="M3 19c1.5-1.6 3-1.6 4.5 0s3 1.6 4.5 0 3-1.6 4.5 0 3 1.6 4.5 0" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        onClick={() => onTogglePanel('repeats')}
+        aria-expanded={panel === 'repeats'}
+        title="반복되는 말 찾기: 세 번 이상 나온 낱말과 횟수 (조사는 떼고 셈)"
+        aria-label="반복되는 말 찾기"
+        className={cn('grid h-8 min-w-8 place-items-center rounded-lg px-2 transition', panel === 'repeats' ? 'bg-accent-soft text-accent' : 'text-fg hover:bg-surface-2')}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-4">
+          <path d="M6 19V9M12 19V5M18 19v-6" />
+          <path d="M3 19h18" />
         </svg>
       </button>
       <button

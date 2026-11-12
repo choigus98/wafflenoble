@@ -70,9 +70,10 @@ export const FindReplace = Extension.create<{ onOpen: () => void }>({
 
 // ─── 찾기·바꾸기 창 ──────────────────────────────────────────
 
-export function FindBar({ editor, onClose }: { editor: Editor; onClose: () => void }) {
-  // 본문에서 글자를 고른 채로 열면 그 글자로 찾기 시작
+export function FindBar({ editor, initialQuery, onClose }: { editor: Editor; initialQuery?: string; onClose: () => void }) {
+  // 처음 찾을 말: '반복되는 말'에서 고른 낱말, 아니면 본문에서 고른 글자
   const [query, setQuery] = useState(() => {
+    if (initialQuery) return initialQuery.slice(0, 100);
     const { from, to, empty } = editor.state.selection;
     return empty ? '' : editor.state.doc.textBetween(from, to, ' ').slice(0, 100);
   });
