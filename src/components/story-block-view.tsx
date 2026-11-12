@@ -38,6 +38,7 @@ import {
   parseTicketDetails,
   matchOutcome,
   parseMatchScript,
+  profileTone,
   todoProgress,
   weatherKind,
   type AlarmData,
@@ -67,6 +68,7 @@ import {
   type ParcelData,
   type TicketData,
   type MatchData,
+  type ProfileData,
   type StoryBlock,
   type SystemData,
   type TodoData,
@@ -159,6 +161,8 @@ export function StoryBlockView({ block }: { block: StoryBlock }) {
       return <TicketCard data={block.data} />;
     case 'match':
       return <MatchCard data={block.data} />;
+    case 'profile':
+      return <ProfileCard data={block.data} />;
   }
 }
 
@@ -2263,6 +2267,66 @@ function MatchCard({ data }: { data: MatchData }) {
       ) : (
         <div className="h-3.5" />
       )}
+    </div>
+  );
+}
+
+/**
+ * 메신저 프로필: 배경 그라데이션(배경 말로 고름, profileTone) · 맨 위 작은 표시 · 사진(이름 첫 글자) · 이름 · 상태 메시지 · 프로필 음악.
+ * 흰 글씨가 어느 배경에서도 대비 4.5:1 이상. 에디터에서는 field로 카드 위에서 바로 고친다 (배경 말도 오른쪽 위 칸에서)
+ */
+export function ProfileCard({ data, field }: { data: ProfileData; field?: FieldRenderer }) {
+  const editing = Boolean(field);
+  const slot = (name: keyof ProfileData, label: string, maxLength: number, className: string) =>
+    field ? (
+      field({ name, value: data[name], label, placeholder: label, maxLength, className, wrap: true })
+    ) : (
+      <span className={className}>{data[name]}</span>
+    );
+  const show = (name: keyof ProfileData) => editing || data[name].trim() !== '';
+  const tone = profileTone(data.bg);
+  const initial = [...data.name.trim()][0] ?? '?';
+  // 에디터 빈칸 안내 글씨도 배경 위에서 읽히게 (--wn-muted를 이 카드 안에서만 밝게)
+  const style = {
+    '--profile-from': `var(--wn-profile-${tone}-from)`,
+    '--profile-to': `var(--wn-profile-${tone}-to)`,
+    '--wn-muted': 'var(--wn-profile-soft)',
+  } as CSSProperties;
+
+  return (
+    <div
+      style={style}
+      className="wn-block mx-auto flex min-h-[19rem] w-full max-w-[340px] flex-col overflow-hidden rounded-[22px] bg-(--profile-from) bg-linear-to-b from-(--profile-from) to-(--profile-to) px-5 pt-4 pb-6 text-(--wn-profile-fg) shadow-md"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        {show('note') ? (
+          <span className="max-w-full rounded-full bg-(--wn-profile-chip) px-2.5 py-1 text-xs font-semibold break-keep">{slot('note', '맨 위 표시 (비우면 안 보여요)', 40, 'max-w-full')}</span>
+        ) : (
+          <span />
+        )}
+        {editing ? (
+          <span className="flex items-center gap-1 rounded-full bg-(--wn-profile-chip) px-2.5 py-1 text-xs">
+            <span aria-hidden="true">배경</span>
+            {slot('bg', '배경 말 (노을·바다·밤·벚꽃·숲)', 20, 'max-w-full')}
+          </span>
+        ) : null}
+      </div>
+      <div className="mt-auto flex flex-col items-center pt-10 text-center">
+        <span aria-hidden="true" className="grid size-20 place-items-center rounded-[28px] bg-(--wn-profile-chip) text-3xl font-bold ring-2 ring-(--wn-profile-ring)">
+          {initial}
+        </span>
+        <div className="mt-3 max-w-full text-xl font-bold break-keep">{slot('name', '이름', 30, 'max-w-full text-center')}</div>
+        {show('status') ? <div className="mt-1 max-w-full text-sm break-keep text-(--wn-profile-soft)">{slot('status', '상태 메시지 (비우면 안 보여요)', 60, 'max-w-full text-center')}</div> : null}
+        {show('music') ? (
+          <div className="mt-3 inline-flex max-w-full items-center gap-1.5 rounded-full bg-(--wn-profile-chip) px-3 py-1 text-xs break-keep">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="size-3.5 shrink-0">
+              <path d="M9 18.5a2.5 2.5 0 1 1-2.5-2.5c.9 0 1.7.5 2.1 1.2V5.2l11-2.2v12.5a2.5 2.5 0 1 1-2.5-2.5c.9 0 1.7.5 2.1 1.2V7.3L9 8.9z" />
+            </svg>
+            {editing ? null : <span className="sr-only">프로필 음악 </span>}
+            {slot('music', '프로필 음악 (비우면 안 보여요)', 40, 'max-w-full')}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

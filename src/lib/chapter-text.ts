@@ -122,6 +122,10 @@ export function storyBlockToText(block: StoryBlock): string {
         const around = [data.prev.trim() && `이전 역: ${data.prev.trim()}`, data.next.trim() && `다음 역: ${data.next.trim()}`].filter(Boolean).join(' · ');
         return lines([data.line, data.direction].map((value) => value.trim()).filter(Boolean).join(' · '), data.station.trim() && `이번 역: ${data.station.trim()}`, around, data.message);
       }
+      case 'profile': {
+        const { data } = block;
+        return lines(data.note, data.name, data.status.trim() && `상태 메시지: ${data.status.trim()}`, data.music.trim() && `♪ ${data.music.trim()}`);
+      }
       case 'match': {
         const { data } = block;
         const records = parseMatchScript(data.script)

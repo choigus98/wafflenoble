@@ -21,6 +21,7 @@ import {
   parseTicketDetails,
   matchOutcome,
   parseMatchScript,
+  profileTone,
   subwayLineKey,
   todoProgress,
   weatherKind,
@@ -95,6 +96,7 @@ const KEYS: TemplateKey[] = [
   'ticket-plane',
   'ticket-train',
   'match',
+  'profile',
 ];
 
 function withTrickyText(block: StoryBlock): StoryBlock {
@@ -151,6 +153,8 @@ function withTrickyText(block: StoryBlock): StoryBlock {
       return { ...block, data: { ...block.data, name: '한<b>도윤</b> & 😀', email: '"doyun" <a@b.example>', memo: '<script>x</script> & "밤 9시"' } };
     case 'weather':
       return { ...block, data: { ...block.data, place: '와플<b>시</b> & "골목"', script: `${block.data.script}\n${TRICKY}: 비 3°` } };
+    case 'profile':
+      return { ...block, data: { ...block.data, name: '한<b>지은</b> & 😀', status: TRICKY.slice(0, 60), music: '<i>노래</i> & "가수"' } };
     case 'match':
       return { ...block, data: { ...block.data, mvp: '<b>하연화</b> & 😀', script: `${block.data.script}\n* ${TRICKY}: 1 / 2 / 3` } };
     case 'ticket':
@@ -830,6 +834,14 @@ describe('게임 결과', () => {
       { kind: 'divider', label: '' },
       { kind: 'row', name: '기록 없이', record: '', mine: false },
       { kind: 'row', name: '첫 킬', record: '03:12', mine: false },
+    ]);
+  });
+});
+
+describe('메신저 프로필 배경', () => {
+  it('배경 말로 그라데이션 (모르면 기본)', () => {
+    expect(['노을', '저녁 하늘빛', '바다', '밤하늘의 별', '보름달', '달콤한 봄', '벚꽃 엔딩', '초록 숲', '', '아무거나'].map(profileTone)).toEqual([
+      'sunset', 'sunset', 'sea', 'night', 'night', 'blossom', 'blossom', 'forest', 'plain', 'plain',
     ]);
   });
 });

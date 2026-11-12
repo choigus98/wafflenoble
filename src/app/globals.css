@@ -238,6 +238,23 @@
   --wn-match-line: rgb(0 0 0 / 0.08);
   --wn-match-mine: #eff6ff;
   --wn-match-mvp: #b45309;
+  /* 메신저 프로필: 배경 그라데이션 여섯 가지(사진 같은 배경이라 밝게·어둡게 같음). 흰 글씨는 양쪽 끝 어디서나 대비 4.5:1 이상, 흐린 글씨(85%)·칩 위 글씨도 */
+  --wn-profile-fg: #ffffff;
+  --wn-profile-soft: rgb(255 255 255 / 0.85);
+  --wn-profile-chip: rgb(255 255 255 / 0.18);
+  --wn-profile-ring: rgb(255 255 255 / 0.35);
+  --wn-profile-sunset-from: #9a3412;
+  --wn-profile-sea-from: #1e3a8a;
+  --wn-profile-night-from: #1e1b4b;
+  --wn-profile-blossom-from: #9d174d;
+  --wn-profile-forest-from: #14532d;
+  --wn-profile-plain-from: #374151;
+  --wn-profile-sunset-to: #9d174d;
+  --wn-profile-sea-to: #164e63;
+  --wn-profile-night-to: #312e81;
+  --wn-profile-blossom-to: #6b21a8;
+  --wn-profile-forest-to: #3f6212;
+  --wn-profile-plain-to: #1f2937;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -468,6 +485,22 @@
     --wn-match-line: rgb(255 255 255 / 0.1);
     --wn-match-mine: rgb(59 130 246 / 0.16);
     --wn-match-mvp: #f59e0b;
+    --wn-profile-fg: #ffffff;
+    --wn-profile-soft: rgb(255 255 255 / 0.85);
+    --wn-profile-chip: rgb(255 255 255 / 0.18);
+    --wn-profile-ring: rgb(255 255 255 / 0.35);
+    --wn-profile-sunset-from: #9a3412;
+    --wn-profile-sea-from: #1e3a8a;
+    --wn-profile-night-from: #1e1b4b;
+    --wn-profile-blossom-from: #9d174d;
+    --wn-profile-forest-from: #14532d;
+    --wn-profile-plain-from: #374151;
+    --wn-profile-sunset-to: #9d174d;
+    --wn-profile-sea-to: #164e63;
+    --wn-profile-night-to: #312e81;
+    --wn-profile-blossom-to: #6b21a8;
+    --wn-profile-forest-to: #3f6212;
+    --wn-profile-plain-to: #1f2937;
   }
 }
 
@@ -697,6 +730,22 @@
   --wn-match-line: rgb(255 255 255 / 0.1);
   --wn-match-mine: rgb(59 130 246 / 0.16);
   --wn-match-mvp: #f59e0b;
+  --wn-profile-fg: #ffffff;
+  --wn-profile-soft: rgb(255 255 255 / 0.85);
+  --wn-profile-chip: rgb(255 255 255 / 0.18);
+  --wn-profile-ring: rgb(255 255 255 / 0.35);
+  --wn-profile-sunset-from: #9a3412;
+  --wn-profile-sea-from: #1e3a8a;
+  --wn-profile-night-from: #1e1b4b;
+  --wn-profile-blossom-from: #9d174d;
+  --wn-profile-forest-from: #14532d;
+  --wn-profile-plain-from: #374151;
+  --wn-profile-sunset-to: #9d174d;
+  --wn-profile-sea-to: #164e63;
+  --wn-profile-night-to: #312e81;
+  --wn-profile-blossom-to: #6b21a8;
+  --wn-profile-forest-to: #3f6212;
+  --wn-profile-plain-to: #1f2937;
 }
 
 @theme inline {
