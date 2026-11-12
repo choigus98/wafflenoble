@@ -16,6 +16,7 @@ import {
   parseRankScript,
   parseTodoScript,
   parseWeatherScript,
+  subwayLineKey,
   todoProgress,
   weatherKind,
   parseComments,
@@ -84,6 +85,7 @@ const KEYS: TemplateKey[] = [
   'todo',
   'namecard',
   'weather',
+  'subway',
 ];
 
 function withTrickyText(block: StoryBlock): StoryBlock {
@@ -140,6 +142,8 @@ function withTrickyText(block: StoryBlock): StoryBlock {
       return { ...block, data: { ...block.data, name: '한<b>도윤</b> & 😀', email: '"doyun" <a@b.example>', memo: '<script>x</script> & "밤 9시"' } };
     case 'weather':
       return { ...block, data: { ...block.data, place: '와플<b>시</b> & "골목"', script: `${block.data.script}\n${TRICKY}: 비 3°` } };
+    case 'subway':
+      return { ...block, data: { ...block.data, station: '<b>반죽</b> & "역" 😀', next: '시럽 <i>', message: TRICKY } };
     case 'receipt':
       return { ...block, data: { ...block.data, store: '가게 <b>&</b> "따옴표"', script: `${block.data.script}\n${TRICKY}: 1,000원` } };
     case 'push':
@@ -745,5 +749,16 @@ describe('날씨', () => {
       { time: '', condition: '밤 맑음', temp: '7°', kind: 'moon' },
       { time: '저녁', condition: '', temp: '', kind: 'partly' },
     ]);
+  });
+});
+
+describe('지하철 노선 색', () => {
+  it('숫자가 있으면 그 번호(아홉 가지를 돌아가며), 없으면 이름으로 늘 같은 색', () => {
+    expect(['1호선', '2호선', '9호선', '10호선', '수도권 3호선 급행', '0호선'].map(subwayLineKey)).toEqual([1, 2, 9, 1, 3, 9]);
+    const name = subwayLineKey('공항철도');
+    expect(name).toBeGreaterThanOrEqual(1);
+    expect(name).toBeLessThanOrEqual(9);
+    expect(subwayLineKey('  공항철도 ')).toBe(name);
+    expect(subwayLineKey('')).toBe(1);
   });
 });

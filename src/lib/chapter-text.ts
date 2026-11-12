@@ -114,6 +114,11 @@ export function storyBlockToText(block: StoryBlock): string {
           data.date.trim() && `일시: ${data.date.trim()}`,
         );
       }
+      case 'subway': {
+        const { data } = block;
+        const around = [data.prev.trim() && `이전 역: ${data.prev.trim()}`, data.next.trim() && `다음 역: ${data.next.trim()}`].filter(Boolean).join(' · ');
+        return lines([data.line, data.direction].map((value) => value.trim()).filter(Boolean).join(' · '), data.station.trim() && `이번 역: ${data.station.trim()}`, around, data.message);
+      }
       case 'weather': {
         const { data } = block;
         const hours = parseWeatherScript(data.script)

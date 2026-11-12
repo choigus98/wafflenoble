@@ -199,6 +199,20 @@
   --wn-weather-muted: #f1f5ff;
   --wn-weather-cell-bg: rgb(0 0 0 / 0.14);
   --wn-weather-line: rgb(255 255 255 / 0.2);
+  /* 지하철 안내: 노선 색 아홉 가지 — 밝게는 흰 글씨, 어둡게는 검은 글씨가 노선 동그라미 위에서 대비 4.5:1 이상, 선로는 바탕과 3:1 이상 */
+  --wn-subway-bg: #ffffff;
+  --wn-subway-muted: #5f6672;
+  --wn-subway-chip: #f3f4f6;
+  --wn-subway-badge-fg: #ffffff;
+  --wn-subway-1: #1d4ed8;
+  --wn-subway-2: #15803d;
+  --wn-subway-3: #c2410c;
+  --wn-subway-4: #0369a1;
+  --wn-subway-5: #7e22ce;
+  --wn-subway-6: #92400e;
+  --wn-subway-7: #4d7c0f;
+  --wn-subway-8: #be185d;
+  --wn-subway-9: #a16207;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -394,6 +408,19 @@
     --wn-weather-muted: #e2e8f0;
     --wn-weather-cell-bg: rgb(0 0 0 / 0.2);
     --wn-weather-line: rgb(255 255 255 / 0.2);
+    --wn-subway-bg: #17191e;
+    --wn-subway-muted: rgb(255 255 255 / 0.62);
+    --wn-subway-chip: rgb(255 255 255 / 0.06);
+    --wn-subway-badge-fg: #0b0c0e;
+    --wn-subway-1: #60a5fa;
+    --wn-subway-2: #4ade80;
+    --wn-subway-3: #fb923c;
+    --wn-subway-4: #38bdf8;
+    --wn-subway-5: #c084fc;
+    --wn-subway-6: #d9a066;
+    --wn-subway-7: #a3c94f;
+    --wn-subway-8: #f472b6;
+    --wn-subway-9: #e2b23c;
   }
 }
 
@@ -588,6 +615,19 @@
   --wn-weather-muted: #e2e8f0;
   --wn-weather-cell-bg: rgb(0 0 0 / 0.2);
   --wn-weather-line: rgb(255 255 255 / 0.2);
+  --wn-subway-bg: #17191e;
+  --wn-subway-muted: rgb(255 255 255 / 0.62);
+  --wn-subway-chip: rgb(255 255 255 / 0.06);
+  --wn-subway-badge-fg: #0b0c0e;
+  --wn-subway-1: #60a5fa;
+  --wn-subway-2: #4ade80;
+  --wn-subway-3: #fb923c;
+  --wn-subway-4: #38bdf8;
+  --wn-subway-5: #c084fc;
+  --wn-subway-6: #d9a066;
+  --wn-subway-7: #a3c94f;
+  --wn-subway-8: #f472b6;
+  --wn-subway-9: #e2b23c;
 }
 
 @theme inline {

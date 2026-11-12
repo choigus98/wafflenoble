@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물, 이메일, 검색 결과, 휴대폰 알림, 문자 메시지, 영수증, 위치 공유, 투표, 송금 완료, 알람, 일정, 아이템 획득, 음악 재생, 실시간 순위, 할 일 목록, 명함, 날씨).
+// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물, 이메일, 검색 결과, 휴대폰 알림, 문자 메시지, 영수증, 위치 공유, 투표, 송금 완료, 알람, 일정, 아이템 획득, 음악 재생, 실시간 순위, 할 일 목록, 명함, 날씨, 지하철 안내).
 // 저장 형식: <div data-wn-block="종류" data-wn-data="JSON"></div>
 // 에디터(Tiptap 노드), 서버(저장할 때 검증), 열람 화면(렌더링)이 모두 이 파일을 같이 쓴다.
 //
@@ -203,6 +203,15 @@ const musicSchema = z.object({
   lyric: text(200), // 가사 (여러 줄 가능). 비우면 안 보임
 });
 
+const subwaySchema = z.object({
+  line: text(20), // 노선 이름 ('2호선', '와플선'). 이름의 숫자(없으면 이름)로 노선 색을 고른다 (subwayLineKey)
+  direction: text(30), // 방면 ('시럽 방면'). 비우면 안 보임
+  station: text(30), // 이번 역
+  prev: text(30), // 이전 역. 비우면 안 보임
+  next: text(30), // 다음 역. 비우면 안 보임
+  message: text(120), // 안내 한 줄 ('이번 역은 반죽역입니다. 내리실 문은 오른쪽입니다.'). 비우면 안 보임
+});
+
 const weatherSchema = z.object({
   place: text(40), // 장소 ('와플시 반죽구')
   temp: text(10), // 지금 기온 ('12°')
@@ -273,6 +282,7 @@ export const storyBlockSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('todo'), data: todoSchema }),
   z.object({ kind: z.literal('namecard'), data: namecardSchema }),
   z.object({ kind: z.literal('weather'), data: weatherSchema }),
+  z.object({ kind: z.literal('subway'), data: subwaySchema }),
 ]);
 
 export type StoryBlock = z.infer<typeof storyBlockSchema>;
@@ -302,6 +312,7 @@ export type RankData = z.infer<typeof rankSchema>;
 export type TodoData = z.infer<typeof todoSchema>;
 export type NamecardData = z.infer<typeof namecardSchema>;
 export type WeatherData = z.infer<typeof weatherSchema>;
+export type SubwayData = z.infer<typeof subwaySchema>;
 
 /** 메일 보낸 사람 '김지은 <jieun@example.com>' → 이름과 주소. 꺾쇠가 없으면 적은 그대로 이름으로 */
 export function splitMailSender(from: string): { name: string; address: string } {
@@ -775,6 +786,20 @@ export function itemGradeKey(grade: string): ItemGrade {
   return ITEM_GRADE_WORDS.find(([, words]) => words.some((word) => text.includes(word)))?.[0] ?? 'common';
 }
 
+// ─── 지하철 노선 색 ──────────────────────────────────────
+// 노선 이름에 숫자가 있으면 그 숫자로('2호선' → 2번 색), 없으면 이름 글자로 아홉 색 중 하나를 고른다 (같은 이름은 늘 같은 색).
+// 색은 globals.css의 --wn-subway-1~9 (흰 글씨가 대비 4.5:1 이상인 진한 색들)
+
+export const SUBWAY_COLORS = 9;
+
+export function subwayLineKey(line: string): number {
+  const digits = line.match(/\d+/)?.[0];
+  if (digits) return ((Number(digits) - 1) % SUBWAY_COLORS + SUBWAY_COLORS) % SUBWAY_COLORS + 1;
+  let sum = 0;
+  for (const char of line.trim()) sum += char.codePointAt(0) ?? 0;
+  return (sum % SUBWAY_COLORS) + 1;
+}
+
 // ─── 날씨 ──────────────────────────────────────
 // 날씨 말로 그림·바탕색을 고른다: 천둥·번개 → 뇌우, 눈(눈부신은 빼고) → 눈, 비·소나기 → 비, 안개·미세먼지·황사 → 안개,
 // 흐림·구름 많음 → 흐림, 구름 → 구름 조금, '밤'과 맑음 → 달, 맑음·화창·해·햇살 → 해. 모르는 말이면 구름 조금
@@ -974,7 +999,8 @@ export type TemplateKey =
   | 'rank'
   | 'todo'
   | 'namecard'
-  | 'weather';
+  | 'weather'
+  | 'subway';
 
 export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }> = [
   { key: 'kakao-dm', label: '카톡 1:1 대화', hint: '두 사람의 메신저 대화' },
@@ -1006,6 +1032,7 @@ export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }>
   { key: 'todo', label: '할 일 목록', hint: '메모 앱 체크리스트 · 투두 · 끝낸 개수' },
   { key: 'namecard', label: '명함', hint: '이름 · 직함 · 회사 · 연락처 · 손글씨 메모' },
   { key: 'weather', label: '날씨', hint: '날씨 앱 · 지금 기온 · 최고/최저 · 시간별' },
+  { key: 'subway', label: '지하철 안내', hint: '노선 색 · 이번 역 · 이전/다음 역 · 안내 방송' },
 ];
 
 export function templateLabel(block: StoryBlock): string {
@@ -1136,6 +1163,18 @@ export function createTemplate(key: TemplateKey): StoryBlock {
       return {
         kind: 'location',
         data: { badge: '위치 공유', place: '골목 끝 와플 가게', address: '와플시 반죽구 시럽로 12, 1층', note: '여기서 기다릴게' },
+      };
+    case 'subway':
+      return {
+        kind: 'subway',
+        data: {
+          line: '2호선',
+          direction: '시럽 방면',
+          station: '반죽',
+          prev: '버터',
+          next: '시럽',
+          message: '이번 역은 반죽, 반죽역입니다. 내리실 문은 오른쪽입니다.',
+        },
       };
     case 'weather':
       return {

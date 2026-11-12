@@ -31,6 +31,7 @@ import {
   scriptSpeakers,
   smsContact,
   splitMailSender,
+  subwayLineKey,
   todoProgress,
   weatherKind,
   type AlarmData,
@@ -56,6 +57,7 @@ import {
   type SearchData,
   type SmsData,
   type SnsData,
+  type SubwayData,
   type StoryBlock,
   type SystemData,
   type TodoData,
@@ -140,6 +142,8 @@ export function StoryBlockView({ block }: { block: StoryBlock }) {
       return <NamecardCard data={block.data} />;
     case 'weather':
       return <WeatherCard data={block.data} />;
+    case 'subway':
+      return <SubwayCard data={block.data} />;
   }
 }
 
@@ -1909,6 +1913,105 @@ function WeatherCard({ data }: { data: WeatherData }) {
           ))}
         </ul>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * 지하철 안내: 지하철 안 안내 화면 (노선 색 띠 · 노선 동그라미 · 노선·방면 · 이번 역(크게) · 이전/다음 역 선로 · 안내 한 줄).
+ * 노선 색은 노선 이름으로 고른다 (subwayLineKey: 숫자가 있으면 그 번호, 없으면 이름으로).
+ * 이전 역이나 다음 역을 비우면 그쪽 선로를 그리지 않아서 종착역·출발역처럼 보인다. 노선과 방면을 다 비우면 윗줄이 없어진다.
+ * 선로 그림은 낭독기에서 숨기고 '이전 역 …', '다음 역 …'으로 읽어 준다. 에디터에서는 field로 카드 위에서 바로 고친다
+ */
+export function SubwayCard({ data, field }: { data: SubwayData; field?: FieldRenderer }) {
+  const editing = Boolean(field);
+  const slot = (name: keyof SubwayData, label: string, maxLength: number, className: string) =>
+    field ? (
+      field({ name, value: data[name], label, placeholder: label, maxLength, className, wrap: true })
+    ) : (
+      <span className={className}>{data[name]}</span>
+    );
+  const show = (name: keyof SubwayData) => editing || data[name].trim() !== '';
+  const hasPrev = show('prev');
+  const hasNext = show('next');
+  // 노선 동그라미: 숫자가 있으면 숫자, 없으면 첫 글자, 노선 이름이 비면 열차 그림
+  const badge = data.line.match(/\d+/)?.[0] ?? [...data.line.trim()][0] ?? (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="size-3.5">
+      <rect x="5" y="3" width="14" height="14" rx="3" />
+      <path d="M5 10h14M9 21l1.5-4M15 21l-1.5-4" />
+    </svg>
+  );
+  const style = { '--line': `var(--wn-subway-${subwayLineKey(data.line)})` } as CSSProperties;
+  const stop = 'flex min-w-0 flex-col items-center gap-1.5';
+  const ring = 'size-[18px] shrink-0 rounded-full border-[3px] border-(--line) bg-(--wn-subway-bg)';
+
+  return (
+    <div style={style} className="wn-block mx-auto w-full max-w-[440px] overflow-hidden rounded-[18px] border border-(--wn-border) bg-(--wn-subway-bg) text-(--wn-fg) shadow-sm">
+      <div aria-hidden="true" className="h-2 bg-(--line)" />
+      <div className="px-5 pt-3.5 pb-4">
+        {show('line') || show('direction') ? (
+          <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold">
+            <span aria-hidden="true" className="grid h-6 min-w-6 shrink-0 place-items-center rounded-full bg-(--line) px-1.5 text-xs font-bold text-(--wn-subway-badge-fg)">
+              {badge}
+            </span>
+            {show('line') ? slot('line', '노선 (비우면 안 보여요)', 20, 'max-w-full break-keep') : null}
+            {show('direction') ? (
+              <span className="flex min-w-0 items-center gap-2 text-(--wn-subway-muted)">
+                {show('line') ? <span aria-hidden="true">·</span> : null}
+                {slot('direction', '방면 (비우면 안 보여요)', 30, 'max-w-full break-keep')}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+        <div className="text-xs font-semibold text-(--wn-subway-muted)">이번 역</div>
+        <div className="text-[28px] leading-tight font-bold break-keep">{slot('station', '이번 역', 30, 'max-w-full')}</div>
+        {hasPrev || hasNext ? (
+          <div className="relative mt-4">
+            {/* 선로: 이전 역 동그라미 가운데 → 다음 역 동그라미 가운데 (한쪽이 비면 이번 역에서 끊김) */}
+            <span
+              aria-hidden="true"
+              className={cn('absolute top-[7px] h-1 rounded-full bg-(--line)', hasPrev ? 'left-[16%]' : 'left-1/2', hasNext ? 'right-[16%]' : 'right-1/2')}
+            />
+            <div className="relative grid grid-cols-3 gap-2 text-center text-xs">
+              <div className={stop}>
+                {hasPrev ? (
+                  <>
+                    <span aria-hidden="true" className={ring} />
+                    <span className="max-w-full break-keep text-(--wn-subway-muted)">
+                      {editing ? null : <span className="sr-only">이전 역 </span>}
+                      {slot('prev', '이전 역', 30, 'max-w-full')}
+                    </span>
+                  </>
+                ) : null}
+              </div>
+              <div className={stop}>
+                <span aria-hidden="true" className="size-[18px] shrink-0 rounded-full bg-(--line) ring-4 ring-[color-mix(in_srgb,var(--line)_25%,transparent)]" />
+                {/* 위에 크게 쓴 이번 역을 선로에 한 번 더 (그림이라 낭독기에서 숨김, 길면 두 줄까지) */}
+                <span aria-hidden="true" className="line-clamp-2 max-w-full font-bold break-keep">
+                  {data.station}
+                </span>
+              </div>
+              <div className={stop}>
+                {hasNext ? (
+                  <>
+                    <span aria-hidden="true" className={ring} />
+                    <span className="max-w-full break-keep text-(--wn-subway-muted)">
+                      {editing ? null : <span className="sr-only">다음 역 </span>}
+                      {slot('next', '다음 역', 30, 'max-w-full')}
+                    </span>
+                  </>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        ) : null}
+        {show('message') ? (
+          <div className="mt-4 rounded-xl bg-(--wn-subway-chip) px-3 py-2 text-[13px] leading-relaxed break-keep">
+            {editing ? null : <span className="sr-only">안내 </span>}
+            {slot('message', '안내 한 줄 (비우면 안 보여요)', 120, 'max-w-full')}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

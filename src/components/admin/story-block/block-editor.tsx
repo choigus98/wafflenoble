@@ -14,6 +14,7 @@ import {
   NewsCard,
   NoteCard,
   StoryBlockView,
+  SubwayCard,
   TransferCard,
   type FieldRenderer,
 } from '@/components/story-block-view';
@@ -62,7 +63,7 @@ import { cn } from '@/lib/utils';
 // 입력은 화면에 바로 보이고, 문서(→ 자동저장)에는 잠깐 모았다가 반영한다 (커서 튐 방지, 저장 횟수 줄이기)
 const COMMIT_DELAY_MS = 300;
 
-type CardBlock = Extract<StoryBlock, { kind: 'live' | 'donation' | 'news' | 'call' | 'note' | 'mail' | 'location' | 'transfer' | 'alarm' | 'event' | 'music' | 'namecard' }>;
+type CardBlock = Extract<StoryBlock, { kind: 'live' | 'donation' | 'news' | 'call' | 'note' | 'mail' | 'location' | 'transfer' | 'alarm' | 'event' | 'music' | 'namecard' | 'subway' }>;
 type ConversationBlock = Extract<StoryBlock, { kind: 'kakao' | 'chat' | 'post' | 'system' | 'sns' | 'search' | 'push' | 'sms' | 'receipt' | 'poll' | 'item' | 'rank' | 'todo' | 'weather' }>;
 
 const TEXTAREA =
@@ -161,7 +162,7 @@ export function InlineCardEditor({
 }) {
   // 입력칸에서 벗어나면 바로 반영한다 (고치자마자 발행을 눌러도 마지막 글자가 빠지지 않게)
   const { draft, update, flush } = useDraft(block, onChange);
-  const firstField = { live: 'streamer', donation: 'donor', call: 'name', news: 'title', note: 'body', mail: 'subject', location: 'place', transfer: 'amount', alarm: 'time', event: 'title', music: 'title', namecard: 'name' }[draft.kind];
+  const firstField = { live: 'streamer', donation: 'donor', call: 'name', news: 'title', note: 'body', mail: 'subject', location: 'place', transfer: 'amount', alarm: 'time', event: 'title', music: 'title', namecard: 'name', subway: 'station' }[draft.kind];
 
   const field: FieldRenderer = ({ name, value, label, placeholder, maxLength, className, multiline, wrap }) => {
     const set = (next: string) => update({ ...draft, data: { ...draft.data, [name]: next } } as CardBlock);
@@ -228,6 +229,8 @@ export function InlineCardEditor({
       return <MusicCard data={draft.data} field={field} />;
     case 'namecard':
       return <NamecardCard data={draft.data} field={field} />;
+    case 'subway':
+      return <SubwayCard data={draft.data} field={field} />;
     case 'call': {
       const call = draft;
       // 모드를 바꾸면, 아직 안 고친 기본 문구는 새 모드에 맞게 (휴대전화 ↔ 00:12)
