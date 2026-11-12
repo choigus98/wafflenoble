@@ -41,6 +41,7 @@ function ModeIcon({ mode, className }: { mode: Mode; className?: string }) {
 /**
  * 위쪽 바의 화면 모드 단추 (자동 · 밝게 · 어둡게). 회차 화면 '가'의 '화면' 설정과 같은 값이라 어디서 바꿔도 같이 바뀐다.
  * 열면 지금 모드에 포커스, ↑/↓로 고르고 Enter, Esc는 닫고 단추로 돌아간다.
+ * 메뉴는 이 단추를 감싼 단추 묶음(relative)의 오른쪽 끝에 맞춘다 — 좁은 화면에서 왼쪽 밖으로 나가지 않게
  */
 export function ThemeToggle() {
   // 서버에서는 '자동'으로 그리고 브라우저에서 저장값으로 바꾼다 (화면 색 자체는 첫 그리기 전에 이미 반영됨)
@@ -86,7 +87,7 @@ export function ThemeToggle() {
   }
 
   return (
-    <div ref={rootRef} className="relative shrink-0">
+    <div ref={rootRef} className="shrink-0">
       <button
         ref={triggerRef}
         type="button"
@@ -113,7 +114,7 @@ export function ThemeToggle() {
           role="menu"
           aria-label="화면 모드"
           onKeyDown={onMenuKeyDown}
-          className="absolute top-11 right-0 z-40 w-52 rounded-2xl border border-line bg-surface p-1.5 shadow-lg shadow-black/10"
+          className="absolute top-11 right-0 z-40 w-52 max-w-[calc(100vw-2rem)] rounded-2xl border border-line bg-surface p-1.5 shadow-lg shadow-black/10"
         >
           {OPTIONS.map((option) => (
             <button

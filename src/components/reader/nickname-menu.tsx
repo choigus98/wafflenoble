@@ -32,15 +32,16 @@ export function NicknameMenu({ name }: { name: string }) {
   }
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className="relative min-w-0">
       <button
         ref={triggerRef}
         type="button"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
-        className="flex h-9 max-w-44 items-center gap-1.5 rounded-full border border-line bg-surface pr-3 pl-1.5 text-sm font-semibold transition hover:bg-surface-2"
+        // 좁은 화면(320px)에서 긴 이름이면 단추가 남은 폭만큼 줄고 이름이 '…'로 잘린다 (단추는 원래 부모 폭을 안 따라서 max-w로)
+        className="flex h-9 max-w-[min(11rem,100%)] min-w-0 items-center gap-1.5 rounded-full border border-line bg-surface pr-3 pl-1.5 text-sm font-semibold transition hover:bg-surface-2"
       >
-        <span aria-hidden="true" className="grid size-6 place-items-center rounded-full bg-accent-soft text-xs text-accent">
+        <span aria-hidden="true" className="grid size-6 shrink-0 place-items-center rounded-full bg-accent-soft text-xs text-accent">
           {[...name][0]}
         </span>
         <span className="truncate">{name}님</span>

@@ -19,7 +19,8 @@ export default function AdminPanelLayout({ children }: { children: React.ReactNo
             <Logo />
             <Badge tone="accent">작가</Badge>
           </Link>
-          <div className="ml-auto flex items-center gap-1 sm:order-last">
+          {/* 화면 모드 메뉴는 이 묶음의 오른쪽 끝에 맞춰 펼쳐진다 */}
+          <div className="relative ml-auto flex items-center gap-1 sm:order-last">
             <ThemeToggle />
             <ButtonLink href="/" variant="ghost" size="sm">
               열람 화면

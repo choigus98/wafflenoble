@@ -15,7 +15,8 @@ export default function ReaderLayout({ children }: { children: React.ReactNode }
           <Link href="/" className="rounded-lg focus-visible:outline-2 focus-visible:outline-accent">
             <Logo />
           </Link>
-          <div className="flex items-center gap-2">
+          {/* 화면 모드 메뉴는 이 묶음의 오른쪽 끝에 맞춰 펼쳐진다. 좁으면 이름 단추가 줄어든다 */}
+          <div className="relative flex min-w-0 items-center gap-2">
             <ThemeToggle />
             <Suspense fallback={<Skeleton className="h-8 w-24 rounded-full" />}>
               <ViewerArea />
