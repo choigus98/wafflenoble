@@ -115,6 +115,7 @@ async function NovelAdmin({ params }: Pick<PageProps<'/admin/novels/[novelId]'>,
               serialStatus: novel.serialStatus,
               isPublished: novel.isPublished,
               coverColor: novel.coverColor,
+              scheduleNote: novel.scheduleNote,
             }}
           />
         </Card>

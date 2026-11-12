@@ -16,6 +16,7 @@ type NovelInput = {
   serialStatus: SerialStatus;
   isPublished: boolean;
   coverColor: string | null;
+  scheduleNote: string;
 };
 
 const STATUSES: SerialStatus[] = ['ongoing', 'completed', 'hiatus'];
@@ -54,6 +55,16 @@ export function NovelForm({ novel }: { novel?: NovelInput }) {
 
       <Field label="소개" htmlFor="novel-description" hint="작품 화면 맨 위에 보여요. 줄바꿈도 그대로 보여요.">
         <Textarea id="novel-description" name="description" defaultValue={novel?.description} rows={5} maxLength={2000} />
+      </Field>
+
+      <Field label="연재 일정 (선택)" htmlFor="novel-schedule" hint="작품 화면 '총 N화' 옆에 보여요. 비우거나 완결로 바꾸면 안 보여요.">
+        <Input
+          id="novel-schedule"
+          name="scheduleNote"
+          defaultValue={novel?.scheduleNote}
+          maxLength={60}
+          placeholder="예: 매주 금요일 저녁 8시"
+        />
       </Field>
 
       <fieldset>

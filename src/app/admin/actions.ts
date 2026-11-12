@@ -26,6 +26,7 @@ const idSchema = z.number().int().positive();
 const novelSchema = z.object({
   title: z.string().trim().min(1, '제목을 입력해 주세요').max(100, '제목은 100자까지예요'),
   description: z.string().trim().max(2000, '소개는 2000자까지예요'),
+  scheduleNote: z.string().trim().max(60, '연재 일정은 60자까지예요'),
   serialStatus: z.enum(['ongoing', 'completed', 'hiatus'], { error: '연재 상태를 골라 주세요' }),
   isPublished: z.boolean(),
   // 정해진 색 이름만 받는다. null이면 작품 번호로 자동
@@ -36,6 +37,7 @@ function parseNovelForm(formData: FormData) {
   return novelSchema.safeParse({
     title: String(formData.get('title') ?? ''),
     description: String(formData.get('description') ?? ''),
+    scheduleNote: String(formData.get('scheduleNote') ?? ''),
     serialStatus: formData.get('serialStatus'),
     isPublished: formData.get('isPublished') === 'on',
     coverColor: String(formData.get('coverColor') ?? '') || null,

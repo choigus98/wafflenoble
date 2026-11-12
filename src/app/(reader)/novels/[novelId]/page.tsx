@@ -38,7 +38,11 @@ async function NovelDetail({ params }: Pick<PageProps<'/novels/[novelId]'>, 'par
             {!novel.isPublished ? <Badge tone="muted">비공개</Badge> : null}
           </div>
           <h1 className="text-[22px] leading-snug font-bold tracking-tight break-keep sm:text-2xl">{novel.title}</h1>
-          <p className="text-sm text-muted">총 {chapters.length}화</p>
+          <p className="text-sm text-muted">
+            총 {chapters.length}화
+            {/* 연재 일정: 완결된 작품에는 안 보여 준다 */}
+            {novel.scheduleNote && novel.serialStatus !== 'completed' ? <> · {novel.scheduleNote}</> : null}
+          </p>
           {viewer.kind === 'admin' ? (
             <Link href={`/admin/novels/${novel.id}`} className="inline-block text-sm font-semibold text-accent hover:underline">
               작품 관리

@@ -1,0 +1,1 @@
+ALTER TABLE "novels" ADD COLUMN "schedule_note" varchar(60) DEFAULT '' NOT NULL;
