@@ -842,6 +842,17 @@ body:has(article[data-reading]) :is(#main, [data-reader-bar]) {
     display: none;
   }
 }
+/* 에디터 '대사 모아 보기'에서 고른 대사를 잠깐 칠하기 (책갈피와 같은 빛) */
+.ProseMirror .wn-dialogue-flash {
+  border-radius: 4px;
+  animation: wn-bookmark-flash 1.6s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ProseMirror .wn-dialogue-flash {
+    animation: none;
+    background-color: var(--accent-soft);
+  }
+}
 /* 빈 줄도 한 줄 높이를 차지하게 */
 .novel-body p:empty::after {
   content: "\00a0";

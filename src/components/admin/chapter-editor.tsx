@@ -14,6 +14,7 @@ import {
 } from '@/components/admin/story-block/story-block-node';
 import { ChangesDialog } from '@/components/admin/changes-dialog';
 import { CharacterPanel } from '@/components/admin/character-panel';
+import { DialogueFlash, DialoguePanel } from '@/components/admin/dialogue-panel';
 import { CheckMenu, type CheckTool } from '@/components/admin/check-menu';
 import { CharGoal } from '@/components/admin/char-goal';
 import { FindBar, FindReplace } from '@/components/admin/find-replace';
@@ -348,6 +349,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
       FindReplace.configure({ onOpen: openFind }),
       SpellingCheck,
       LongSentenceMarks,
+      DialogueFlash,
       SpeakMarks,
     ],
     content: chapter.contentHtml,
@@ -752,6 +754,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
         </div>
         {panel === 'find' && editor ? <FindBar key={findSession} editor={editor} initialQuery={findQuery} onClose={() => closePanel('find')} /> : null}
         {panel === 'repeats' && editor ? <RepeatPanel editor={editor} onFind={findWord} onClose={() => closePanel('repeats')} /> : null}
+        {panel === 'dialogue' && editor ? <DialoguePanel editor={editor} onClose={() => closePanel('dialogue')} /> : null}
         {panel === 'characters' && editor ? (
           <CharacterPanel editor={editor} names={chapter.characters} novelId={chapter.novelId} onFind={findWord} onClose={() => closePanel('characters')} />
         ) : null}

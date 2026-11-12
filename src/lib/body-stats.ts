@@ -5,7 +5,7 @@ import type { Node as PMNode } from '@tiptap/pm/model';
 // - 대사: 따옴표(" “ ' ‘ 「 『)로 시작하는 문단
 // - 템플릿: 본문에 넣은 템플릿 블록 (안의 글은 문단·대사로 세지 않음)
 
-const DIALOGUE_START = /^["“”'‘’「『]/;
+export const DIALOGUE_START = /^["“”'‘’「『]/;
 
 export type BodyStats = { paragraphs: number; dialogue: number; templates: number };
 
