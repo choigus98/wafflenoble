@@ -1,11 +1,14 @@
 'use client';
 
+import { NodeSelection } from '@tiptap/pm/state';
 import { Node, NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from '@tiptap/react';
-import { useEffect, useSyncExternalStore, type ReactNode } from 'react';
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { StoryBlockView } from '@/components/story-block-view';
+import { announce } from '@/lib/announce';
 import { newId, parseStoryBlock, templateLabel, type StoryBlock } from '@/lib/story-blocks';
 import { cn } from '@/lib/utils';
 import { ConversationEditor, InlineCardEditor } from './block-editor';
+import { BlockMenu, type BlockMenuAction } from './block-menu';
 
 // ─── 지금 편집 중인 템플릿 (에디터마다 하나) ─────────────────────
 // 템플릿은 한 번에 하나만 편집한다. 회차 에디터가 이 값을 보고 편집 중에는 발행을 막는다.
@@ -68,6 +71,8 @@ function StoryBlockItem({ node, editor, getPos, selected, deleteNode, extension 
   // 읽어 주는 이름: '커뮤니티 게시글 고치기', 'SNS 게시물 고치기', '검색 결과 고치기'
   const editName = isPostLike || block?.kind === 'search' ? '고치기' : '대본 고치기';
   const editing = uid !== null && editingUid === uid;
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [canMove, setCanMove] = useState({ up: false, down: false });
 
   const open = () => {
     if (uid !== null) store.set(uid); // 다른 템플릿 편집 창은 닫힌다 (닫히면서 고친 내용 저장)
@@ -130,6 +135,71 @@ function StoryBlockItem({ node, editor, getPos, selected, deleteNode, extension 
       .run();
   }
 
+  /**
+   * 아래로 옮길 자리가 있는지. 에디터는 문서 끝에 빈 문단을 늘 하나 두므로(끝에서 글을 이어 쓸 수 있게),
+   * 그 빈 문단과는 자리를 바꾸지 않는다 (바꾸면 빈 문단이 또 생겨 제자리걸음)
+   */
+  function hasRoomBelow(index: number, parent: { childCount: number; child: (index: number) => { isTextblock: boolean; content: { size: number } } }) {
+    if (index >= parent.childCount - 1) return false;
+    const next = parent.child(index + 1);
+    return !(index + 1 === parent.childCount - 1 && next.isTextblock && next.content.size === 0);
+  }
+
+  /** 메뉴를 열 때 지금 자리를 보고 위·아래로 옮길 수 있는지 정한다 */
+  function openMenu(next: boolean) {
+    if (next) {
+      const pos = getPos();
+      if (typeof pos === 'number') {
+        const $pos = editor.state.doc.resolve(pos);
+        setCanMove({ up: $pos.index() > 0, down: hasRoomBelow($pos.index(), $pos.parent) });
+      }
+    }
+    setMenuOpen(next);
+  }
+
+  /**
+   * 바로 위·아래 블록(문단이든 템플릿이든)과 자리를 바꾼다. 옮긴 템플릿은 선택된 채로 두고
+   * 포커스는 다시 그 템플릿의 ⋯ 단추로 (키보드로 여러 칸 옮길 때 이어서). 되돌리기 한 번이면 제자리로.
+   */
+  function move(direction: 'up' | 'down') {
+    if (editor.isDestroyed) return;
+    const pos = getPos();
+    if (typeof pos !== 'number') return;
+    const { state } = editor;
+    const node = state.doc.nodeAt(pos);
+    if (!node || node.attrs.uid !== uid) return;
+    const $pos = state.doc.resolve(pos);
+    const index = $pos.index();
+    let tr = state.tr;
+    let target: number;
+    if (direction === 'up') {
+      if (index === 0) return;
+      const prev = $pos.parent.child(index - 1);
+      target = pos - prev.nodeSize;
+      tr = tr.replaceWith(target, pos + node.nodeSize, [node, prev]);
+    } else {
+      if (!hasRoomBelow(index, $pos.parent)) return;
+      const next = $pos.parent.child(index + 1);
+      target = pos + next.nodeSize;
+      tr = tr.replaceWith(pos, pos + node.nodeSize + next.nodeSize, [next, node]);
+    }
+    editor.view.dispatch(tr.setSelection(NodeSelection.create(tr.doc, target)).scrollIntoView());
+    announce(direction === 'up' ? '템플릿을 위로 옮겼어요' : '템플릿을 아래로 옮겼어요');
+    // 옮긴 자리의 템플릿 화면은 한 박자 뒤에 그려질 수 있어서 몇 번 찾아본다
+    const focusMenuButton = (attempt: number) => {
+      const button = (editor.view.nodeDOM(target) as HTMLElement | null)?.querySelector<HTMLButtonElement>('button[data-block-menu]');
+      if (button) button.focus({ preventScroll: true });
+      else if (attempt < 10) window.setTimeout(() => focusMenuButton(attempt + 1), 16);
+    };
+    focusMenuButton(0);
+  }
+
+  function onMenuAction(action: BlockMenuAction) {
+    if (action === 'up' || action === 'down') move(action);
+    else if (action === 'duplicate') duplicate();
+    else remove();
+  }
+
   if (!block) {
     return (
       <NodeViewWrapper className="my-6">
@@ -148,37 +218,25 @@ function StoryBlockItem({ node, editor, getPos, selected, deleteNode, extension 
       // 카드를 눌러 편집 창을 여는 동작과 겹치지 않게
       onClick={(event) => event.stopPropagation()}
       className={cn(
-        'absolute -top-4 right-4 z-10 flex items-center gap-0.5 rounded-full border border-line bg-surface p-1 shadow-sm transition',
-        selected ? 'opacity-100' : 'opacity-100 sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100',
+        'absolute -top-4 right-4 flex items-center gap-0.5 rounded-full border border-line bg-surface p-1 shadow-sm transition',
+        // 메뉴가 열려 있으면 마우스가 떠나도 보이게, 아래 템플릿의 도구 막대보다 위에
+        menuOpen ? 'z-20' : 'z-10',
+        selected || menuOpen ? 'opacity-100' : 'opacity-100 sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100',
       )}
     >
       <span className="px-2 text-xs font-semibold text-muted">{templateLabel(block)}</span>
-      <button
-        type="button"
+      {/* 마우스로 끌어 옮기는 손잡이. 키보드·휴대폰은 ⋯ 메뉴의 '위로·아래로 옮기기'를 쓴다 */}
+      <span
         data-drag-handle=""
         draggable="true"
         title="끌어서 옮기기"
-        aria-label="끌어서 옮기기"
+        aria-hidden="true"
         className="grid size-7 cursor-grab place-items-center rounded-full text-muted hover:bg-surface-2 active:cursor-grabbing"
       >
         ⠿
-      </button>
+      </span>
       {extra}
-      <button
-        type="button"
-        onClick={duplicate}
-        title="바로 아래에 똑같이 하나 더"
-        className="h-7 rounded-full px-2.5 text-xs font-semibold text-muted hover:bg-surface-2 hover:text-fg"
-      >
-        복제
-      </button>
-      <button
-        type="button"
-        onClick={remove}
-        className="h-7 rounded-full px-2.5 text-xs font-semibold text-muted hover:bg-danger/10 hover:text-danger"
-      >
-        삭제
-      </button>
+      <BlockMenu label={templateLabel(block)} open={menuOpen} onOpenChange={openMenu} can={canMove} onAction={onMenuAction} />
     </div>
   );
 
