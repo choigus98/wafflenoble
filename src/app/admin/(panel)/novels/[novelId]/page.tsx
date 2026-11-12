@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import { createChapter } from '@/app/admin/actions';
+import { ChapterList } from '@/components/admin/chapter-list';
 import { ChapterMoveButtons } from '@/components/admin/chapter-move-buttons';
 import { DeleteNovelForm } from '@/components/admin/delete-novel-form';
 import { NovelForm } from '@/components/admin/novel-form';
@@ -38,6 +39,7 @@ async function NovelAdmin({ params, searchParams }: Pick<PageProps<'/admin/novel
   const chapters = filterChapters(allChapters, filter);
   // 순서 바꾸기는 '전체'에서만 (거른 목록에서 위·아래는 보이지 않는 회차와 자리를 바꿔 헷갈림)
   const canMove = filter === 'all' && showFilters;
+  const filterLabel = CHAPTER_FILTERS.find((item) => item.key === filter)?.label ?? '전체';
 
   return (
     <div className="space-y-10">
@@ -62,37 +64,41 @@ async function NovelAdmin({ params, searchParams }: Pick<PageProps<'/admin/novel
             </SubmitButton>
           </form>
         </div>
-        {showFilters ? (
-          <nav aria-label="회차 거르기" className="flex flex-wrap items-center gap-1.5">
-            {CHAPTER_FILTERS.map((item) => (
-              <Link
-                key={item.key}
-                href={item.key === 'all' ? `/admin/novels/${novel.id}` : `/admin/novels/${novel.id}?show=${item.key}`}
-                aria-current={filter === item.key ? 'page' : undefined}
-                scroll={false}
-                className={cn(
-                  'inline-flex h-8 items-center gap-1 rounded-full border px-3 text-[13px] font-semibold transition',
-                  filter === item.key ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-surface text-muted hover:text-fg',
-                )}
-              >
-                {item.label} <span className="font-normal tabular-nums">{counts[item.key]}</span>
-              </Link>
-            ))}
-            {filter !== 'all' ? <span className="text-xs text-muted">순서 바꾸기는 ‘전체’에서 할 수 있어요</span> : null}
-          </nav>
-        ) : null}
         {allChapters.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-line px-6 py-12 text-center text-muted">
             아직 회차가 없어요. 첫 회차를 써 보세요.
           </p>
-        ) : chapters.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-line px-6 py-10 text-center text-sm text-muted">
-            {CHAPTER_FILTERS.find((item) => item.key === filter)?.label} 회차가 없어요.
-          </p>
         ) : (
-          <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
-            {chapters.map((chapter, index) => (
-              <li key={chapter.id} className="flex items-stretch">
+          <ChapterList
+            filters={
+              showFilters ? (
+                <nav aria-label="회차 거르기" className="flex flex-wrap items-center gap-1.5">
+                  {CHAPTER_FILTERS.map((item) => (
+                    <Link
+                      key={item.key}
+                      href={item.key === 'all' ? `/admin/novels/${novel.id}` : `/admin/novels/${novel.id}?show=${item.key}`}
+                      aria-current={filter === item.key ? 'page' : undefined}
+                      scroll={false}
+                      className={cn(
+                        'inline-flex h-8 items-center gap-1 rounded-full border px-3 text-[13px] font-semibold transition',
+                        filter === item.key ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-surface text-muted hover:text-fg',
+                      )}
+                    >
+                      {item.label} <span className="font-normal tabular-nums">{counts[item.key]}</span>
+                    </Link>
+                  ))}
+                </nav>
+              ) : null
+            }
+            searchable={showFilters}
+            moveHint={filter !== 'all' ? '순서 바꾸기는 ‘전체’에서 할 수 있어요' : null}
+            emptyText={`${filterLabel} 회차가 없어요.`}
+            filterLabel={filter === 'all' ? null : filterLabel}
+            rows={chapters.map((chapter, index) => ({
+              id: chapter.id,
+              position: chapter.position,
+              title: chapter.title,
+              content: (
                 <Link
                   href={`/admin/novels/${novel.id}/chapters/${chapter.id}`}
                   className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3.5 transition hover:bg-surface-2/60 sm:px-5"
@@ -122,18 +128,18 @@ async function NovelAdmin({ params, searchParams }: Pick<PageProps<'/admin/novel
                     visible={chapter.status === 'published' && !chapter.scheduled}
                   />
                 </Link>
-                {/* 순서 바꾸기: 옆 회차와 'N화' 번호를 맞바꾼다 (링크는 그대로) */}
-                {canMove ? (
-                  <ChapterMoveButtons
-                    chapterId={chapter.id}
-                    label={`${chapter.position}화 「${chapter.title || '제목 없음'}」`}
-                    isFirst={index === 0}
-                    isLast={index === chapters.length - 1}
-                  />
-                ) : null}
-              </li>
-            ))}
-          </ul>
+              ),
+              // 순서 바꾸기: 옆 회차와 'N화' 번호를 맞바꾼다 (링크는 그대로)
+              move: canMove ? (
+                <ChapterMoveButtons
+                  chapterId={chapter.id}
+                  label={`${chapter.position}화 「${chapter.title || '제목 없음'}」`}
+                  isFirst={index === 0}
+                  isLast={index === chapters.length - 1}
+                />
+              ) : null,
+            }))}
+          />
         )}
       </section>
 
