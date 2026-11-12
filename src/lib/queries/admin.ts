@@ -5,12 +5,14 @@ import { db } from '@/lib/db';
 import { parseCharacters } from '@/lib/characters';
 import { htmlExcerpt } from '@/lib/content';
 import { chapterLikes, chapterNotes, chapterRevisions, chapterViews, chapters, novels, readers } from '@/lib/db/schema';
+import { guildProgress } from '@/lib/guild-progress';
 import { getGuildSettings } from '@/lib/settings';
 import { weekReadsByNovel } from '@/lib/week-reads';
 import {
   chapterLikeCount,
   chapterReaderCount,
   isScheduledChapter,
+  isVisibleChapter,
   novelChapterCount,
   novelScheduledChapterCount,
   novelVisibleChapterCount,
@@ -181,7 +183,7 @@ export async function adminGetChapter(novelId: number, chapterId: number) {
 
 export async function adminListReaders() {
   await requireAdmin();
-  const [list, lastReads] = await Promise.all([
+  const [list, lastReads, visible, views, novelTitles] = await Promise.all([
     db
       .select({
         id: readers.id,
@@ -208,9 +210,19 @@ export async function adminListReaders() {
       .innerJoin(chapters, eq(chapters.id, chapterViews.chapterId))
       .innerJoin(novels, eq(novels.id, chapters.novelId))
       .orderBy(chapterViews.readerId, desc(chapterViews.lastViewedAt)),
+    // '읽기 진행': 공개된 회차 순서와 모든 열람 기록 (길드 규모가 작아서 한 번에 가져와 계산)
+    db.select({ id: chapters.id, novelId: chapters.novelId, position: chapters.position }).from(chapters).where(isVisibleChapter),
+    db.select({ readerId: chapterViews.readerId, chapterId: chapterViews.chapterId, at: chapterViews.lastViewedAt }).from(chapterViews),
+    db.select({ id: novels.id, title: novels.title }).from(novels),
   ]);
   const lastReadBy = new Map(lastReads.map((row) => [row.readerId, row]));
-  return list.map((reader) => ({ ...reader, lastRead: lastReadBy.get(reader.id) ?? null }));
+  const progressBy = guildProgress(visible, views);
+  const titleOf = new Map(novelTitles.map((novel) => [novel.id, novel.title]));
+  return list.map((reader) => ({
+    ...reader,
+    lastRead: lastReadBy.get(reader.id) ?? null,
+    progress: (progressBy.get(reader.id) ?? []).map((item) => ({ ...item, novelTitle: titleOf.get(item.novelId) ?? '' })),
+  }));
 }
 
 export async function adminGetGuildSettings() {

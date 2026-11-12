@@ -6,7 +6,7 @@ import { deleteReader, renameReader } from '@/app/admin/actions';
 import { SubmitButton } from '@/components/submit-button';
 import { Button, FormMessage, Input } from '@/components/ui';
 import { IDLE } from '@/lib/action-state';
-import { NICKNAME_MAX } from '@/lib/utils';
+import { cn, NICKNAME_MAX } from '@/lib/utils';
 
 type ReaderSummary = {
   id: string;
@@ -17,6 +17,8 @@ type ReaderSummary = {
   likes: number;
   // 가장 최근에 연 회차 (작품이 여러 개일 수 있어서 작품 이름도 같이)
   lastRead: { href: string; novel: string; chapter: string; at: string; when: string } | null;
+  // 작품마다 읽기 진행: '3화까지 · 최신 화' 같은 글과 막대 몫 (최근에 연 작품부터)
+  progress: { novelId: number; novel: string; label: string; percent: number; latest: boolean }[];
 };
 
 export function ReaderRow({ reader }: { reader: ReaderSummary }) {
@@ -80,6 +82,24 @@ export function ReaderRow({ reader }: { reader: ReaderSummary }) {
             </SubmitButton>
           </form>
         </div>
+      ) : null}
+      {/* 작품별 읽기 진행: 이름·단추 줄 아래 전체 폭으로 (좁은 화면에서 막대가 단추에 밀려 짧아지지 않게) */}
+      {reader.progress.length > 0 ? (
+        <ul aria-label={`${reader.nickname}님 작품별 읽기 진행`} className="w-full max-w-md space-y-2">
+          {reader.progress.map((item) => (
+            <li key={item.novelId}>
+              {/* 좁은 화면에서는 진행 글이 작품 이름 아래 줄로 */}
+              <p className="flex flex-wrap items-baseline justify-between gap-x-3 text-[13px]">
+                <span className="min-w-0 truncate font-medium">{item.novel}</span>
+                <span className="text-muted tabular-nums">{item.label}</span>
+              </p>
+              {/* 막대는 글과 같은 내용이라 낭독기에서는 건너뜀. 최신 화까지 읽었으면 진하게 */}
+              <span aria-hidden="true" className="mt-1 block h-1.5 overflow-hidden rounded-full bg-surface-2">
+                <span className={cn('block h-full rounded-full', item.latest ? 'bg-accent' : 'bg-accent/55')} style={{ width: `${item.percent}%` }} />
+              </span>
+            </li>
+          ))}
+        </ul>
       ) : null}
     </li>
   );

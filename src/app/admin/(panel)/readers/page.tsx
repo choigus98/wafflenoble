@@ -3,6 +3,7 @@ import { Suspense } from 'react';
 import { ReaderRow } from '@/components/admin/reader-row';
 import { Skeleton } from '@/components/ui';
 import { formatDate, formatRelative } from '@/lib/format';
+import { progressLabel, progressPercent } from '@/lib/guild-progress';
 import { adminListReaders } from '@/lib/queries/admin';
 
 export const metadata: Metadata = { title: '길드원' };
@@ -46,6 +47,14 @@ async function ReaderList() {
             lastSeen: formatRelative(reader.lastSeenAt, now),
             readChapters: reader.readChapters,
             likes: reader.likes,
+            // 작품마다 공개 회차 중 어디까지 읽었는지 (최근에 연 작품부터)
+            progress: reader.progress.map((item) => ({
+              novelId: item.novelId,
+              novel: item.novelTitle,
+              label: progressLabel(item),
+              percent: progressPercent(item),
+              latest: item.reached >= item.total,
+            })),
             lastRead: reader.lastRead
               ? {
                   href: `/admin/novels/${reader.lastRead.novelId}/chapters/${reader.lastRead.chapterId}`,
