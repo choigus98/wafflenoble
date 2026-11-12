@@ -91,7 +91,8 @@ export function InlineCardEditor({
   onChange: (block: StoryBlock) => void;
   autoFocus: boolean;
 }) {
-  const { draft, update } = useDraft(block, onChange);
+  // 입력칸에서 벗어나면 바로 반영한다 (고치자마자 발행을 눌러도 마지막 글자가 빠지지 않게)
+  const { draft, update, flush } = useDraft(block, onChange);
   const firstField = draft.kind === 'live' ? 'streamer' : 'donor';
 
   const field: FieldRenderer = ({ name, value, label, placeholder, maxLength, className, multiline }) => {
@@ -105,6 +106,7 @@ export function InlineCardEditor({
         maxLength={maxLength}
         rows={1}
         onChange={(e) => set(e.target.value)}
+        onBlur={flush}
         className={cn(className, INLINE_EDIT, 'resize-none field-sizing-content')}
       />
     ) : (
@@ -117,6 +119,7 @@ export function InlineCardEditor({
         autoFocus={autoFocus && name === firstField}
         size={Math.max(2, [...(value || placeholder)].length)}
         onChange={(e) => set(e.target.value)}
+        onBlur={flush}
         className={cn(className, INLINE_EDIT, 'field-sizing-content')}
       />
     );

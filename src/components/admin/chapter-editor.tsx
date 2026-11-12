@@ -6,7 +6,11 @@ import StarterKit from '@tiptap/starter-kit';
 import Link from 'next/link';
 import { useEffect, useRef, useState, useTransition, type ReactNode } from 'react';
 import { deleteChapter, saveChapter, setChapterStatus } from '@/app/admin/actions';
-import { StoryBlockNode } from '@/components/admin/story-block/story-block-node';
+import {
+  StoryBlockNode,
+  createTemplateEditingStore,
+  useEditingTemplateUid,
+} from '@/components/admin/story-block/story-block-node';
 import { TemplateMenu } from '@/components/admin/story-block/template-menu';
 import { SubmitButton } from '@/components/submit-button';
 import { Badge, Button, buttonClass } from '@/components/ui';
@@ -63,6 +67,9 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
   const [savedAt, setSavedAt] = useState(chapter.updatedAt);
   const [counts, setCounts] = useState({ all: 0, noSpace: 0 });
   const [statusPending, startStatusTransition] = useTransition();
+  // 지금 편집 중인 템플릿 (한 번에 하나만). 편집 중에는 발행·수정 반영을 막는다
+  const [templateStore] = useState(createTemplateEditingStore);
+  const editingTemplate = useEditingTemplateUid(templateStore) !== null;
   // 서버본보다 새 로컬 사본이 있으면 복구 배너를 띄운다 (이 컴포넌트는 브라우저에서만 그려짐)
   const [recovery, setRecovery] = useState<LocalCopy | null>(() => {
     const copy = readLocalCopy(chapter.id);
@@ -96,6 +103,11 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
 
   async function save(): Promise<boolean> {
     clearTimer();
+    // 발행된 회차의 저장은 곧 길드원에게 반영이라, 템플릿을 고치는 중에는 막는다
+    if (statusRef.current === 'published' && templateStore.get() !== null) {
+      setMessage({ tone: 'error', text: '편집 중인 템플릿을 완료해야 수정을 반영할 수 있어요' });
+      return false;
+    }
     const snapshot = { ...draftRef.current };
     const positionNumber = Number(snapshot.position);
     if (!Number.isInteger(positionNumber) || positionNumber < 1) {
@@ -168,7 +180,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
         underline: false,
       }),
       Placeholder.configure({ placeholder: '여기에 본문을 써 주세요' }),
-      StoryBlockNode,
+      StoryBlockNode.configure({ editingStore: templateStore }),
     ],
     content: chapter.contentHtml,
     editorProps: {
@@ -249,6 +261,10 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
   }
 
   function changeStatus(next: 'draft' | 'published') {
+    if (next === 'published' && templateStore.get() !== null) {
+      setMessage({ tone: 'error', text: '편집 중인 템플릿을 완료해야 발행할 수 있어요' });
+      return;
+    }
     startStatusTransition(async () => {
       // 발행 전에 지금 내용을 먼저 저장
       if (next === 'published' && saveState !== 'saved' && !(await save())) return;
@@ -336,7 +352,20 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
       <div className="sticky top-0 z-20 -mx-1 mt-5 bg-bg/90 px-1 py-2 backdrop-blur-md">
         <div className="flex flex-wrap items-center justify-between gap-2">
           {editor ? <Toolbar editor={editor} /> : <div className="h-10" />}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {editingTemplate ? (
+              // 편집 중에는 발행이 막힌다는 걸 알려 주고, 여기서 바로 편집을 마칠 수 있게
+              <span className="flex items-center gap-1 text-xs text-muted">
+                <span className="hidden sm:inline">템플릿 편집 중이라 {status === 'draft' ? '발행' : '반영'}할 수 없어요</span>
+                <button
+                  type="button"
+                  onClick={() => templateStore.set(null)}
+                  className="h-8 rounded-lg px-2 font-semibold text-accent transition hover:bg-accent-soft"
+                >
+                  템플릿 편집 마치기
+                </button>
+              </span>
+            ) : null}
             {status === 'draft' ? (
               <>
                 <Button
@@ -348,7 +377,13 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
                 >
                   저장
                 </Button>
-                <Button type="button" size="sm" onClick={() => changeStatus('published')} disabled={statusPending}>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => changeStatus('published')}
+                  disabled={statusPending || editingTemplate}
+                  title={editingTemplate ? '편집 중인 템플릿을 완료해야 발행할 수 있어요' : undefined}
+                >
                   발행하기
                 </Button>
               </>
@@ -367,7 +402,8 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
                   type="button"
                   size="sm"
                   onClick={() => void save()}
-                  disabled={saveState === 'saved' || saveState === 'saving'}
+                  disabled={saveState === 'saved' || saveState === 'saving' || editingTemplate}
+                  title={editingTemplate ? '편집 중인 템플릿을 완료해야 반영할 수 있어요' : undefined}
                 >
                   수정 반영
                 </Button>

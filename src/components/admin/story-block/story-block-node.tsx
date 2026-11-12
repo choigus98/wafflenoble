@@ -1,34 +1,87 @@
 'use client';
 
 import { Node, NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from '@tiptap/react';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useSyncExternalStore, type ReactNode } from 'react';
 import { StoryBlockView } from '@/components/story-block-view';
 import { newId, parseStoryBlock, templateLabel, type StoryBlock } from '@/lib/story-blocks';
 import { cn } from '@/lib/utils';
 import { ConversationEditor, InlineCardEditor } from './block-editor';
 
+// ─── 지금 편집 중인 템플릿 (에디터마다 하나) ─────────────────────
+// 템플릿은 한 번에 하나만 편집한다. 회차 에디터가 이 값을 보고 편집 중에는 발행을 막는다.
+
+export type TemplateEditingStore = {
+  get: () => string | null;
+  set: (uid: string | null) => void;
+  subscribe: (listener: () => void) => () => void;
+};
+
+export function createTemplateEditingStore(): TemplateEditingStore {
+  let current: string | null = null;
+  const listeners = new Set<() => void>();
+  return {
+    get: () => current,
+    set: (uid) => {
+      if (uid === current) return;
+      current = uid;
+      for (const listener of listeners) listener();
+    },
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+  };
+}
+
+export function useEditingTemplateUid(store: TemplateEditingStore): string | null {
+  return useSyncExternalStore(store.subscribe, store.get, () => null);
+}
+
+// configure 없이 쓰였을 때를 위한 기본 저장소
+const fallbackStore = createTemplateEditingStore();
+
 /**
  * ProseMirror는 같은 종류의 다른 노드에 이 뷰를 재사용할 수 있다.
- * 블록마다 붙인 편집용 uid를 key로 써서, 다른 블록이 되면 편집 상태를 새로 만든다.
+ * 블록마다 붙인 편집용 uid를 key로 써서, 다른 블록이 되면 상태를 새로 만든다.
  */
 function StoryBlockNodeView(props: NodeViewProps) {
   return <StoryBlockItem key={String(props.node.attrs.uid ?? '')} {...props} />;
 }
 
-function StoryBlockItem({ node, editor, getPos, selected, deleteNode }: NodeViewProps) {
+function StoryBlockItem({ node, editor, getPos, selected, deleteNode, extension }: NodeViewProps) {
+  const store: TemplateEditingStore = extension.options.editingStore ?? fallbackStore;
+  const editingUid = useEditingTemplateUid(store);
   const block = parseStoryBlock(node.attrs.kind, node.attrs.data);
   const uid = node.attrs.uid as string | null;
   const isNew = node.attrs.isNew === true;
-  // 방금 넣은 대화형 템플릿은 대본 편집 창을 바로 연다
-  const [editing, setEditing] = useState(isNew);
+  const isConversation = block?.kind === 'kakao' || block?.kind === 'chat';
+  const editing = uid !== null && editingUid === uid;
 
+  const open = () => {
+    if (uid !== null) store.set(uid); // 다른 템플릿 편집 창은 닫힌다 (닫히면서 고친 내용 저장)
+  };
+  const close = () => {
+    if (store.get() === uid) store.set(null);
+  };
+
+  // 방금 넣은 템플릿: 대화형은 대본 편집 창을 바로 열고, 카드형은 다른 편집 창을 닫는다 (첫 칸에 커서)
   // '방금 넣음' 표시는 한 번 쓰고 지운다 (되돌리기 기록에는 남기지 않음)
   useEffect(() => {
     if (!isNew) return;
     const pos = getPos();
     if (typeof pos !== 'number') return;
     editor.view.dispatch(editor.state.tr.setNodeAttribute(pos, 'isNew', false).setMeta('addToHistory', false));
-  }, [editor, getPos, isNew]);
+    store.set(isConversation ? uid : null);
+  }, [editor, getPos, isNew, isConversation, store, uid]);
+
+  // 지워지거나 화면에서 빠지면 '편집 중' 표시를 정리 (발행 버튼이 계속 막혀 있지 않게)
+  useEffect(() => {
+    return () => {
+      if (uid !== null && store.get() === uid) store.set(null);
+    };
+  }, [store, uid]);
 
   /**
    * 편집 내용 반영. 이 자리에 다른 블록이 와 있으면 쓰지 않는다 (잘못된 블록에 덮어쓰기 방지).
@@ -96,35 +149,31 @@ function StoryBlockItem({ node, editor, getPos, selected, deleteNode }: NodeView
       {/* 본문 영역(.novel-body)의 읽기 글꼴·크기가 편집 UI에 번지지 않도록 기본값으로 되돌린다 */}
       <div contentEditable={false} className="font-sans text-[15px] leading-normal tracking-normal whitespace-normal">
         {block.kind === 'live' || block.kind === 'donation' ? (
-          // 방송창·후원 알림: 카드의 글자를 눌러 그 자리에서 바로 고친다
-          <div className={frame}>
+          // 방송창·후원 알림: 카드의 글자를 눌러 그 자리에서 바로 고친다. 고치기 시작하면 열려 있던 대본 창은 닫힌다
+          <div className={frame} onFocusCapture={() => store.set(null)}>
             <InlineCardEditor block={block} onChange={commit} autoFocus={isNew} />
             {toolbar(null)}
           </div>
         ) : editing ? (
-          <ConversationEditor block={block} onChange={commit} onClose={() => setEditing(false)} onDelete={deleteNode} />
+          <ConversationEditor block={block} onChange={commit} onClose={close} onDelete={deleteNode} />
         ) : (
           // 카톡·채팅창: 카드를 누르면 대본 편집 창이 열린다
           <div
             role="button"
             tabIndex={0}
             aria-label={`${templateLabel(block)} 대본 고치기`}
-            onClick={() => setEditing(true)}
+            onClick={open}
             onKeyDown={(event) => {
               if (event.key === 'Enter' || event.key === ' ') {
                 event.preventDefault();
-                setEditing(true);
+                open();
               }
             }}
             className={cn(frame, 'cursor-pointer focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none')}
           >
             <StoryBlockView block={block} />
             {toolbar(
-              <button
-                type="button"
-                onClick={() => setEditing(true)}
-                className="h-7 rounded-full bg-accent px-3 text-xs font-semibold text-accent-fg"
-              >
+              <button type="button" onClick={open} className="h-7 rounded-full bg-accent px-3 text-xs font-semibold text-accent-fg">
                 대본 고치기
               </button>,
             )}
@@ -139,12 +188,16 @@ function StoryBlockItem({ node, editor, getPos, selected, deleteNode }: NodeView
  * 본문 속 템플릿 블록 노드. 문서에는 kind·data 속성만 들고, HTML로는
  * <div data-wn-block="종류" data-wn-data="JSON"></div> 한 줄로 저장된다 (lib/story-blocks.ts)
  */
-export const StoryBlockNode = Node.create({
+export const StoryBlockNode = Node.create<{ editingStore: TemplateEditingStore | null }>({
   name: 'storyBlock',
   group: 'block',
   atom: true,
   draggable: true,
   selectable: true,
+
+  addOptions() {
+    return { editingStore: null };
+  },
 
   addAttributes() {
     return {
