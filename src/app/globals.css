@@ -272,6 +272,11 @@
   --wn-stock-up: #d32f2f;
   --wn-stock-down: #1d4ed8;
   --wn-stock-flat: #5f6672;
+  --wn-bank-bg: #ffffff;
+  --wn-bank-in: #1d4ed8;
+  --wn-bank-muted: #5f6672;
+  --wn-bank-badge: #1d4ed8;
+  --wn-bank-badge-fg: #ffffff;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -535,6 +540,11 @@
     --wn-stock-up: #f87171;
     --wn-stock-down: #60a5fa;
     --wn-stock-flat: rgb(255 255 255 / 0.62);
+    --wn-bank-bg: #17191e;
+    --wn-bank-in: #60a5fa;
+    --wn-bank-muted: rgb(255 255 255 / 0.62);
+    --wn-bank-badge: #60a5fa;
+    --wn-bank-badge-fg: #17191e;
   }
 }
 
@@ -797,6 +807,11 @@
   --wn-stock-up: #f87171;
   --wn-stock-down: #60a5fa;
   --wn-stock-flat: rgb(255 255 255 / 0.62);
+  --wn-bank-bg: #17191e;
+  --wn-bank-in: #60a5fa;
+  --wn-bank-muted: rgb(255 255 255 / 0.62);
+  --wn-bank-badge: #60a5fa;
+  --wn-bank-badge-fg: #17191e;
 }
 
 @theme inline {

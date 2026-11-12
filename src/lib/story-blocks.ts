@@ -262,6 +262,13 @@ const stockSchema = z.object({
   points: text(600), // 흐름 그래프 숫자 ('70,100 70,800 …' 띄어 써서). 두 개 이상이면 그래프
 });
 
+const bankSchema = z.object({
+  bank: text(20), // 은행 이름 ('와플은행'). 동그라미에는 첫 글자. 비우면 안 보임
+  account: text(40), // 통장 이름·계좌 번호 ('입출금 통장 · 110-123-456789'). 비우면 안 보임
+  balance: text(30), // 잔액 ('1,234,500원'). 비우면 안 보임
+  script: text(LIMITS.script), // 거래 대본 (규칙은 parseBankScript 위 설명)
+});
+
 const translateSchema = z.object({
   from: text(20), // 원문 언어 ('한국어'). 비우면 안 보임
   to: text(20), // 번역 언어 ('일본어'). 비우면 안 보임
@@ -359,6 +366,7 @@ export const storyBlockSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('taxi'), data: taxiSchema }),
   z.object({ kind: z.literal('translate'), data: translateSchema }),
   z.object({ kind: z.literal('stock'), data: stockSchema }),
+  z.object({ kind: z.literal('bank'), data: bankSchema }),
 ]);
 
 export type StoryBlock = z.infer<typeof storyBlockSchema>;
@@ -396,6 +404,7 @@ export type ProfileData = z.infer<typeof profileSchema>;
 export type TaxiData = z.infer<typeof taxiSchema>;
 export type TranslateData = z.infer<typeof translateSchema>;
 export type StockData = z.infer<typeof stockSchema>;
+export type BankData = z.infer<typeof bankSchema>;
 
 /** 메일 보낸 사람 '김지은 <jieun@example.com>' → 이름과 주소. 꺾쇠가 없으면 적은 그대로 이름으로 */
 export function splitMailSender(from: string): { name: string; address: string } {
@@ -952,6 +961,62 @@ export function stockDirection(change: string, points: number[]): StockDirection
   return 'flat';
 }
 
+// ─── 통장 거래 내역 ──────────────────────────────────────
+// 거래 대본: 한 줄에 거래 하나 (위가 최근).
+// - '14:05 와플 가게: -4,500원 잔액 1,234,500원' → 때(앞의 날짜·시각, '[어제]'처럼 대괄호도) · 내용(쌍점 앞) · 금액(쌍점 뒤)
+//   쌍점은 시각(14:05)의 것이 아닌 마지막 것. 쌍점이 없어도 '와플 가게 -4,500원'처럼 +·- 붙은 금액이 있으면 거기서 나눈다
+// - 금액 앞이 + 또는 '입금'이면 입금, - · − 또는 '출금'이면 출금, 기호가 없으면 적은 그대로(색 없이)
+// - 금액 뒤 나머지('잔액 1,234,500원')는 작은 글씨로, 금액으로 못 읽으면 쌍점 뒤 글을 그대로
+// - 금액이 없는 줄('11.13 (금)')은 날짜 묶음 제목
+
+export type BankFlow = 'in' | 'out' | 'none';
+export type BankLine =
+  | { type: 'entry'; when: string; detail: string; flow: BankFlow; amount: string; rest: string }
+  | { type: 'heading'; text: string };
+
+const BANK_WHEN =
+  /^(?:\[([^\]]{1,30})\]|(\d{1,4}[./-]\d{1,2}(?:[./-]\d{1,2})?\.?(?:\s*\([^)]{1,3}\))?(?:\s+(?:오전|오후)?\s*\d{1,2}:\d{2}(?::\d{2})?)?|(?:오전|오후)?\s*\d{1,2}:\d{2}(?::\d{2})?))\s+/;
+const BANK_MONEY = /^(입금|출금|[+\-−])?\s*([₩$€¥£]?\d[\d,]*(?:\.\d+)?\S*)\s*(.*)$/;
+
+/** 내용과 금액을 나누는 쌍점: 시각(14:05)처럼 숫자 사이에 낀 것은 빼고 마지막 것 */
+function bankColon(text: string): number {
+  for (let index = text.length - 1; index > 0; index -= 1) {
+    if (text[index] !== ':' && text[index] !== '：') continue;
+    if (/\d/.test(text[index - 1]) && /\d/.test(text[index + 1] ?? '')) continue;
+    return index;
+  }
+  return -1;
+}
+
+export function parseBankScript(script: string): BankLine[] {
+  const lines: BankLine[] = [];
+  for (const raw of script.split(/\r?\n/)) {
+    if (lines.length >= LIMITS.lines) break;
+    const line = raw.trim();
+    if (!line) continue;
+    const whenMatch = line.match(BANK_WHEN);
+    const when = whenMatch ? (whenMatch[1] ?? whenMatch[2] ?? '').trim() : '';
+    const body = whenMatch ? line.slice(whenMatch[0].length) : line;
+    const colon = bankColon(body);
+    const signed = colon > 0 ? -1 : body.search(/\s(?:입금|출금|[+\-−])\s?\d/);
+    if (colon <= 0 && signed < 0) {
+      lines.push({ type: 'heading', text: line });
+      continue;
+    }
+    const detail = (colon > 0 ? body.slice(0, colon) : body.slice(0, signed)).trim();
+    const money = (colon > 0 ? body.slice(colon + 1) : body.slice(signed)).trim();
+    const found = money.match(BANK_MONEY);
+    if (!found) {
+      lines.push({ type: 'entry', when, detail, flow: 'none', amount: '', rest: money });
+      continue;
+    }
+    const sign = found[1] ?? '';
+    const flow: BankFlow = sign === '+' || sign === '입금' ? 'in' : sign ? 'out' : 'none';
+    lines.push({ type: 'entry', when, detail, flow, amount: found[2], rest: found[3].trim() });
+  }
+  return lines;
+}
+
 // ─── 메신저 프로필 배경 ──────────────────────────────────────
 // 배경 말로 그라데이션을 고른다: 노을·저녁·석양·주황 → 노을, 밤·별·달빛·새벽 → 밤(밤하늘도), 바다·하늘·파도·파랑 → 바다,
 // 벚꽃·봄·분홍·꽃 → 벚꽃, 숲·나무·초록·풀 → 숲, 그 밖은 기본(회색). 모두 흰 글씨가 대비 4.5:1 이상인 진한 색
@@ -1241,7 +1306,8 @@ export type TemplateKey =
   | 'profile'
   | 'taxi'
   | 'translate'
-  | 'stock';
+  | 'stock'
+  | 'bank';
 
 export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }> = [
   { key: 'kakao-dm', label: '카톡 1:1 대화', hint: '두 사람의 메신저 대화' },
@@ -1282,6 +1348,7 @@ export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }>
   { key: 'taxi', label: '택시 호출', hint: '배차 완료 · 몇 분 후 도착 · 차량 번호 · 차종 · 기사 · 출발 → 도착' },
   { key: 'translate', label: '번역기', hint: '원문 언어 → 번역 언어 · 원문 · 번역문 · 발음' },
   { key: 'stock', label: '주식 시세', hint: '종목 · 현재가 · 오르면 빨강 내리면 파랑 · 거래량 · 흐름 그래프' },
+  { key: 'bank', label: '통장 거래 내역', hint: '은행 · 계좌 · 잔액 · 입금은 파랑 출금은 기본색 · 거래 기록' },
 ];
 
 export function templateLabel(block: StoryBlock): string {
@@ -1418,6 +1485,16 @@ export function createTemplate(key: TemplateKey): StoryBlock {
       return {
         kind: 'location',
         data: { badge: '위치 공유', place: '골목 끝 와플 가게', address: '와플시 반죽구 시럽로 12, 1층', note: '여기서 기다릴게' },
+      };
+    case 'bank':
+      return {
+        kind: 'bank',
+        data: {
+          bank: '와플은행',
+          account: '입출금 통장 · 110-123-456789',
+          balance: '1,234,500원',
+          script: '11.13 (금)\n14:05 와플 가게: -4,500원 잔액 1,234,500원\n09:12 김지은: +50,000원 잔액 1,239,000원\n11.12 (목)\n18:30 시럽 마트: -12,800원 잔액 1,189,000원',
+        },
       };
     case 'stock':
       return {

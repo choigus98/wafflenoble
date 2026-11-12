@@ -41,6 +41,7 @@ import {
   profileTone,
   parseStockPoints,
   stockDirection,
+  parseBankScript,
   todoProgress,
   weatherKind,
   type AlarmData,
@@ -70,6 +71,7 @@ import {
   type ParcelData,
   type TicketData,
   type MatchData,
+  type BankData,
   type ProfileData,
   type TaxiData,
   type TranslateData,
@@ -174,6 +176,8 @@ export function StoryBlockView({ block }: { block: StoryBlock }) {
       return <TranslateCard data={block.data} />;
     case 'stock':
       return <StockCard data={block.data} />;
+    case 'bank':
+      return <BankCard data={block.data} />;
   }
 }
 
@@ -2579,6 +2583,72 @@ export function StockCard({ data, field }: { data: StockData; field?: FieldRende
           ) : null}
           {show('note') ? <span className="max-w-full break-keep">{slot('note', '맨 아래 한 줄 (비우면 안 보여요)', 40, 'max-w-full')}</span> : null}
         </div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * 통장 거래 내역: 은행 앱 카드 (은행 동그라미 · 계좌 · 잔액(크게) · 거래 목록).
+ * 거래는 대본 한 줄에 하나 (parseBankScript, 위가 최근): 왼쪽에 내용과 때, 오른쪽에 금액(입금은 파랑 +, 출금은 기본색 −)과
+ * 금액 뒤 나머지('잔액 …'). 금액이 없는 줄은 날짜 묶음 제목. 낭독기에는 금액 앞에 '입금' · '출금'을 읽어 주고 + · − 기호는 숨긴다
+ */
+function BankCard({ data }: { data: BankData }) {
+  const records = parseBankScript(data.script);
+  const badge = [...data.bank.trim()][0] ?? '은';
+  const empty = !data.bank.trim() && !data.account.trim() && !data.balance.trim() && records.length === 0;
+
+  return (
+    <div className="wn-block mx-auto w-full max-w-[420px] rounded-[20px] border border-(--wn-border) bg-(--wn-bank-bg) px-5 pt-4 pb-4 text-(--wn-fg) shadow-sm">
+      {empty ? <p className="text-sm text-(--wn-bank-muted)">통장 거래 내역</p> : null}
+      {data.bank.trim() || data.account.trim() ? (
+        <div className="flex items-center gap-2.5">
+          <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-full bg-(--wn-bank-badge) text-sm font-bold text-(--wn-bank-badge-fg)">
+            {badge}
+          </span>
+          <div className="min-w-0">
+            {data.bank.trim() ? <div className="text-sm font-bold break-keep">{data.bank}</div> : null}
+            {data.account.trim() ? <div className="text-xs break-keep text-(--wn-bank-muted) tabular-nums">{data.account}</div> : null}
+          </div>
+        </div>
+      ) : null}
+      {data.balance.trim() ? (
+        <div className="mt-3">
+          <div className="text-xs text-(--wn-bank-muted)">잔액</div>
+          <div className="text-[26px] leading-tight font-bold break-keep tabular-nums">{data.balance}</div>
+        </div>
+      ) : null}
+      {records.length > 0 ? (
+        <ul aria-label="거래 내역" className={cn('pt-1', !empty && (data.bank.trim() || data.account.trim() || data.balance.trim()) && 'mt-4 border-t border-(--wn-line)')}>
+          {records.map((record, index) =>
+            record.type === 'heading' ? (
+              <li key={index} className="pt-3 pb-0.5 text-xs font-semibold break-keep text-(--wn-bank-muted)">
+                {record.text}
+              </li>
+            ) : (
+              <li key={index} className="flex items-start justify-between gap-3 py-2">
+                <div className="min-w-0 flex-1">
+                  {record.detail ? <div className="text-sm font-medium break-keep">{record.detail}</div> : null}
+                  {record.when ? <div className="text-xs break-keep text-(--wn-bank-muted) tabular-nums">{record.when}</div> : null}
+                </div>
+                <div className="max-w-[60%] shrink-0 text-right">
+                  {record.amount ? (
+                    <div className={cn('text-sm font-bold break-keep tabular-nums', record.flow === 'in' && 'text-(--wn-bank-in)')}>
+                      {record.flow === 'none' ? null : (
+                        <>
+                          <span className="sr-only">{record.flow === 'in' ? '입금 ' : '출금 '}</span>
+                          <span aria-hidden="true">{record.flow === 'in' ? '+' : '−'}</span>
+                        </>
+                      )}
+                      {record.amount}
+                    </div>
+                  ) : null}
+                  {record.rest ? <div className="text-xs break-keep text-(--wn-bank-muted) tabular-nums">{record.rest}</div> : null}
+                </div>
+              </li>
+            ),
+          )}
+        </ul>
       ) : null}
     </div>
   );

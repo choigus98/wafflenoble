@@ -49,6 +49,7 @@ import {
   type TemplateKey,
   parseStockPoints,
   stockDirection,
+  parseBankScript,
 } from '@/lib/story-blocks';
 
 // 브라우저 DOM 직렬화처럼 & 와 " 만 이스케이프 (Tiptap getHTML 결과 흉내)
@@ -102,6 +103,7 @@ const KEYS: TemplateKey[] = [
   'taxi',
   'translate',
   'stock',
+  'bank',
 ];
 
 function withTrickyText(block: StoryBlock): StoryBlock {
@@ -166,6 +168,8 @@ function withTrickyText(block: StoryBlock): StoryBlock {
       return { ...block, data: { ...block.data, source: `${TRICKY}\n둘째 줄 <i>기울임</i>`.slice(0, 300), result: '"따옴표" & <b>굵게</b> 😀', pronounce: '' } };
     case 'stock':
       return { ...block, data: { ...block.data, name: '<b>와플</b> & "전자" 😀', note: TRICKY.slice(0, 40), points: '1 2 abc 3' } };
+    case 'bank':
+      return { ...block, data: { ...block.data, bank: '<b>와플</b> & "은행" 😀', account: TRICKY.slice(0, 40), script: `${block.data.script}\n${TRICKY}: -1,000원 <i>잔액</i>` } };
     case 'match':
       return { ...block, data: { ...block.data, mvp: '<b>하연화</b> & 😀', script: `${block.data.script}\n* ${TRICKY}: 1 / 2 / 3` } };
     case 'ticket':
@@ -872,5 +876,29 @@ describe('주식 시세', () => {
     expect(stockDirection('0 (0.00%)', [5, 3])).toBe('down');
     expect(stockDirection('보합', [4, 4])).toBe('flat');
     expect(stockDirection('', [])).toBe('flat');
+  });
+});
+
+describe('통장 거래 내역', () => {
+  it('거래 줄: 때 · 내용 · 금액(+ · 입금은 입금, - · − · 출금은 출금, 기호가 없으면 그대로) · 금액 뒤 나머지, 금액 없는 줄은 날짜 제목', () => {
+    expect(parseBankScript('11.13 (금)\n14:05 와플 가게: -4,500원 잔액 1,234,500원\n09:12 김지은: +50,000원\n[어제] 월급: 입금 2,500,000원\n시럽 마트: −12,800원\n환불: 3,000원')).toEqual([
+      { type: 'heading', text: '11.13 (금)' },
+      { type: 'entry', when: '14:05', detail: '와플 가게', flow: 'out', amount: '4,500원', rest: '잔액 1,234,500원' },
+      { type: 'entry', when: '09:12', detail: '김지은', flow: 'in', amount: '50,000원', rest: '' },
+      { type: 'entry', when: '어제', detail: '월급', flow: 'in', amount: '2,500,000원', rest: '' },
+      { type: 'entry', when: '', detail: '시럽 마트', flow: 'out', amount: '12,800원', rest: '' },
+      { type: 'entry', when: '', detail: '환불', flow: 'none', amount: '3,000원', rest: '' },
+    ]);
+  });
+
+  it('쌍점은 시각의 것이 아닌 마지막 것, 쌍점이 없으면 +·- 붙은 금액에서 나누고, 금액으로 못 읽으면 글 그대로', () => {
+    const entry = (when: string, detail: string, flow: string, amount: string, rest = '') => [{ type: 'entry', when, detail, flow, amount, rest }];
+    expect(parseBankScript('11.13 14:05 이체: 김지은: +10,000원')).toEqual(entry('11.13 14:05', '이체: 김지은', 'in', '10,000원'));
+    expect(parseBankScript('와플 가게 14:05 -4,500원')).toEqual(entry('', '와플 가게 14:05', 'out', '4,500원'));
+    expect(parseBankScript('와플 가게:4,500원')).toEqual(entry('', '와플 가게', 'none', '4,500원'));
+    expect(parseBankScript('와플 가게: 결제 대기')).toEqual(entry('', '와플 가게', 'none', '', '결제 대기'));
+    expect(parseBankScript('해외 결제: -$12.50')).toEqual(entry('', '해외 결제', 'out', '$12.50'));
+    expect(parseBankScript('오후 2:05 김지은 입금 10,000원')).toEqual(entry('오후 2:05', '김지은', 'in', '10,000원'));
+    expect(parseBankScript('\n  \n')).toEqual([]);
   });
 });

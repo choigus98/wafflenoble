@@ -26,6 +26,7 @@ import {
   todoProgress,
   type StoryBlock,
   parseStockPoints,
+  parseBankScript,
 } from '@/lib/story-blocks';
 
 export type DocNode = { type: string; text?: string; attrs?: Record<string, unknown>; content?: DocNode[] };
@@ -178,6 +179,24 @@ export function storyBlockToText(block: StoryBlock): string {
           .map((detail) => (detail.label ? `${detail.label}: ${detail.value}` : detail.value))
           .join(' · ');
         return lines(data.carrier, route, data.date, data.passenger.trim() && `승객: ${data.passenger.trim()}`, details);
+      }
+      case 'bank': {
+        const { data } = block;
+        // 거래 한 줄: '14:05 와플 가게 · 출금 4,500원 · 잔액 1,234,500원' (기호 대신 말로, 낭독에도 그대로 쓰임)
+        const records = parseBankScript(data.script)
+          .map((record) =>
+            record.type === 'heading'
+              ? record.text
+              : [
+                  [record.when, record.detail].filter(Boolean).join(' '),
+                  record.amount && `${record.flow === 'in' ? '입금 ' : record.flow === 'out' ? '출금 ' : ''}${record.amount}`,
+                  record.rest,
+                ]
+                  .filter(Boolean)
+                  .join(' · '),
+          )
+          .join('\n');
+        return lines([data.bank, data.account].map((value) => value.trim()).filter(Boolean).join(' · '), data.balance.trim() && `잔액 ${data.balance.trim()}`, records);
       }
       case 'parcel': {
         const { data } = block;

@@ -131,6 +131,18 @@ describe('회차 텍스트로 내보내기', () => {
     expect(storyBlockToText(createTemplate('stock'))).toBe(
       ['[주식 시세]', '와플전자 · 와플거래소 · WFL', '72,400원 +1,200 (+1.68%)', '거래량 1,234만 주 · 장 마감 · 15:30', '흐름: 70,100 → 72,400'].join('\n'),
     );
+    expect(storyBlockToText(createTemplate('bank'))).toBe(
+      [
+        '[통장 거래 내역]',
+        '와플은행 · 입출금 통장 · 110-123-456789',
+        '잔액 1,234,500원',
+        '11.13 (금)',
+        '14:05 와플 가게 · 출금 4,500원 · 잔액 1,234,500원',
+        '09:12 김지은 · 입금 50,000원 · 잔액 1,239,000원',
+        '11.12 (목)',
+        '18:30 시럽 마트 · 출금 12,800원 · 잔액 1,189,000원',
+      ].join('\n'),
+    );
     expect(storyBlockToText(createTemplate('translate'))).toBe(
       ['[번역기]', '한국어 → 일본어', '와플 하나 주세요.', 'ワッフルを一つください。', '발음: 왓후루 오 히토츠 쿠다사이'].join('\n'),
     );
@@ -166,7 +178,7 @@ describe('회차 텍스트로 내보내기', () => {
   });
 
   it('모든 템플릿이 머리 한 줄 + 글로 풀린다 (빈 줄 없이)', () => {
-    const keys = ['kakao-dm', 'kakao-group', 'live', 'chat', 'donation', 'post', 'system-quest', 'system-status', 'news', 'call-incoming', 'call-active', 'note', 'sns', 'mail', 'search', 'push', 'sms', 'receipt', 'location', 'poll', 'transfer', 'alarm', 'event', 'item', 'music', 'rank', 'todo', 'namecard', 'weather', 'subway', 'parcel', 'ticket-plane', 'ticket-train', 'match', 'profile', 'taxi', 'translate', 'stock'] as const;
+    const keys = ['kakao-dm', 'kakao-group', 'live', 'chat', 'donation', 'post', 'system-quest', 'system-status', 'news', 'call-incoming', 'call-active', 'note', 'sns', 'mail', 'search', 'push', 'sms', 'receipt', 'location', 'poll', 'transfer', 'alarm', 'event', 'item', 'music', 'rank', 'todo', 'namecard', 'weather', 'subway', 'parcel', 'ticket-plane', 'ticket-train', 'match', 'profile', 'taxi', 'translate', 'stock', 'bank'] as const;
     for (const key of keys) {
       const text = storyBlockToText(createTemplate(key));
       const [head, ...rest] = text.split('\n');
