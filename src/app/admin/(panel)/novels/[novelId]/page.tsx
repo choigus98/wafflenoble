@@ -7,7 +7,7 @@ import { ChapterMoveButtons } from '@/components/admin/chapter-move-buttons';
 import { DeleteNovelForm } from '@/components/admin/delete-novel-form';
 import { NovelForm } from '@/components/admin/novel-form';
 import { SubmitButton } from '@/components/submit-button';
-import { Badge, Card, Skeleton } from '@/components/ui';
+import { Badge, Card, Skeleton, buttonClass } from '@/components/ui';
 import { CHAPTER_FILTERS, countChapters, filterChapters, parseChapterFilter } from '@/lib/chapter-filter';
 import { formatDate, formatNumber, formatRelative, formatSchedule } from '@/lib/format';
 import { adminGetNovel } from '@/lib/queries/admin';
@@ -158,6 +158,33 @@ async function NovelAdmin({ params, searchParams }: Pick<PageProps<'/admin/novel
               characters: novel.characters,
             }}
           />
+        </Card>
+      </section>
+
+      {/* 사람이 읽는 글 파일 (기계용 전체 백업 JSON은 설정 화면) */}
+      <section className="space-y-3">
+        <h2 className="font-bold">텍스트로 내보내기</h2>
+        <Card>
+          <p className="text-sm leading-relaxed text-muted">
+            회차를 순서대로 한 .txt 파일로 내려받아요. 템플릿도 글로 풀어서 들어가요. 보관하거나 다른 곳에 옮겨 적을 때 쓰세요.
+          </p>
+          {allChapters.length === 0 ? (
+            <p className="mt-3 text-sm text-muted">아직 회차가 없어요.</p>
+          ) : (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {counts.published > 0 ? (
+                // Link가 아닌 a: 미리 불러오기 없이 누를 때만 받는다
+                <a href={`/admin/novels/${novel.id}/export?scope=published`} download className={buttonClass('secondary', 'sm')}>
+                  발행한 회차만 · {counts.published}화
+                </a>
+              ) : (
+                <span className="text-sm text-muted">발행한 회차는 아직 없어요</span>
+              )}
+              <a href={`/admin/novels/${novel.id}/export`} download className={buttonClass('secondary', 'sm')}>
+                임시저장·예약까지 전체 · {allChapters.length}화
+              </a>
+            </div>
+          )}
         </Card>
       </section>
 

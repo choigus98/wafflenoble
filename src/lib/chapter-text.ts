@@ -147,7 +147,7 @@ export function storyBlockToText(block: StoryBlock): string {
  * 본문 블록들을 글 줄로. 템플릿 앞뒤는 정확히 한 줄씩 띄운다 (앞뒤 문단과 붙어 보이지 않게).
  * 작가가 넣은 빈 문단이 이미 그 자리에 있으면 그 줄로 대신하고, 템플릿끼리 붙어 있어도 한 줄만
  */
-function bodyText(doc: DocNode): string {
+export function bodyText(doc: DocNode): string {
   const out: string[] = [];
   let blankAfterBlock = false;
   const push = (line: string) => {
@@ -189,4 +189,35 @@ export function chapterFileName(novelTitle: string, position: number | string, t
     .replace(/\s+/g, ' ')
     .trim();
   return `${[...name].slice(0, 80).join('') || '회차'}.txt`;
+}
+
+const CHAPTER_RULE = '──────────';
+
+/**
+ * 작품 전체를 한 글로: 맨 위 『작품』과 소개, 회차마다 구분선 · 'N화 제목' · 본문 · 작가의 말.
+ * 회차 본문 규칙은 회차 하나 내보내기(chapterToText)와 같다
+ */
+export function novelToText(input: {
+  title: string;
+  description: string;
+  chapters: Array<{ position: number; title: string; doc: DocNode; authorNote: string }>;
+}): string {
+  const parts = [`『${input.title.trim()}』`];
+  if (input.description.trim()) parts.push(input.description.trim());
+  if (input.chapters.length === 0) parts.push('(내보낼 회차가 없어요)');
+  for (const chapter of input.chapters) {
+    const section = [CHAPTER_RULE, [`${chapter.position}화`, chapter.title.trim()].filter(Boolean).join(' ')];
+    const body = bodyText(chapter.doc);
+    const lines = [section.join('\n\n')];
+    if (body) lines.push(body);
+    if (chapter.authorNote.trim()) lines.push(`[작가의 말]\n${chapter.authorNote.trim()}`);
+    parts.push(lines.join('\n\n'));
+  }
+  return `${parts.join('\n\n')}\n`;
+}
+
+/** 작품 전체 파일 이름: '달빛 와플 가게의 비밀 (발행 회차).txt' */
+export function novelFileName(title: string, scope: 'all' | 'published'): string {
+  const name = title.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '').replace(/\s+/g, ' ').trim();
+  return `${[...name].slice(0, 70).join('') || '작품'} (${scope === 'published' ? '발행 회차' : '전체 회차'}).txt`;
 }

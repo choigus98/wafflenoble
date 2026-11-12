@@ -85,6 +85,27 @@ export async function adminListScheduledChapters(limit = 50) {
   return rows.flatMap((row) => (row.publishedAt ? [{ ...row, publishedAt: row.publishedAt }] : []));
 }
 
+/** 작품 전체 텍스트 내보내기: 회차를 순서대로 (published면 길드원에게 보이는 회차만 — 임시저장·예약 대기는 뺀다) */
+export async function adminExportNovelText(novelId: number, scope: 'all' | 'published') {
+  await requireAdmin();
+  const novel = await db.query.novels.findFirst({ where: eq(novels.id, novelId) });
+  if (!novel) return null;
+  const rows = await db
+    .select({
+      position: chapters.position,
+      title: chapters.title,
+      contentHtml: chapters.contentHtml,
+      authorNote: chapters.authorNote,
+      status: chapters.status,
+      scheduled: isScheduledChapter,
+    })
+    .from(chapters)
+    .where(eq(chapters.novelId, novelId))
+    .orderBy(asc(chapters.position), asc(chapters.id));
+  const list = scope === 'published' ? rows.filter((row) => row.status === 'published' && !row.scheduled) : rows;
+  return { novel, chapters: list };
+}
+
 export type RevisionItem = { id: number; createdAt: string; title: string; charCount: number; excerpt: string };
 
 /** 이 회차의 이전 발행본 (최근 것부터 10개) */
