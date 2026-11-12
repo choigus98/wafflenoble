@@ -36,6 +36,13 @@
       "when": 1794484321194,
       "tag": "0004_chapter_revisions",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794487135315,
+      "tag": "0005_novel_characters",
+      "breakpoints": true
     }
   ]
 }

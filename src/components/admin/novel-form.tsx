@@ -5,6 +5,7 @@ import { createNovel, updateNovel } from '@/app/admin/actions';
 import { NovelCover } from '@/components/novel-cover';
 import { Button, Field, FormMessage, Input, Textarea } from '@/components/ui';
 import { IDLE } from '@/lib/action-state';
+import { CHARACTERS_MAX_LENGTH } from '@/lib/characters';
 import { COVER_COLORS, COVER_COLOR_KEYS, autoCoverColor, isCoverColor, type CoverColor } from '@/lib/cover';
 import type { SerialStatus } from '@/lib/db/schema';
 import { SERIAL_STATUS_LABEL, cn } from '@/lib/utils';
@@ -17,6 +18,7 @@ type NovelInput = {
   isPublished: boolean;
   coverColor: string | null;
   scheduleNote: string;
+  characters: string;
 };
 
 const STATUSES: SerialStatus[] = ['ongoing', 'completed', 'hiatus'];
@@ -64,6 +66,21 @@ export function NovelForm({ novel }: { novel?: NovelInput }) {
           defaultValue={novel?.scheduleNote}
           maxLength={60}
           placeholder="예: 매주 금요일 저녁 8시"
+        />
+      </Field>
+
+      <Field
+        label="등장인물 (선택)"
+        htmlFor="novel-characters"
+        hint="한 줄에 한 명씩 '이름: 소개'로 적어요. 이름만 적어도 돼요. 작품 화면에 접었다 펴는 목록으로 보여요."
+      >
+        <Textarea
+          id="novel-characters"
+          name="characters"
+          defaultValue={novel?.characters}
+          rows={4}
+          maxLength={CHARACTERS_MAX_LENGTH}
+          placeholder={'지은: 골목 끝 와플 가게의 단골\n주인 할머니: 자정에만 문을 여는 가게 주인'}
         />
       </Field>
 

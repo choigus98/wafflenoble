@@ -47,6 +47,7 @@ export const novels = pgTable('novels', {
   lastPublishedAt: timestamp('last_published_at', { withTimezone: true }), // 최근 회차 발행 시각 (목록 정렬용)
   coverColor: varchar('cover_color', { length: 20 }), // 표지 색 이름 (lib/cover.ts). 비어 있으면 작품 번호로 자동
   scheduleNote: varchar('schedule_note', { length: 60 }).notNull().default(''), // '매주 금요일 저녁 8시' 같은 연재 일정. 비면 안 보임
+  characters: text('characters').notNull().default(''), // 등장인물 소개. 한 줄에 한 명 '이름: 소개' (lib/characters.ts). 비면 안 보임
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });

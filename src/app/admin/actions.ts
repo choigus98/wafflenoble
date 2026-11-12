@@ -9,6 +9,7 @@ import { requireAdmin } from '@/lib/auth/guards';
 import { hashPassword } from '@/lib/auth/password';
 import { ADMIN_COOKIE } from '@/lib/auth/session';
 import { copyTitle } from '@/lib/chapter-copy';
+import { CHARACTERS_MAX_LENGTH } from '@/lib/characters';
 import { MAX_POSITION, planChapterMove } from '@/lib/chapter-order';
 import { countCharacters, sanitizeChapterHtml } from '@/lib/content';
 import { COVER_COLOR_KEYS } from '@/lib/cover';
@@ -30,6 +31,7 @@ const novelSchema = z.object({
   title: z.string().trim().min(1, '제목을 입력해 주세요').max(100, '제목은 100자까지예요'),
   description: z.string().trim().max(2000, '소개는 2000자까지예요'),
   scheduleNote: z.string().trim().max(60, '연재 일정은 60자까지예요'),
+  characters: z.string().trim().max(CHARACTERS_MAX_LENGTH, `등장인물은 ${CHARACTERS_MAX_LENGTH.toLocaleString('ko-KR')}자까지예요`),
   serialStatus: z.enum(['ongoing', 'completed', 'hiatus'], { error: '연재 상태를 골라 주세요' }),
   isPublished: z.boolean(),
   // 정해진 색 이름만 받는다. null이면 작품 번호로 자동
@@ -41,6 +43,8 @@ function parseNovelForm(formData: FormData) {
     title: String(formData.get('title') ?? ''),
     description: String(formData.get('description') ?? ''),
     scheduleNote: String(formData.get('scheduleNote') ?? ''),
+    // 폼으로 보내면 줄바꿈이 \r\n이 되므로 \n으로 맞춰 저장
+    characters: String(formData.get('characters') ?? '').replace(/\r\n?/g, '\n'),
     serialStatus: formData.get('serialStatus'),
     isPublished: formData.get('isPublished') === 'on',
     coverColor: String(formData.get('coverColor') ?? '') || null,

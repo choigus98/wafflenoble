@@ -1,0 +1,1 @@
+ALTER TABLE "novels" ADD COLUMN "characters" text DEFAULT '' NOT NULL;

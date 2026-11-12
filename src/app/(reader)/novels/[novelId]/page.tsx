@@ -6,6 +6,7 @@ import { NovelCover } from '@/components/novel-cover';
 import { ChapterReadStatus } from '@/components/reader/chapter-read-status';
 import { TocOrderToggle } from '@/components/reader/toc-order-toggle';
 import { Badge, ButtonLink, Skeleton } from '@/components/ui';
+import { parseCharacters, type Character } from '@/lib/characters';
 import { formatDate, formatSchedule } from '@/lib/format';
 import { getNovelDetail } from '@/lib/queries/reader';
 import { TOC_ORDER_COOKIE, orderChapters, parseTocOrder } from '@/lib/toc-order';
@@ -31,6 +32,7 @@ async function NovelDetail({ params }: Pick<PageProps<'/novels/[novelId]'>, 'par
   const order = parseTocOrder((await cookies()).get(TOC_ORDER_COOKIE)?.value);
   const listed = orderChapters(chapters, order);
   const first = chapters.find((chapter) => chapter.status === 'published' && !chapter.scheduled) ?? chapters[0];
+  const characters = parseCharacters(novel.characters);
 
   return (
     <article className="pt-8">
@@ -93,6 +95,8 @@ async function NovelDetail({ params }: Pick<PageProps<'/novels/[novelId]'>, 'par
         </p>
       ) : null}
 
+      {characters.length > 0 ? <CharacterList characters={characters} /> : null}
+
       <section className="mt-10">
         <div className="mb-2 flex items-center justify-between gap-3">
           <h2 className="text-sm font-semibold text-muted">회차</h2>
@@ -142,6 +146,37 @@ async function NovelDetail({ params }: Pick<PageProps<'/novels/[novelId]'>, 'par
         )}
       </section>
     </article>
+  );
+}
+
+/** 등장인물: 처음엔 접혀 있고, 누르면 펼쳐진다 (details라 키보드·화면 낭독기에서도 '펼침/접힘'으로 읽힘) */
+function CharacterList({ characters }: { characters: Character[] }) {
+  return (
+    <details className="group mt-6 rounded-2xl border border-line bg-surface">
+      <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition hover:bg-surface-2/60 focus-visible:outline-2 focus-visible:outline-accent [&::-webkit-details-marker]:hidden">
+        <span>
+          등장인물 <span className="font-normal text-muted">{characters.length}명</span>
+        </span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-4 shrink-0 text-muted transition group-open:rotate-180">
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </summary>
+      <ul className="divide-y divide-line border-t border-line px-4">
+        {characters.map((character, index) => (
+          <li key={index} className="flex gap-3 py-3">
+            <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-full bg-accent-soft text-sm font-bold text-accent">
+              {[...character.name][0]}
+            </span>
+            <div className="min-w-0 flex-1 pt-1.5">
+              <div className="font-semibold break-keep">{character.name}</div>
+              {character.description ? (
+                <div className="mt-0.5 text-sm leading-relaxed break-keep text-muted">{character.description}</div>
+              ) : null}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }
 
