@@ -48,6 +48,16 @@ export function parseReaderPrefs(raw: string | null): ReaderPrefs {
   }
 }
 
+/** 읽기 설정 '처음대로': 글자 크기·줄 간격·문단 간격·글꼴·본문 폭을 기본값으로 (화면 모드는 그대로 둔다) */
+export function resetReadingPrefs(prefs: ReaderPrefs): ReaderPrefs {
+  return prefs.theme ? { theme: prefs.theme } : {};
+}
+
+/** 글자·간격 설정이 모두 기본값인지 ('처음대로'를 눌러도 바뀌는 게 없는지) */
+export function isDefaultReading(prefs: ReaderPrefs): boolean {
+  return (prefs.size ?? 1) === 1 && (prefs.leading ?? 1) === 1 && (prefs.gap ?? 1) === 1 && (prefs.font ?? 'sans') === 'sans' && (prefs.width ?? 1) === 1;
+}
+
 /**
  * theme-color 메타 두 개(밝은 기기용·어두운 기기용)에 넣을 색.
  * 화면 모드를 직접 고르면 기기 설정과 상관없이 둘 다 그 색, '자동'이면 원래대로
