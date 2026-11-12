@@ -14,6 +14,7 @@ import {
   postCommentCount,
   renameSpeaker,
   scriptSpeakers,
+  splitMailSender,
   splitStoryContent,
   type KakaoData,
   type PostData,
@@ -47,6 +48,7 @@ const KEYS: TemplateKey[] = [
   'call-active',
   'note',
   'sns',
+  'mail',
 ];
 
 function withTrickyText(block: StoryBlock): StoryBlock {
@@ -73,6 +75,11 @@ function withTrickyText(block: StoryBlock): StoryBlock {
       return { ...block, data: { ...block.data, body: `${TRICKY}\n둘째 줄` } };
     case 'sns':
       return { ...block, data: { ...block.data, body: TRICKY, script: `${block.data.script}\n양띵: ${TRICKY}` } };
+    case 'mail':
+      return {
+        ...block,
+        data: { ...block.data, from: `양띵 <yang@example.com> ${TRICKY}`, body: `${TRICKY}\n\n둘째 문단`, attachment: '보고서 "최종".pdf' },
+      };
   }
 }
 
@@ -290,5 +297,30 @@ describe('시스템 창 대본', () => {
     const status = createTemplate('system-status');
     expect(quest.kind).toBe('system');
     expect(status.kind).toBe('system');
+  });
+});
+
+describe('이메일 보낸 사람', () => {
+  it('이름 <주소>는 이름과 주소로 나눈다', () => {
+    expect(splitMailSender('김지은 <jieun@example.com>')).toEqual({ name: '김지은', address: 'jieun@example.com' });
+    expect(splitMailSender('  와플 가게   <owner@example.com>  ')).toEqual({ name: '와플 가게', address: 'owner@example.com' });
+  });
+
+  it('꺾쇠가 없으면 적은 그대로 이름으로', () => {
+    expect(splitMailSender('jieun@example.com')).toEqual({ name: 'jieun@example.com', address: '' });
+    expect(splitMailSender('와플 가게')).toEqual({ name: '와플 가게', address: '' });
+    expect(splitMailSender('')).toEqual({ name: '', address: '' });
+  });
+
+  it('주소만 꺾쇠에 있으면 주소를 이름 자리에', () => {
+    expect(splitMailSender('<jieun@example.com>')).toEqual({ name: 'jieun@example.com', address: '' });
+    expect(splitMailSender('김지은 <>')).toEqual({ name: '김지은', address: '' });
+  });
+
+  it('새 이메일 템플릿은 예시 주소를 이름·주소로 보여 준다', () => {
+    const block = createTemplate('mail');
+    if (block.kind !== 'mail') throw new Error('이메일 템플릿이 아니에요');
+    expect(splitMailSender(block.data.from)).toEqual({ name: '보낸 사람', address: 'sender@example.com' });
+    expect(block.data.attachment).toBe('');
   });
 });

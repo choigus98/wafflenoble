@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물).
+// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물, 이메일).
 // 저장 형식: <div data-wn-block="종류" data-wn-data="JSON"></div>
 // 에디터(Tiptap 노드), 서버(저장할 때 검증), 열람 화면(렌더링)이 모두 이 파일을 같이 쓴다.
 //
@@ -115,6 +115,15 @@ const snsSchema = z.object({
   script: text(LIMITS.script), // 답글 대본 (커뮤니티 댓글과 같은 규칙)
 });
 
+const mailSchema = z.object({
+  subject: text(120), // 메일 제목
+  from: text(80), // 보낸 사람. '이름 <주소>'로 적으면 이름과 주소를 나눠 보여 줌
+  to: text(80), // 받는 사람. 비우면 안 보임
+  date: text(40), // 적은 그대로
+  body: text(LIMITS.body), // 빈 줄로 문단을 나눈다
+  attachment: text(80), // 첨부 파일 이름. 비우면 안 보임
+});
+
 /** 전화 화면 모드를 바꿀 때, 아직 고치지 않은 기본 문구는 새 모드에 맞게 바꿔 준다 */
 export const CALL_DETAIL_DEFAULT = { incoming: '휴대전화', active: '00:12' } as const;
 
@@ -130,6 +139,7 @@ export const storyBlockSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('call'), data: callSchema }),
   z.object({ kind: z.literal('note'), data: noteSchema }),
   z.object({ kind: z.literal('sns'), data: snsSchema }),
+  z.object({ kind: z.literal('mail'), data: mailSchema }),
 ]);
 
 export type StoryBlock = z.infer<typeof storyBlockSchema>;
@@ -143,6 +153,17 @@ export type NewsData = z.infer<typeof newsSchema>;
 export type CallData = z.infer<typeof callSchema>;
 export type NoteData = z.infer<typeof noteSchema>;
 export type SnsData = z.infer<typeof snsSchema>;
+export type MailData = z.infer<typeof mailSchema>;
+
+/** 메일 보낸 사람 '김지은 <jieun@example.com>' → 이름과 주소. 꺾쇠가 없으면 적은 그대로 이름으로 */
+export function splitMailSender(from: string): { name: string; address: string } {
+  const value = from.trim();
+  const match = value.match(/^(.*?)\s*<([^<>]*)>$/);
+  if (!match) return { name: value, address: '' };
+  const name = match[1].trim();
+  const address = match[2].trim();
+  return name ? { name, address } : { name: address, address: '' };
+}
 
 // ─── 대본 읽기 ─────────────────────────────────────────
 
@@ -371,7 +392,8 @@ export type TemplateKey =
   | 'call-incoming'
   | 'call-active'
   | 'note'
-  | 'sns';
+  | 'sns'
+  | 'mail';
 
 export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }> = [
   { key: 'kakao-dm', label: '카톡 1:1 대화', hint: '두 사람의 메신저 대화' },
@@ -387,6 +409,7 @@ export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }>
   { key: 'call-active', label: '전화 · 통화 중', hint: '이름 · 통화 시간' },
   { key: 'note', label: '쪽지 · 메모', hint: '손글씨 느낌 종이 쪽지' },
   { key: 'sns', label: 'SNS 게시물', hint: '프로필 · 글 · 답글' },
+  { key: 'mail', label: '이메일', hint: '보낸 사람 · 제목 · 본문 · 첨부' },
 ];
 
 export function templateLabel(block: StoryBlock): string {
@@ -506,6 +529,18 @@ export function createTemplate(key: TemplateKey): StoryBlock {
           reposts: '12',
           likes: '128',
           script: ['익명1: 답글은 이렇게 써요 [3분 전]', '익명2: 한 줄에 하나씩 [1분 전]'].join('\n'),
+        },
+      };
+    case 'mail':
+      return {
+        kind: 'mail',
+        data: {
+          subject: '메일 제목',
+          from: '보낸 사람 <sender@example.com>',
+          to: '나',
+          date: postStamp(),
+          body: '본문을 적어 주세요.\n\n빈 줄을 넣으면 문단이 나뉘어요.',
+          attachment: '',
         },
       };
     case 'note':

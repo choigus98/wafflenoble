@@ -51,7 +51,8 @@ export function TemplateMenu({ editor }: { editor: Editor }) {
         ＋ 템플릿
       </button>
       {open ? (
-        <div className="absolute top-10 left-0 z-30 w-64 rounded-2xl border border-line bg-surface p-1.5 shadow-lg shadow-black/10">
+        // 템플릿이 많아져서, 툴바가 화면 위에 붙어 있을 때도 끝까지 닿도록 화면 높이 안에서 스크롤
+        <div className="absolute top-10 left-0 z-30 max-h-[calc(100dvh-6rem)] w-64 overflow-y-auto overscroll-contain rounded-2xl border border-line bg-surface p-1.5 shadow-lg shadow-black/10">
           {TEMPLATES.map((template) => (
             <button
               key={template.key}

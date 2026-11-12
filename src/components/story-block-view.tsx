@@ -11,11 +11,13 @@ import {
   parseSystemScript,
   postCommentCount,
   scriptSpeakers,
+  splitMailSender,
   type CallData,
   type ChatData,
   type DonationData,
   type KakaoData,
   type LiveData,
+  type MailData,
   type NewsData,
   type NoteData,
   type PostData,
@@ -67,6 +69,8 @@ export function StoryBlockView({ block }: { block: StoryBlock }) {
       return <NoteCard data={block.data} />;
     case 'sns':
       return <SnsCard data={block.data} />;
+    case 'mail':
+      return <MailCard data={block.data} />;
   }
 }
 
@@ -662,6 +666,80 @@ function SnsCard({ data }: { data: SnsData }) {
               </div>
             ),
           )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** 이메일: 제목 · 보낸 사람(이름·주소) · 받는 사람 · 시각 · 본문 · 첨부 파일. 에디터에서는 field로 카드 위에서 바로 고친다 */
+export function MailCard({ data, field }: { data: MailData; field?: FieldRenderer }) {
+  const editing = Boolean(field);
+  const slot = (name: keyof MailData, label: string, maxLength: number, className: string, multiline = false) =>
+    field ? (
+      field({ name, value: data[name], label, placeholder: label, maxLength, className, multiline })
+    ) : (
+      <span className={className}>{data[name]}</span>
+    );
+  const sender = splitMailSender(data.from);
+  // 읽는 화면: 빈 줄로 문단을 나눈다
+  const paragraphs = data.body.split(/\n\s*\n/).map((paragraph) => paragraph.trim()).filter(Boolean);
+
+  return (
+    <div className={cn(CARD, 'bg-(--wn-mail-bg) px-5 pt-4 pb-5')}>
+      <div>{slot('subject', '메일 제목', 120, 'block w-full text-[19px] leading-snug font-bold whitespace-pre-wrap', true)}</div>
+      <div className="mt-3 flex items-start gap-3 border-t border-(--wn-line) pt-3">
+        <span
+          aria-hidden="true"
+          className="grid size-10 shrink-0 place-items-center rounded-full bg-(--wn-mail-avatar-bg) text-base font-semibold text-(--wn-mail-avatar-fg)"
+        >
+          {[...sender.name][0] ?? '?'}
+        </span>
+        <div className="min-w-0 flex-1 text-[13px] leading-snug">
+          {editing ? (
+            <div className="flex flex-col items-start gap-1">
+              {slot('from', '보낸 사람 (이름 <주소>)', 80, 'max-w-full text-[14px] font-semibold')}
+              <div className="flex max-w-full flex-wrap items-center gap-x-1 text-(--wn-muted)">
+                <span className="shrink-0">받는 사람</span>
+                {/* 두 글자 이름도 누르기 쉽게 너비는 32px 이상 */}
+                {slot('to', '받는 사람 (비우면 안 보여요)', 80, 'max-w-full min-w-8')}
+              </div>
+              {slot('date', '시각', 40, 'max-w-full text-(--wn-muted) tabular-nums')}
+            </div>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-baseline gap-x-1.5">
+                <span className="sr-only">보낸 사람 </span>
+                <span className="text-[14px] font-semibold break-all">{sender.name}</span>
+                {sender.address ? <span className="min-w-0 break-all text-(--wn-muted)">&lt;{sender.address}&gt;</span> : null}
+              </div>
+              {data.to.trim() ? <div className="mt-0.5 break-all text-(--wn-muted)">받는 사람 {data.to}</div> : null}
+              {data.date.trim() ? <div className="mt-0.5 text-(--wn-muted) tabular-nums">{data.date}</div> : null}
+            </>
+          )}
+        </div>
+      </div>
+      <div className="mt-3 border-t border-(--wn-line) pt-4 leading-relaxed">
+        {editing ? (
+          // 회차 본문 편집기('본문')와 이름이 겹치지 않게
+          slot('body', '메일 본문', 5000, 'block w-full whitespace-pre-wrap', true)
+        ) : (
+          <div className="space-y-3">
+            {paragraphs.map((paragraph, index) => (
+              <div key={index} className="whitespace-pre-wrap">
+                {paragraph}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      {editing || data.attachment.trim() ? (
+        <div className="mt-4 flex w-fit max-w-full items-center gap-2 rounded-xl border border-(--wn-border) bg-(--wn-mail-chip-bg) px-3 py-2 text-[13px]">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-4 shrink-0 text-(--wn-muted)">
+            <path d="M20.5 11.5l-8.2 8.2a5 5 0 0 1-7.1-7.1l8.5-8.5a3.4 3.4 0 0 1 4.8 4.8l-8.4 8.4a1.8 1.8 0 0 1-2.6-2.6l7.7-7.7" />
+          </svg>
+          {editing ? null : <span className="sr-only">첨부 파일 </span>}
+          {slot('attachment', '첨부 파일 이름 (비우면 안 보여요)', 80, editing ? 'max-w-full min-w-8' : 'min-w-0 truncate')}
         </div>
       ) : null}
     </div>
