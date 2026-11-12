@@ -63,6 +63,28 @@ export async function adminGetNovel(novelId: number) {
   return { novel, chapters: list, totalReaders: members?.total ?? 0 };
 }
 
+/** 관리자 홈 '예약된 회차': 모든 작품에서 아직 공개 전인 예약 회차를 공개 시각이 빠른 순으로 */
+export async function adminListScheduledChapters(limit = 50) {
+  await requireAdmin();
+  const rows = await db
+    .select({
+      chapterId: chapters.id,
+      novelId: chapters.novelId,
+      novelTitle: novels.title,
+      novelPublished: novels.isPublished,
+      position: chapters.position,
+      title: chapters.title,
+      publishedAt: chapters.publishedAt,
+    })
+    .from(chapters)
+    .innerJoin(novels, eq(novels.id, chapters.novelId))
+    .where(isScheduledChapter)
+    .orderBy(asc(chapters.publishedAt), asc(chapters.id))
+    .limit(limit);
+  // 예약 회차는 공개 시각이 늘 있다 (타입만 좁힌다)
+  return rows.flatMap((row) => (row.publishedAt ? [{ ...row, publishedAt: row.publishedAt }] : []));
+}
+
 export type RevisionItem = { id: number; createdAt: string; title: string; charCount: number; excerpt: string };
 
 /** 이 회차의 이전 발행본 (최근 것부터 10개) */

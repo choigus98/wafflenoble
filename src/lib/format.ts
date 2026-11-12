@@ -47,6 +47,20 @@ export function formatRelative(date: Date, now: Date): string {
   return formatDate(date);
 }
 
+/**
+ * 앞으로 남은 시간 (예약 공개까지): 곧 / 5분 뒤 / 2시간 59분 뒤 / 1일 2시간 뒤 / 10일 뒤.
+ * 시간 단위로만 버리면 2시간 59분이 '2시간 뒤'로 보여서, 하루 안은 분까지 · 일주일 안은 시간까지
+ */
+export function formatUntil(date: Date, now: Date): string {
+  const minutes = Math.floor((date.getTime() - now.getTime()) / 60_000);
+  if (minutes < 1) return '곧';
+  if (minutes < 60) return `${minutes}분 뒤`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return minutes % 60 ? `${hours}시간 ${minutes % 60}분 뒤` : `${hours}시간 뒤`;
+  const days = Math.floor(hours / 24);
+  return days < 7 && hours % 24 ? `${days}일 ${hours % 24}시간 뒤` : `${days}일 뒤`;
+}
+
 const scheduleFormatter = new Intl.DateTimeFormat('ko-KR', {
   timeZone: TIME_ZONE,
   month: 'numeric',

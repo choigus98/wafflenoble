@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { RecentActivity } from '@/components/admin/recent-activity';
+import { ScheduledChapters } from '@/components/admin/scheduled-chapters';
 import { NovelCover } from '@/components/novel-cover';
 import { Badge, ButtonLink, Skeleton } from '@/components/ui';
 import { formatRelative } from '@/lib/format';
@@ -16,6 +17,12 @@ export default function AdminHomePage() {
       </div>
       <Suspense fallback={<ListSkeleton />}>
         <NovelList />
+      </Suspense>
+      {/* 예약이 없으면 칸째 안 그린다 (기다리는 동안에도 자리를 잡지 않음) */}
+      <Suspense fallback={null}>
+        <div className="mt-10 empty:hidden">
+          <ScheduledChapters />
+        </div>
       </Suspense>
       <div className="mt-10">
         <Suspense fallback={<Skeleton className="h-48" />}>

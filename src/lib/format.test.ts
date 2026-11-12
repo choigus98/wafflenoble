@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatDate, formatDateTime, formatRelative, formatSchedule, particle, withParticle } from '@/lib/format';
+import { formatDate, formatDateTime, formatRelative, formatSchedule, formatUntil, particle, withParticle } from '@/lib/format';
 
 describe('날짜 표시', () => {
   it('서버가 UTC여도 한국 시간으로 표시한다', () => {
@@ -24,6 +24,19 @@ describe('날짜 표시', () => {
     expect(ago(3 * 3_600_000)).toBe('3시간 전');
     expect(ago(2 * 86_400_000)).toBe('2일 전');
     expect(ago(10 * 86_400_000)).toBe('2026.11.02');
+  });
+
+  it('남은 시간 (예약 공개까지)', () => {
+    const now = new Date('2026-11-12T12:00:00Z');
+    const later = (ms: number) => formatUntil(new Date(now.getTime() + ms), now);
+    expect(later(30_000)).toBe('곧');
+    expect(later(-5 * 60_000)).toBe('곧'); // 이미 지났어도 (화면을 그리는 사이에)
+    expect(later(5 * 60_000)).toBe('5분 뒤');
+    expect(later(3 * 3_600_000)).toBe('3시간 뒤');
+    expect(later(3 * 3_600_000 - 60_000)).toBe('2시간 59분 뒤'); // '2시간 뒤'로 버리지 않게
+    expect(later(26 * 3_600_000 + 30 * 60_000)).toBe('1일 2시간 뒤');
+    expect(later(2 * 86_400_000)).toBe('2일 뒤');
+    expect(later(10 * 86_400_000 + 5 * 3_600_000)).toBe('10일 뒤');
   });
 });
 
