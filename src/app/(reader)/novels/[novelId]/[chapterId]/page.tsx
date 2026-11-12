@@ -36,7 +36,8 @@ async function ChapterView({ params }: Pick<PageProps<'/novels/[novelId]/[chapte
   const minutes = readingMinutes(chapter.charCount);
 
   return (
-    <article className="pt-6">
+    // data-reading: 이 화면에서는 읽기 설정 '본문 폭'을 따른다 (globals.css)
+    <article data-reading="" className="pt-6">
       <header className="flex items-start justify-between gap-3 border-b border-line pb-5">
         <div className="min-w-0 space-y-1.5">
           <Link href={`/novels/${novel.id}`} className="block truncate text-sm font-semibold text-accent hover:underline">

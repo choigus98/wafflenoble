@@ -52,6 +52,15 @@ export function ReaderSettings({ share }: { share?: { path: string; title: strin
             selected={settings.font === 'serif' ? 1 : 0}
             onSelect={(index) => update({ font: index === 1 ? 'serif' : 'sans' })}
           />
+          {/* 본문 폭은 넓은 화면에서만 차이가 나서, 좁은 화면(태블릿 세로보다 좁으면)에서는 감춘다 */}
+          <div className="hidden md:block">
+            <Option
+              label="본문 폭"
+              options={['좁게', '보통', '넓게']}
+              selected={settings.width ?? 1}
+              onSelect={(index) => update({ width: index === 1 ? undefined : index })}
+            />
+          </div>
           <Option
             label="화면"
             options={['자동', '밝게', '어둡게']}

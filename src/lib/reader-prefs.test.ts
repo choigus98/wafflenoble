@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { THEME_COLORS, parseReaderPrefs, themeColorsFor } from '@/lib/reader-prefs';
+import { READER_PREF_KEYS, THEME_COLORS, parseReaderPrefs, themeColorsFor } from '@/lib/reader-prefs';
 
 describe('읽기 설정 저장값', () => {
   it('저장된 JSON을 읽고, 깨졌거나 이상한 값이면 빈 설정', () => {
@@ -14,5 +14,12 @@ describe('읽기 설정 저장값', () => {
     expect(themeColorsFor('dark')).toEqual({ light: THEME_COLORS.dark, dark: THEME_COLORS.dark });
     expect(themeColorsFor('light')).toEqual({ light: THEME_COLORS.light, dark: THEME_COLORS.light });
     expect(themeColorsFor(undefined)).toEqual({ light: THEME_COLORS.light, dark: THEME_COLORS.dark });
+  });
+});
+
+describe('첫 화면 스크립트가 옮기는 값', () => {
+  it('본문 폭까지 다섯 가지 (빠지면 새로 고칠 때 설정이 잠깐 풀려 보임)', () => {
+    expect([...READER_PREF_KEYS]).toEqual(['theme', 'size', 'leading', 'font', 'width']);
+    expect(parseReaderPrefs('{"width":0,"size":3}')).toEqual({ width: 0, size: 3 });
   });
 });

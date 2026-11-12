@@ -412,6 +412,15 @@ body {
 :root[data-leading="2"] { --reader-leading: 2.15; }
 :root[data-font="serif"] { --reader-font: var(--font-serif); }
 
+/* 본문 폭: 넓은 화면에서 한 줄 길이 (보통 = 원래 폭 48rem). 회차 화면에서만 열람 칸과 위쪽 바를 같이 바꾼다.
+   휴대폰처럼 좁은 화면은 어차피 화면 폭이라 차이가 없다 */
+:root { --reader-width: 48rem; }
+:root[data-width="0"] { --reader-width: 38rem; }
+:root[data-width="2"] { --reader-width: 56rem; }
+body:has(article[data-reading]) :is(#main, [data-reader-bar]) {
+  max-width: var(--reader-width);
+}
+
 /* ─── 본문 (열람 화면과 에디터가 같은 스타일을 쓴다) ─────────────── */
 .novel-body {
   font-family: var(--reader-font);
@@ -544,6 +553,10 @@ html[data-focus="on"] [data-focus-grid] {
   }
   #chapter-title {
     break-after: avoid;
+  }
+  /* 인쇄는 본문 폭 설정과 상관없이 원래 폭으로 */
+  :root[data-width] {
+    --reader-width: 48rem;
   }
   a[href] {
     color: inherit;
