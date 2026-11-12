@@ -5,7 +5,7 @@ import { useDismiss } from '@/components/use-dismiss';
 import { cn } from '@/lib/utils';
 
 /** 도구 막대 아래에 여는 점검 창 */
-export type CheckTool = 'spelling' | 'repeats' | 'long' | 'scenes';
+export type CheckTool = 'spelling' | 'repeats' | 'long' | 'scenes' | 'speak';
 
 const ITEMS: Array<{ key: CheckTool | 'polish'; label: string; hint: string }> = [
   { key: 'polish', label: '문장 부호 다듬기', hint: '... → … · 곧은 따옴표 → 둥근 따옴표 (바로 바꿈)' },
@@ -13,6 +13,7 @@ const ITEMS: Array<{ key: CheckTool | 'polish'; label: string; hint: string }> =
   { key: 'repeats', label: '반복되는 말', hint: '세 번 이상 나온 낱말과 횟수' },
   { key: 'long', label: '긴 문장', hint: '80 · 100 · 150자보다 긴 문장' },
   { key: 'scenes', label: '장면 바로가기', hint: '장면 전환(✦)으로 나뉜 장면 목록' },
+  { key: 'speak', label: '소리 내어 읽기', hint: '브라우저 목소리로 지금 문단부터 (귀로 다듬기)' },
 ];
 
 const MENU_WIDTH = 272;
@@ -97,7 +98,7 @@ export function CheckMenu({ openTool, onPolish, onTool }: { openTool: CheckTool 
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
-        title="글 점검: 문장 부호 · 자주 틀리는 말 · 반복되는 말 · 긴 문장 · 장면"
+        title="글 점검: 문장 부호 · 자주 틀리는 말 · 반복되는 말 · 긴 문장 · 장면 · 소리 내어 읽기"
         onClick={() => toggle(!open)}
         onKeyDown={(event) => {
           if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {

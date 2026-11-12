@@ -19,6 +19,7 @@ import { FindBar, FindReplace } from '@/components/admin/find-replace';
 import { LongSentenceMarks, LongSentencePanel } from '@/components/admin/long-sentence-panel';
 import { RepeatPanel } from '@/components/admin/repeat-panel';
 import { ScenePanel, jumpToScene } from '@/components/admin/scene-panel';
+import { SpeakMarks, SpeakPanel } from '@/components/admin/speak-panel';
 import { SpellingCheck, SpellingPanel } from '@/components/admin/spelling-panel';
 import { ShortcutGuide } from '@/components/admin/shortcut-guide';
 import { TemplateMenu } from '@/components/admin/story-block/template-menu';
@@ -342,6 +343,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
       FindReplace.configure({ onOpen: openFind }),
       SpellingCheck,
       LongSentenceMarks,
+      SpeakMarks,
     ],
     content: chapter.contentHtml,
     editorProps: {
@@ -743,6 +745,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
         {panel === 'find' && editor ? <FindBar key={findSession} editor={editor} initialQuery={findQuery} onClose={() => closePanel('find')} /> : null}
         {panel === 'repeats' && editor ? <RepeatPanel editor={editor} onFind={findWord} onClose={() => closePanel('repeats')} /> : null}
         {panel === 'long' && editor ? <LongSentencePanel editor={editor} onClose={() => closePanel('long')} /> : null}
+        {panel === 'speak' && editor ? <SpeakPanel editor={editor} onClose={() => closePanel('speak')} /> : null}
         {panel === 'spelling' && editor ? <SpellingPanel editor={editor} onClose={() => closePanel('spelling')} /> : null}
         {panel === 'scenes' && editor ? (
           <ScenePanel
