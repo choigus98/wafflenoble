@@ -29,6 +29,12 @@ export function formatDateTime(date: Date): string {
   return `${p.year}.${p.month}.${p.day} ${p.hour}:${p.minute}`;
 }
 
+/** 2026-11-12 14:05 — 표 파일(CSV)용: 엑셀·구글 시트가 날짜로 알아보고, 글자 순서로 정렬해도 시간 순서 */
+export function formatSheetDateTime(date: Date): string {
+  const p = parts(date);
+  return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}`;
+}
+
 /** 14:05 */
 export function formatTime(date: Date): string {
   const p = parts(date);

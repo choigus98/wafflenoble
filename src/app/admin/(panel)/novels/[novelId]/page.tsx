@@ -177,28 +177,44 @@ async function NovelAdmin({ params, searchParams }: Pick<PageProps<'/admin/novel
         </Card>
       </section>
 
-      {/* 사람이 읽는 글 파일 (기계용 전체 백업 JSON은 설정 화면) */}
+      {/* 사람이 읽는 글 파일 · 회차 목록 표 파일 (기계용 전체 백업 JSON은 설정 화면) */}
       <section className="space-y-3">
-        <h2 className="font-bold">텍스트로 내보내기</h2>
+        <h2 className="font-bold">내보내기</h2>
         <Card>
-          <p className="text-sm leading-relaxed text-muted">
-            회차를 순서대로 한 .txt 파일로 내려받아요. 템플릿도 글로 풀어서 들어가요. 보관하거나 다른 곳에 옮겨 적을 때 쓰세요.
-          </p>
           {allChapters.length === 0 ? (
-            <p className="mt-3 text-sm text-muted">아직 회차가 없어요.</p>
+            <p className="text-sm text-muted">아직 회차가 없어요. 회차를 쓰면 글 파일과 회차 목록 표를 내려받을 수 있어요.</p>
           ) : (
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              {counts.published > 0 ? (
-                // Link가 아닌 a: 미리 불러오기 없이 누를 때만 받는다
-                <a href={`/admin/novels/${novel.id}/export?scope=published`} download className={buttonClass('secondary', 'sm')}>
-                  발행한 회차만 · {counts.published}화
-                </a>
-              ) : (
-                <span className="text-sm text-muted">발행한 회차는 아직 없어요</span>
-              )}
-              <a href={`/admin/novels/${novel.id}/export`} download className={buttonClass('secondary', 'sm')}>
-                임시저장·예약까지 전체 · {allChapters.length}화
-              </a>
+            <div className="divide-y divide-line">
+              <div className="pb-5">
+                <h3 className="text-sm font-semibold">글 파일 (.txt)</h3>
+                <p className="mt-1 text-sm leading-relaxed text-muted">
+                  회차를 순서대로 한 파일로 내려받아요. 템플릿도 글로 풀어서 들어가요. 보관하거나 다른 곳에 옮겨 적을 때 쓰세요.
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  {counts.published > 0 ? (
+                    // Link가 아닌 a: 미리 불러오기 없이 누를 때만 받는다
+                    <a href={`/admin/novels/${novel.id}/export?scope=published`} download className={buttonClass('secondary', 'sm')}>
+                      발행한 회차만 · {counts.published}화
+                    </a>
+                  ) : (
+                    <span className="text-sm text-muted">발행한 회차는 아직 없어요</span>
+                  )}
+                  <a href={`/admin/novels/${novel.id}/export`} download className={buttonClass('secondary', 'sm')}>
+                    임시저장·예약까지 전체 · {allChapters.length}화
+                  </a>
+                </div>
+              </div>
+              <div className="pt-5">
+                <h3 className="text-sm font-semibold">회차 목록 표 (.csv)</h3>
+                <p className="mt-1 text-sm leading-relaxed text-muted">
+                  번호 · 제목 · 상태 · 공개일 · 글자수 · 읽은 사람 · 좋아요를 회차마다 한 줄씩 담아요. 엑셀이나 구글 시트에서 열어 정렬하거나 합계를 낼 수 있어요.
+                </p>
+                <div className="mt-3">
+                  <a href={`/admin/novels/${novel.id}/export/table`} download className={buttonClass('secondary', 'sm')}>
+                    회차 목록 표 · {allChapters.length}화
+                  </a>
+                </div>
+              </div>
             </div>
           )}
         </Card>

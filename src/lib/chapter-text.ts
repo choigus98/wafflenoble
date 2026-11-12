@@ -346,8 +346,13 @@ export function novelToText(input: {
   return `${parts.join('\n\n')}\n`;
 }
 
+/** 내려받는 파일 이름에 쓸 작품 제목: 파일 이름에 못 쓰는 글자를 빼고 70자까지 (비면 '작품') */
+export function fileSafeTitle(title: string): string {
+  const name = title.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '').replace(/\s+/g, ' ').trim();
+  return [...name].slice(0, 70).join('').trim() || '작품';
+}
+
 /** 작품 전체 파일 이름: '달빛 와플 가게의 비밀 (발행 회차).txt' */
 export function novelFileName(title: string, scope: 'all' | 'published'): string {
-  const name = title.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '').replace(/\s+/g, ' ').trim();
-  return `${[...name].slice(0, 70).join('') || '작품'} (${scope === 'published' ? '발행 회차' : '전체 회차'}).txt`;
+  return `${fileSafeTitle(title)} (${scope === 'published' ? '발행 회차' : '전체 회차'}).txt`;
 }

@@ -1,5 +1,6 @@
 import { requireAdmin } from '@/lib/auth/guards';
 import { novelFileName, novelToText } from '@/lib/chapter-text';
+import { attachmentDisposition } from '@/lib/download';
 import { htmlToDoc } from '@/lib/html-doc';
 import { adminExportNovelText } from '@/lib/queries/admin';
 import { parseId } from '@/lib/utils';
@@ -30,8 +31,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ nove
   return new Response(text, {
     headers: {
       'content-type': 'text/plain; charset=utf-8',
-      // 한글 파일 이름은 filename*로 (옛 브라우저용 filename은 영문)
-      'content-disposition': `attachment; filename="wafflenoble-novel-${novelId}.txt"; filename*=UTF-8''${encodeURIComponent(fileName)}`,
+      'content-disposition': attachmentDisposition(`wafflenoble-novel-${novelId}.txt`, fileName),
       'cache-control': 'no-store',
     },
   });
