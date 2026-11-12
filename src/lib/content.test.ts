@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chapterTexts, countCharacters, htmlExcerpt, sanitizeChapterHtml } from '@/lib/content';
+import { chapterOpening, chapterTexts, countCharacters, htmlExcerpt, sanitizeChapterHtml } from '@/lib/content';
 import { createTemplate } from '@/lib/story-blocks';
 
 describe('본문 정제', () => {
@@ -60,5 +60,23 @@ describe("열람 화면 '이 회차 등장인물'용 글", () => {
     expect(texts[0]).toBe('지은 & 수진\n둘째\n줄\n');
     expect(texts[1].split('\n')).toEqual(['[쪽지 · 메모]', '지은에게', '고마워', '수진']);
     expect(texts[2]).toBe('끝\n');
+  });
+});
+
+describe("열람 '다음 화 미리 보기'용 첫 문장", () => {
+  it('템플릿·장면 전환·빈 문단은 건너뛰고 첫 글 줄의 첫 문장 (글자 칸 기호 풀기)', () => {
+    const memo = createTemplate('note');
+    if (memo.kind !== 'note') throw new Error('쪽지 템플릿이 아니에요');
+    const data = JSON.stringify(memo.data).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+    expect(chapterOpening(`<div data-wn-block="note" data-wn-data="${data}"></div><hr /><p></p><p>지은 &amp; 수진은 우산을 접었다. 그리고 들어갔다.</p>`)).toBe('지은 & 수진은 우산을 접었다.');
+    // 문단 안 줄바꿈도 줄로, 인용 안 글도 글
+    expect(chapterOpening('<blockquote><p>편지에는 짧은 말만 있었다<br />그게 다였다.</p></blockquote>')).toBe('편지에는 짧은 말만 있었다');
+  });
+
+  it('글 문단이 없으면 빈 글', () => {
+    const memo = createTemplate('note');
+    const data = JSON.stringify(memo.data).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+    expect(chapterOpening(`<div data-wn-block="note" data-wn-data="${data}"></div>`)).toBe('');
+    expect(chapterOpening('')).toBe('');
   });
 });

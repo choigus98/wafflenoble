@@ -6,6 +6,7 @@ import { ChapterCharacters } from '@/components/reader/chapter-characters';
 import { ChapterToc } from '@/components/reader/chapter-toc';
 import { ChapterKeyNav } from '@/components/reader/chapter-key-nav';
 import { LikeButton } from '@/components/reader/like-button';
+import { NextPreview } from '@/components/reader/next-preview';
 import { ReaderSettings } from '@/components/reader/reader-settings';
 import { BackToTop } from '@/components/reader/back-to-top';
 import { ChapterBookmark } from '@/components/reader/chapter-bookmark';
@@ -37,7 +38,7 @@ async function ChapterView({ params }: Pick<PageProps<'/novels/[novelId]/[chapte
   const data = await getChapterView(novelId, chapterId);
   if (!data) notFound();
 
-  const { viewer, novel, chapter, prev, next, toc, nextScheduledAt, likes, readCount } = data;
+  const { viewer, novel, chapter, prev, next, toc, nextScheduledAt, nextOpening, likes, readCount } = data;
   const isReader = viewer.kind === 'reader';
   const minutes = readingMinutes(chapter.charCount);
   // 회차 끝 '이 회차 등장인물': 작품 정보의 등장인물 중 이 회차 본문·템플릿에 나온 인물만
@@ -140,31 +141,37 @@ async function ChapterView({ params }: Pick<PageProps<'/novels/[novelId]/[chapte
           <p className="text-xs text-muted">{formatNumber(readCount)}명이 읽었어요</p>
         </div>
 
-        <nav className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-          {prev ? (
-            <ButtonLink href={`/novels/${novel.id}/${prev.id}`} variant="secondary" className="justify-start truncate">
-              ← {prev.position}화
+        {/* 다음 화 미리 보기(길드원에게 공개된 다음 화일 때만)는 이전·다음 단추와 한 묶음으로 가깝게 */}
+        <div className="space-y-3">
+          {next && nextOpening !== null ? (
+            <NextPreview href={`/novels/${novel.id}/${next.id}`} position={next.position} title={next.title} opening={nextOpening} />
+          ) : null}
+          <nav className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+            {prev ? (
+              <ButtonLink href={`/novels/${novel.id}/${prev.id}`} variant="secondary" className="justify-start truncate">
+                ← {prev.position}화
+              </ButtonLink>
+            ) : (
+              <span />
+            )}
+            <ButtonLink href={`/novels/${novel.id}`} variant="ghost">
+              목록
             </ButtonLink>
-          ) : (
-            <span />
-          )}
-          <ButtonLink href={`/novels/${novel.id}`} variant="ghost">
-            목록
-          </ButtonLink>
-          {next ? (
-            <ButtonLink href={`/novels/${novel.id}/${next.id}`} className="justify-end truncate">
-              {next.position}화 →
-            </ButtonLink>
-          ) : nextScheduledAt ? (
-            <span className="text-right text-xs leading-snug text-muted">
-              다음 화
-              <br />
-              <span className="font-semibold text-fg">{formatSchedule(nextScheduledAt)}</span>
-            </span>
-          ) : (
-            <span className="text-right text-xs text-muted">마지막 화예요</span>
-          )}
-        </nav>
+            {next ? (
+              <ButtonLink href={`/novels/${novel.id}/${next.id}`} className="justify-end truncate">
+                {next.position}화 →
+              </ButtonLink>
+            ) : nextScheduledAt ? (
+              <span className="text-right text-xs leading-snug text-muted">
+                다음 화
+                <br />
+                <span className="font-semibold text-fg">{formatSchedule(nextScheduledAt)}</span>
+              </span>
+            ) : (
+              <span className="text-right text-xs text-muted">마지막 화예요</span>
+            )}
+          </nav>
+        </div>
       </footer>
 
       {isReader && chapter.visibleNow ? <ViewTracker chapterId={chapter.id} /> : null}

@@ -1,6 +1,7 @@
 import 'server-only';
 import sanitizeHtml from 'sanitize-html';
 import { storyBlockToText } from '@/lib/chapter-text';
+import { firstSentence } from '@/lib/opening';
 import { normalizeStoryBlocks, splitStoryContent } from '@/lib/story-blocks';
 
 // 에디터에서 만들 수 있는 것만 허용 (문단, 줄바꿈, 굵게, 기울임, 취소선, 장면 전환, 인용, 템플릿 블록)
@@ -52,12 +53,25 @@ export function htmlExcerpt(html: string, max = 60): string {
  * 템플릿을 텍스트로 내보내기와 같은 글로 푼 것들
  */
 export function chapterTexts(html: string): string[] {
-  return splitStoryContent(html).map((segment) =>
-    segment.type === 'block'
-      ? storyBlockToText(segment.block)
-      : sanitizeHtml(segment.html.replace(/<\/(p|blockquote)>|<br\s*\/?>|<hr\s*\/?>/g, '\n'), { allowedTags: [], allowedAttributes: {} }).replace(
-          /&(amp|lt|gt|quot|#39|nbsp);/g,
-          (entity) => ENTITIES[entity] ?? entity,
-        ),
+  return splitStoryContent(html).map((segment) => (segment.type === 'block' ? storyBlockToText(segment.block) : proseText(segment.html)));
+}
+
+/** 템플릿이 아닌 HTML 조각의 글 (문단·줄바꿈·장면 전환마다 줄을 바꿈) */
+function proseText(html: string): string {
+  return sanitizeHtml(html.replace(/<\/(p|blockquote)>|<br\s*\/?>|<hr\s*\/?>/g, '\n'), { allowedTags: [], allowedAttributes: {} }).replace(
+    /&(amp|lt|gt|quot|#39|nbsp);/g,
+    (entity) => ENTITIES[entity] ?? entity,
   );
+}
+
+/** 열람 '다음 화 미리 보기': 본문 첫 글 줄(템플릿·장면 전환·빈 문단은 건너뜀)의 첫 문장. 글 문단이 없으면 '' */
+export function chapterOpening(html: string): string {
+  for (const segment of splitStoryContent(html)) {
+    if (segment.type === 'block') continue;
+    const line = proseText(segment.html)
+      .split('\n')
+      .find((part) => part.trim());
+    if (line) return firstSentence(line);
+  }
+  return '';
 }

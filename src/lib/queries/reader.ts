@@ -1,6 +1,7 @@
 import 'server-only';
 import { and, asc, count, desc, eq, gt, or, sql } from 'drizzle-orm';
 import { requireViewer } from '@/lib/auth/guards';
+import { chapterOpening } from '@/lib/content';
 import { db } from '@/lib/db';
 import { chapterLikes, chapterViews, chapters, novels } from '@/lib/db/schema';
 import { getLikeSummary } from './reactions';
@@ -140,6 +141,12 @@ export async function getMyRecord() {
 }
 
 /** 이 작품에서 다음에 공개될 예약 회차의 공개 시각. 제목·내용은 알려 주지 않는다 */
+/** 회차 본문의 첫 문장 (회차 하나만 읽음. 부르는 쪽에서 보여도 되는 회차인지 확인한 뒤에) */
+async function openingOf(chapterId: number): Promise<string> {
+  const [row] = await db.select({ html: chapters.contentHtml }).from(chapters).where(eq(chapters.id, chapterId)).limit(1);
+  return row ? chapterOpening(row.html) : '';
+}
+
 async function nextScheduledAt(novelId: number): Promise<Date | null> {
   const [row] = await db
     .select({ at: sql<Date | null>`min(${chapters.publishedAt})`.mapWith(chapters.publishedAt) })
@@ -266,6 +273,8 @@ export async function getChapterView(novelId: number, chapterId: number) {
   const index = toc.findIndex((item) => item.id === chapter.id);
   const prev = index > 0 ? toc[index - 1] : null;
   const next = index !== -1 && index < toc.length - 1 ? toc[index + 1] : null;
+  // 회차 끝 '다음 화 미리 보기'(첫 문장): 길드원에게 공개된 다음 화일 때만 (관리자에게 보이는 임시저장·예약 회차는 미리 안 보임)
+  const nextOpening = next && next.status === 'published' && !next.scheduled ? await openingOf(next.id) : null;
 
   return {
     viewer,
@@ -276,6 +285,8 @@ export async function getChapterView(novelId: number, chapterId: number) {
     toc,
     // 다음 회차가 아직 없을 때 '다음 화는 언제' 안내용
     nextScheduledAt: nextAt,
+    // 공개된 다음 화의 첫 문장 (미리 보기를 안 보일 때는 null, 글 문단이 없으면 '')
+    nextOpening,
     likes,
     readCount: (reads?.readers ?? 0) + (countsSelf ? 1 : 0),
   };
