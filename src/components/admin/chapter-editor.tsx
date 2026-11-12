@@ -1,6 +1,7 @@
 'use client';
 
 import { Placeholder } from '@tiptap/extensions';
+import { Fragment, Slice, type Schema } from '@tiptap/pm/model';
 import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from 'next/link';
@@ -15,6 +16,7 @@ import { TemplateMenu } from '@/components/admin/story-block/template-menu';
 import { SubmitButton } from '@/components/submit-button';
 import { Badge, Button, buttonClass } from '@/components/ui';
 import { formatNumber, formatSchedule, formatTime } from '@/lib/format';
+import { plainTextToBlocks } from '@/lib/paste';
 import { cn } from '@/lib/utils';
 
 export type EditorChapter = {
@@ -46,6 +48,20 @@ function readLocalCopy(chapterId: number): LocalCopy | null {
   } catch {
     return null;
   }
+}
+
+/** 서식 없는 글을 문단·장면 전환 노드로 바꾼 붙여넣기 조각. 처음·끝 문단은 커서가 있던 문단과 이어 붙는다 */
+function plainTextSlice(text: string, schema: Schema): Slice {
+  const blocks = plainTextToBlocks(text);
+  if (blocks.length === 0) return Slice.empty;
+  const nodes = blocks.map((block) =>
+    block.kind === 'scene'
+      ? schema.nodes.horizontalRule.create()
+      : schema.nodes.paragraph.create(null, block.text ? schema.text(block.text) : null),
+  );
+  const openStart = blocks[0].kind === 'paragraph' ? 1 : 0;
+  const openEnd = blocks[blocks.length - 1].kind === 'paragraph' ? 1 : 0;
+  return new Slice(Fragment.from(nodes), openStart, openEnd);
 }
 
 function countText(editor: Editor) {
@@ -201,6 +217,8 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
         spellcheck: 'false',
         'aria-label': '본문',
       },
+      // 메모장·한글·카톡 등에서 붙여 넣은 '서식 없는 글': 줄마다 문단, 빈 줄 간격·장면 전환 기호 정리 (lib/paste.ts)
+      clipboardTextParser: (text, _context, _plain, view) => plainTextSlice(text, view.state.schema),
     },
     onCreate: ({ editor: created }) => setCounts(countText(created)),
     onUpdate: ({ editor: updated }) => {
