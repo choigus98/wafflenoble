@@ -23,6 +23,7 @@ import { SpeakMarks, SpeakPanel } from '@/components/admin/speak-panel';
 import { SpellingCheck, SpellingPanel } from '@/components/admin/spelling-panel';
 import { ShortcutGuide } from '@/components/admin/shortcut-guide';
 import { TemplateMenu } from '@/components/admin/story-block/template-menu';
+import { TodayChars } from '@/components/admin/today-chars';
 import { SubmitButton } from '@/components/submit-button';
 import { Badge, Button, buttonClass } from '@/components/ui';
 import { PrivateNote } from '@/components/admin/private-note';
@@ -133,6 +134,8 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
   const [message, setMessage] = useState<{ tone: 'info' | 'error'; text: string } | null>(null);
   const [savedAt, setSavedAt] = useState(chapter.updatedAt);
   const [counts, setCounts] = useState({ all: 0, noSpace: 0, paragraphs: 0, dialogue: 0, templates: 0 });
+  // 에디터가 본문을 다 읽고 처음 센 뒤부터 참 ('오늘 쓴 글자수'가 0자를 그날 기준으로 잡지 않게)
+  const [countsReady, setCountsReady] = useState(false);
   // 서버에 있는 마지막 내용 (길드원에게 보이는 회차면 곧 마지막 발행본). '바뀐 곳 보기'의 비교 기준, 수정 반영·되돌리기 뒤에 바뀐다
   const [serverCopy, setServerCopy] = useState(() => ({ html: chapter.contentHtml, title: chapter.title, authorNote: chapter.authorNote }));
   const changesDialogRef = useRef<HTMLDialogElement>(null);
@@ -355,7 +358,10 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
       // 메모장·한글·카톡 등에서 붙여 넣은 '서식 없는 글': 줄마다 문단, 빈 줄 간격·장면 전환 기호 정리 (lib/paste.ts)
       clipboardTextParser: (text, _context, _plain, view) => plainTextSlice(text, view.state.schema),
     },
-    onCreate: ({ editor: created }) => setCounts(countText(created)),
+    onCreate: ({ editor: created }) => {
+      setCounts(countText(created));
+      setCountsReady(true);
+    },
     onUpdate: ({ editor: updated }) => {
       draftRef.current.html = updated.getHTML();
       setCounts(countText(updated));
@@ -775,6 +781,8 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
           <p className="text-[13px] text-muted tabular-nums">
             공백 포함 {formatNumber(counts.all)}자 · 공백 제외 {formatNumber(counts.noSpace)}자
           </p>
+          {/* 이 기기에서 오늘 늘어난 글자수 (공백 포함, 모든 회차) */}
+          {countsReady ? <TodayChars key={chapter.id} chapterId={chapter.id} count={counts.all} /> : null}
           {/* 본문 통계: 대사는 따옴표로 시작하는 문단 (빈 문단·템플릿 안의 글은 안 셈) */}
           {counts.paragraphs > 0 || counts.templates > 0 ? (
             <p className="text-[13px] text-muted tabular-nums">
