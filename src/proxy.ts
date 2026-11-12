@@ -32,5 +32,6 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon\\.ico|icon\\.svg|robots\\.txt).*)'],
+  // 정적 파일과, 쿠키 없이 가져가는 아이콘·manifest(홈 화면에 추가용)는 게이트에서 뺀다
+  matcher: ['/((?!_next/static|_next/image|favicon\\.ico|icon\\.svg|apple-icon|icons/|manifest\\.webmanifest|robots\\.txt).*)'],
 };

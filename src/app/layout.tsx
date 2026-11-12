@@ -16,6 +16,8 @@ export const metadata: Metadata = {
   title: { default: '와플노블', template: '%s · 와플노블' },
   openGraph: { title: '와플노블', siteName: '와플노블', type: 'website' },
   robots: { index: false, follow: false },
+  // 아이폰에서 홈 화면 아이콘으로 열면 주소창 없이 앱처럼
+  appleWebApp: { capable: true, title: '와플노블', statusBarStyle: 'default' },
 };
 
 export const viewport: Viewport = {
