@@ -5,6 +5,7 @@ import { ChapterBody } from '@/components/reader/chapter-body';
 import { ChapterKeyNav } from '@/components/reader/chapter-key-nav';
 import { LikeButton } from '@/components/reader/like-button';
 import { ReaderSettings } from '@/components/reader/reader-settings';
+import { BackToTop } from '@/components/reader/back-to-top';
 import { ReadingProgress } from '@/components/reader/reading-progress';
 import { ViewTracker } from '@/components/reader/view-tracker';
 import { Badge, ButtonLink, Skeleton } from '@/components/ui';
@@ -38,7 +39,8 @@ async function ChapterView({ params }: Pick<PageProps<'/novels/[novelId]/[chapte
           <Link href={`/novels/${novel.id}`} className="block truncate text-sm font-semibold text-accent hover:underline">
             {novel.title}
           </Link>
-          <h1 className="text-xl leading-snug font-bold tracking-tight break-keep sm:text-2xl">
+          {/* '맨 위로'를 누르면 포커스가 여기로 온다 */}
+          <h1 id="chapter-title" tabIndex={-1} className="text-xl leading-snug font-bold tracking-tight break-keep outline-none sm:text-2xl">
             <span className="mr-2 text-muted">{chapter.position}화</span>
             {chapter.title}
           </h1>
@@ -107,6 +109,7 @@ async function ChapterView({ params }: Pick<PageProps<'/novels/[novelId]/[chapte
 
       {isReader && chapter.visibleNow ? <ViewTracker chapterId={chapter.id} /> : null}
       <ReadingProgress chapterId={chapter.id} />
+      <BackToTop targetId="chapter-title" />
       <ChapterKeyNav
         prevHref={prev ? `/novels/${novel.id}/${prev.id}` : null}
         nextHref={next ? `/novels/${novel.id}/${next.id}` : null}
