@@ -599,9 +599,10 @@ export function ConversationEditor({
         <div className="mt-1.5 text-xs text-muted">재게시·좋아요는 비우면 안 보이고, 답글 수는 비우면 아래 답글 개수로 보여요</div>
       ) : null}
 
-      {/* 넓으면 대본 | 미리보기 나란히 (대본이 길어져도 미리보기는 따라 내려옴), 좁으면 위아래 */}
-      <div className="mt-3 grid items-start gap-3 @xl:grid-cols-2">
-        <div className="flex flex-col gap-2">
+      {/* 넓으면 대본 | 미리보기 나란히 (대본이 길어져도 미리보기는 따라 내려옴), 좁으면 위아래.
+          칸 너비는 창에 맞춘다: 대본에 띄어쓰기 없는 긴 줄이 있어도 칸이 그 줄만큼 넓어져 화면 밖으로 나가지 않게 */}
+      <div className="mt-3 grid grid-cols-1 items-start gap-3 @xl:grid-cols-2">
+        <div className="flex min-w-0 flex-col gap-2">
           {draft.kind === 'post' ? (
             <>
               <MiniInput
@@ -653,7 +654,7 @@ export function ConversationEditor({
           />
           <ScriptHelp kind={draft.kind} />
         </div>
-        <div className="max-h-[560px] overflow-y-auto rounded-2xl bg-(--wn-stage) p-3 @xl:sticky @xl:top-20">
+        <div className="max-h-[560px] min-w-0 overflow-y-auto rounded-2xl bg-(--wn-stage) p-3 @xl:sticky @xl:top-20">
           <StoryBlockView block={draft} />
         </div>
       </div>

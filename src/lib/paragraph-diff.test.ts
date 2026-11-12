@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { DocNode } from '@/lib/chapter-text';
 import { htmlToDoc } from '@/lib/html-doc';
-import { changeSummary, compareChapter, diffUnits, docUnits, inlineChange, summarizeChanges, type Unit } from '@/lib/paragraph-diff';
+import { changeSummary, clipAround, clipLines, compareChapter, diffUnits, docUnits, inlineChange, summarizeChanges, type Unit } from '@/lib/paragraph-diff';
 import { createTemplate, serializeStoryBlock } from '@/lib/story-blocks';
 
 const units = (texts: string[]): Unit[] => texts.map((text) => (text.startsWith('T:') ? { text: text.slice(2), template: true } : { text, template: false }));
@@ -48,6 +48,26 @@ describe('발행본과 바뀐 곳', () => {
     expect(inlineChange('웃음 😀 끝', '웃음 😃 끝')).toEqual({ prefix: '웃음 ', removed: '😀', added: '😃', suffix: ' 끝' });
     // 같은 글자가 이어지면 앞쪽을 먼저 맞추고, 뒤쪽은 남은 만큼만
     expect(inlineChange('ㅋㅋ', 'ㅋㅋㅋ')).toEqual({ prefix: 'ㅋㅋ', removed: '', added: 'ㅋ', suffix: '' });
+  });
+
+  it('긴 것은 바뀐 곳 둘레만: 앞뒤 한 줄씩(템플릿은 첫 줄도), 긴 줄은 바뀐 글자 앞뒤 40자', () => {
+    const lines = ['[카톡 단체방]', '양띵크루 (9명)', '--- 날짜 ---', '양띵: 뭐 할까?', '다주: 마크 하자!', '삼식: 좋아요.', '나: 저도요', '퐁퐁: 그래'];
+    const before = lines.join('\n');
+    const after = before.replace('마크 하자!', '마크 하자!!');
+    const { prefix, suffix } = inlineChange(before, after);
+    expect(clipAround(prefix, suffix, true)).toEqual({ prefix: '[카톡 단체방]\n⋯\n양띵: 뭐 할까?\n다주: 마크 하자!', suffix: '\n삼식: 좋아요.\n⋯' });
+    // 문단 안 줄바꿈이면 첫 줄은 안 남김, 바로 앞뒤 줄만 있으면 '⋯' 없음
+    expect(clipAround('하나\n둘\n셋 ', ' 넷\n다섯', false)).toEqual({ prefix: '⋯\n둘\n셋 ', suffix: ' 넷\n다섯' });
+    expect(clipAround('첫 줄\n', '', true)).toEqual({ prefix: '첫 줄\n', suffix: '' });
+    const long = '가'.repeat(100);
+    expect(clipAround(long, long, false)).toEqual({ prefix: `…${'가'.repeat(40)}`, suffix: `${'가'.repeat(40)}…` });
+    expect(clipAround('짧은 앞 ', ' 짧은 뒤', false)).toEqual({ prefix: '짧은 앞 ', suffix: ' 짧은 뒤' });
+  });
+
+  it('통째로 넣거나 지운 것은 7줄까지 그대로, 더 길면 앞 6줄과 남은 줄 수', () => {
+    const seven = Array.from({ length: 7 }, (_, i) => `줄 ${i + 1}`).join('\n');
+    expect(clipLines(seven)).toBe(seven);
+    expect(clipLines(`${seven}\n줄 8\n줄 9`)).toBe('줄 1\n줄 2\n줄 3\n줄 4\n줄 5\n줄 6\n⋯ 3줄 더');
   });
 
   it('회차 비교와 요약: 저장된 HTML과 에디터 문서, 제목·작가의 말은 앞뒤 공백을 빼고 비교', () => {

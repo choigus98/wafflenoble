@@ -151,6 +151,44 @@ export function inlineChange(before: string, after: string): { prefix: string; r
   };
 }
 
+const CONTEXT_CHARS = 40;
+const MAX_LINES = 6;
+const headOf = (line: string) => {
+  const chars = Array.from(line);
+  return chars.length > CONTEXT_CHARS ? `${chars.slice(0, CONTEXT_CHARS).join('')}…` : line;
+};
+const tailOf = (line: string) => {
+  const chars = Array.from(line);
+  return chars.length > CONTEXT_CHARS ? `…${chars.slice(-CONTEXT_CHARS).join('')}` : line;
+};
+
+/**
+ * 고친 것이 길 때 바뀐 곳 둘레만 남긴다 (inlineChange의 앞뒤 같은 부분을 줄여서).
+ * 여러 줄이면 바뀐 줄과 그 앞뒤 한 줄씩(템플릿은 '[카톡 단체방]' 같은 첫 줄도), 빠진 줄은 '⋯' 한 줄로.
+ * 한 줄이 길면 바뀐 글자 앞뒤 40자만 남기고 '…'
+ */
+export function clipAround(prefix: string, suffix: string, keepFirstLine: boolean): { prefix: string; suffix: string } {
+  const before = prefix.split('\n');
+  const current = before.pop() ?? '';
+  const kept: string[] = [];
+  before.forEach((line, index) => {
+    if (index === before.length - 1) kept.push(index === 0 && keepFirstLine ? headOf(line) : tailOf(line));
+    else if (index === 0 && keepFirstLine) kept.push(headOf(line));
+    else if (kept.at(-1) !== '⋯') kept.push('⋯');
+  });
+  const [rest, ...after] = suffix.split('\n');
+  return {
+    prefix: [...kept, tailOf(current)].join('\n'),
+    suffix: [headOf(rest), ...(after.length > 0 ? [headOf(after[0])] : []), ...(after.length > 1 ? ['⋯'] : [])].join('\n'),
+  };
+}
+
+/** 통째로 새로 넣거나 지운 템플릿처럼 줄이 많으면 앞의 몇 줄만: '⋯ 12줄 더' */
+export function clipLines(text: string): string {
+  const lines = text.split('\n');
+  return lines.length > MAX_LINES + 1 ? [...lines.slice(0, MAX_LINES), `⋯ ${lines.length - MAX_LINES}줄 더`].join('\n') : text;
+}
+
 export type FieldChange = { before: string; after: string };
 export type ChapterChanges = { groups: ChangeGroup[]; title: FieldChange | null; note: FieldChange | null };
 

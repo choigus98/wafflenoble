@@ -1,7 +1,17 @@
 'use client';
 
 import { useEffect, useId, useRef, type RefObject } from 'react';
-import { changeLabel, changeSummary, inlineChange, SCENE_BREAK_UNIT, type Change, type ChapterChanges, type FieldChange } from '@/lib/paragraph-diff';
+import {
+  changeLabel,
+  changeSummary,
+  clipAround,
+  clipLines,
+  inlineChange,
+  SCENE_BREAK_UNIT,
+  type Change,
+  type ChapterChanges,
+  type FieldChange,
+} from '@/lib/paragraph-diff';
 
 const show = (text: string) => (text === SCENE_BREAK_UNIT ? '✦ 장면 전환' : text);
 const shorten = (text: string) => {
@@ -21,23 +31,24 @@ const fieldAsChange = ({ before, after }: FieldChange): Change =>
       ? { kind: 'removed', text: before, template: false }
       : { kind: 'changed', before, after, template: false };
 
-/** 바뀐 것 하나: 고친 글은 전·후를 나란히 두고 실제로 바뀐 글자만 표시 (지운 글자는 취소선, 넣은 글자는 밑줄) */
+/** 바뀐 것 하나: 고친 글은 전·후를 나란히 두고 실제로 바뀐 글자만 표시 (지운 글자는 취소선, 넣은 글자는 밑줄). 길면 바뀐 곳 둘레만 */
 function ChangeView({ change }: { change: Change }) {
   if (change.kind === 'removed')
     return (
       <del className={`${BLOCK} bg-danger/10 line-through decoration-danger/70`}>
         <span className="sr-only">지운 글: </span>
-        {show(change.text)}
+        {clipLines(show(change.text))}
       </del>
     );
   if (change.kind === 'added')
     return (
       <ins className={`${BLOCK} bg-accent-soft no-underline`}>
         <span className="sr-only">새 글: </span>
-        {show(change.text)}
+        {clipLines(show(change.text))}
       </ins>
     );
-  const { prefix, removed, added, suffix } = inlineChange(show(change.before), show(change.after));
+  const { removed, added, ...same } = inlineChange(show(change.before), show(change.after));
+  const { prefix, suffix } = clipAround(same.prefix, same.suffix, change.template);
   return (
     <>
       <p className={`${BLOCK} bg-danger/10`}>
