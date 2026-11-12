@@ -5,7 +5,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import type { Node as PMNode } from '@tiptap/pm/model';
 import { Extension, useEditorState, type Editor } from '@tiptap/react';
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
-import { scrollBehavior } from '@/lib/motion';
+import { scrollBelowBar } from '@/lib/motion';
 import { objectParticle, spellingMatches, toParticle, type SpellingMatch } from '@/lib/spelling';
 
 // ─── 틀린 곳 칠하기 (ProseMirror 플러그인) ─────────────────────
@@ -71,6 +71,7 @@ export function SpellingPanel({ editor, onClose }: { editor: Editor; onClose: ()
   const closeRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const emptyRef = useRef<HTMLParagraphElement>(null);
+  const sectionRef = useRef<HTMLElement>(null);
   // 처음 찾은 뒤 한 번: 첫 항목으로(없으면 '찾은 곳이 없어요'로) 포커스
   const initialFocusRef = useRef(true);
   // 하나를 고친 뒤 포커스를 둘 자리 (같은 순번의 다음 항목, 없으면 닫기 단추)
@@ -119,7 +120,9 @@ export function SpellingPanel({ editor, onClose }: { editor: Editor; onClose: ()
         .setMeta(spellingKey, { current: index } satisfies SpellMeta)
         .setSelection(TextSelection.create(editor.state.doc, match.from, match.to)),
     );
-    editor.view.dom.querySelector('.wn-spell-current')?.scrollIntoView({ block: 'center', behavior: scrollBehavior() });
+    // 이 창은 도구 막대와 함께 화면 위에 붙어 있어서, 가운데로만 옮기면 휴대폰에서는 창 밑에 가린다 → 막대 아래 남은 칸의 가운데로
+    const current = editor.view.dom.querySelector('.wn-spell-current');
+    if (current) scrollBelowBar(current, sectionRef.current?.closest<HTMLElement>('[data-editor-bar]') ?? null, 'center');
   }
 
   function fix(index: number) {
@@ -155,7 +158,7 @@ export function SpellingPanel({ editor, onClose }: { editor: Editor; onClose: ()
   const textButton = 'h-9 shrink-0 rounded-lg px-3 text-sm font-semibold transition disabled:pointer-events-none disabled:opacity-40';
 
   return (
-    <section aria-label="자주 틀리는 말" onKeyDown={onKeyDown} className="mt-2 rounded-xl border border-line bg-surface p-2">
+    <section ref={sectionRef} aria-label="자주 틀리는 말" onKeyDown={onKeyDown} className="mt-2 rounded-xl border border-line bg-surface p-2">
       <div className="flex items-center justify-between gap-2">
         <h2 className="pl-1.5 text-sm font-semibold">
           자주 틀리는 말 <span className="font-normal text-muted tabular-nums">{matches.length > 0 ? `${matches.length}곳` : ''}</span>
@@ -179,7 +182,8 @@ export function SpellingPanel({ editor, onClose }: { editor: Editor; onClose: ()
         </div>
       </div>
       {matches.length > 0 ? (
-        <ul ref={listRef} className="mt-1 max-h-60 space-y-0.5 overflow-y-auto overscroll-contain">
+        // 화면이 낮으면 목록도 낮게 (위에 붙은 막대가 본문을 너무 많이 가리지 않게)
+        <ul ref={listRef} className="mt-1 max-h-[min(15rem,26vh)] space-y-0.5 overflow-y-auto overscroll-contain">
           {matches.map((match, index) => (
             <li key={`${match.from}:${match.wrong}`} className="flex items-center gap-1 rounded-lg hover:bg-surface-2">
               {/* 누르면 본문의 그 자리를 칠하고 보여 준다 */}

@@ -6,7 +6,7 @@ import type { Node as PMNode } from '@tiptap/pm/model';
 import { Extension, useEditorState, type Editor } from '@tiptap/react';
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { findMatches, type FindMatch } from '@/lib/find';
-import { scrollBehavior } from '@/lib/motion';
+import { scrollBelowBar } from '@/lib/motion';
 
 // ─── 찾은 곳 칠하기 (ProseMirror 플러그인) ─────────────────────
 // 검색어·현재 위치는 트랜잭션 메타로 받고, 문서가 바뀔 때마다 다시 찾는다.
@@ -80,6 +80,7 @@ export function FindBar({ editor, onClose }: { editor: Editor; onClose: () => vo
   const [notice, setNotice] = useState('');
   const noticeTimerRef = useRef<number | null>(null);
   const findInputRef = useRef<HTMLInputElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
   // 검색어를 바꾼 뒤 첫 Enter는 첫 번째 찾은 곳으로, 그다음부터 다음 곳으로
   const revealedRef = useRef(false);
   const { count, current } = useEditorState({
@@ -121,7 +122,8 @@ export function FindBar({ editor, onClose }: { editor: Editor; onClose: () => vo
   // dispatch 직후 ProseMirror가 화면을 바로 고쳐 두므로 기다리지 않고 스크롤한다
   // (requestAnimationFrame은 뒤에 숨은 탭에서는 돌지 않는다)
   function reveal() {
-    editor.view.dom.querySelector('.wn-find-current')?.scrollIntoView({ block: 'center', behavior: scrollBehavior() });
+    const current = editor.view.dom.querySelector('.wn-find-current');
+    if (current) scrollBelowBar(current, barRef.current?.closest<HTMLElement>('[data-editor-bar]') ?? null, 'center');
   }
 
   function goTo(index: number) {
@@ -210,7 +212,7 @@ export function FindBar({ editor, onClose }: { editor: Editor; onClose: () => vo
     'h-9 shrink-0 rounded-lg px-3 text-sm font-semibold transition disabled:pointer-events-none disabled:opacity-40';
 
   return (
-    <div role="search" aria-label="본문에서 찾기" className="mt-2 flex flex-col gap-2 rounded-xl border border-line bg-surface p-2 sm:flex-row sm:items-center">
+    <div ref={barRef} role="search" aria-label="본문에서 찾기" className="mt-2 flex flex-col gap-2 rounded-xl border border-line bg-surface p-2 sm:flex-row sm:items-center">
       <div className="flex min-w-0 flex-1 items-center gap-1">
         <input
           ref={findInputRef}

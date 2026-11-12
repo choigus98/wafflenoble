@@ -613,7 +613,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
         </label>
       </div>
 
-      <div ref={barRef} className="sticky top-0 z-20 -mx-1 mt-5 bg-bg/90 px-1 py-2 backdrop-blur-md">
+      <div ref={barRef} data-editor-bar="" className="sticky top-0 z-20 -mx-1 mt-5 bg-bg/90 px-1 py-2 backdrop-blur-md">
         <div className="flex flex-wrap items-center justify-between gap-2">
           {editor ? (
             <Toolbar

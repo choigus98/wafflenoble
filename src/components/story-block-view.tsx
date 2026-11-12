@@ -1498,11 +1498,12 @@ export function MusicCard({ data, field }: { data: MusicData; field?: FieldRende
               <div className="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-(--wn-music-accent) shadow-sm" style={{ left: percent }} />
             </div>
           ) : null}
-          <div className="mt-2 flex justify-between gap-3 text-xs text-(--wn-music-muted) tabular-nums">
+          <div className="mt-2 flex flex-wrap justify-between gap-x-3 gap-y-1 text-xs text-(--wn-music-muted) tabular-nums">
             {editing ? (
               <>
-                {slot('elapsed', '재생 위치 (예: 1:24)', 10, '')}
-                {slot('duration', '전체 길이 (예: 3:45)', 10, 'text-right')}
+                {/* 좁은 화면에서 두 칸이 한 줄에 안 들어가면 '전체 길이'를 아래 줄 오른쪽으로 */}
+                {slot('elapsed', '재생 위치 (예: 1:24)', 10, 'min-w-12')}
+                {slot('duration', '전체 길이 (예: 3:45)', 10, 'ml-auto min-w-12 text-right')}
               </>
             ) : (
               <>
@@ -1588,10 +1589,11 @@ function RankCard({ data }: { data: RankData }) {
   return (
     <div className={cn(CARD, 'bg-(--wn-rank-bg) px-3.5 pt-4 pb-3')}>
       {title || badge ? (
-        <div className="flex items-start justify-between gap-3 px-1.5">
-          <span className="min-w-0 text-[17px] leading-snug font-bold break-keep">{title}</span>
+        // 좁으면 표시를 제목 아래로 (제목이 한 글자씩 세로로 쌓이지 않게)
+        <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1 px-1.5">
+          <span className="min-w-32 flex-1 text-[17px] leading-snug font-bold break-keep">{title}</span>
           {badge ? (
-            <span className="mt-0.5 shrink-0 rounded-full bg-(--wn-rank-badge-bg) px-2 py-0.5 text-xs font-bold text-(--wn-rank-badge-fg)">{badge}</span>
+            <span className="mt-0.5 max-w-full shrink-0 rounded-full bg-(--wn-rank-badge-bg) px-2 py-0.5 text-xs font-bold text-(--wn-rank-badge-fg)">{badge}</span>
           ) : null}
         </div>
       ) : null}
@@ -1605,22 +1607,26 @@ function RankCard({ data }: { data: RankData }) {
               </li>
             ) : (
               <li key={index} className={cn('flex items-center gap-3 rounded-xl px-1.5 py-2', line.mine && 'bg-(--wn-rank-me-bg) font-semibold')}>
-                <span className={cn('w-7 shrink-0 text-center text-[17px] font-bold tabular-nums', line.rank <= 3 ? 'text-(--wn-rank-top)' : 'text-(--wn-rank-muted)')}>
+                <span className={cn('min-w-7 shrink-0 text-center text-[17px] font-bold tabular-nums', line.rank <= 3 ? 'text-(--wn-rank-top)' : 'text-(--wn-rank-muted)')}>
                   {line.rank}
                   <span className="sr-only">위,</span>
                 </span>
-                <span className="min-w-0 flex-1 break-keep">
-                  {line.name}
-                  {line.mine ? <span className="sr-only"> (강조)</span> : null}
-                </span>
-                {line.score ? (
-                  <span className="shrink-0 text-sm tabular-nums">
-                    <span className="sr-only">, </span>
-                    {line.score}
+                {/* 이름과 점수가 한 줄에 안 들어가면 점수를 아래 줄 오른쪽으로 (긴 점수가 이름 칸을 눌러 버리지 않게) */}
+                <span className="flex min-w-0 flex-1 flex-wrap items-baseline justify-between gap-x-3">
+                  {/* 이름 칸은 6rem부터: 그만큼도 안 남으면 점수가 아래 줄로 내려간다 (이름·점수가 둘 다 좁게 눌리지 않게) */}
+                  <span className="min-w-0 flex-[1_1_6rem] break-keep">
+                    {line.name}
+                    {line.mine ? <span className="sr-only"> (강조)</span> : null}
                   </span>
-                ) : null}
+                  {line.score ? (
+                    <span className="ml-auto min-w-0 text-right text-sm tabular-nums">
+                      <span className="sr-only">, </span>
+                      {line.score}
+                    </span>
+                  ) : null}
+                </span>
                 {changes ? (
-                  <span className="flex w-9 shrink-0 justify-end">
+                  <span className="flex min-w-9 shrink-0 justify-end">
                     <RankChangeMark change={line.change} />
                   </span>
                 ) : null}

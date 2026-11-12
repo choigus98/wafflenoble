@@ -5,7 +5,7 @@ import { NodeSelection, Selection, TextSelection } from '@tiptap/pm/state';
 import { useEditorState, type Editor } from '@tiptap/react';
 import { useEffect, useRef, type KeyboardEvent } from 'react';
 import { formatNumber } from '@/lib/format';
-import { scrollBehavior } from '@/lib/motion';
+import { scrollBelowBar } from '@/lib/motion';
 import { sceneIndexAt, sceneOutline, type Scene } from '@/lib/scenes';
 import { cn } from '@/lib/utils';
 
@@ -37,9 +37,7 @@ export function jumpToScene(editor: Editor, scene: Scene, bar: HTMLElement | nul
   view.focus();
   // 템플릿·장면 전환 줄을 고른 장면은 그 블록으로, 글로 시작하는 장면은 첫 블록(문단·인용)으로
   const element = view.nodeDOM(kind === 'node' ? pos : scene.from) as HTMLElement | null;
-  if (!element) return;
-  const top = element.getBoundingClientRect().top + window.scrollY - (bar?.offsetHeight ?? 0) - 12;
-  window.scrollTo({ top: Math.max(0, top), behavior: scrollBehavior() });
+  if (element) scrollBelowBar(element, bar, 'start');
 }
 
 export function ScenePanel({ editor, onJump, onClose }: { editor: Editor; onJump: (scene: Scene) => void; onClose: () => void }) {
