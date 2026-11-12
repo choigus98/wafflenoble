@@ -2,7 +2,7 @@
 
 import { NodeSelection } from '@tiptap/pm/state';
 import type { Editor } from '@tiptap/react';
-import { useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { useDismiss } from '@/components/use-dismiss';
 import { TEMPLATES, createTemplate, newId, type TemplateKey } from '@/lib/story-blocks';
 
@@ -11,7 +11,18 @@ export function TemplateMenu({ editor }: { editor: Editor }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   useDismiss({ open, onClose: () => setOpen(false), rootRef, triggerRef });
+
+  // 툴바가 화면 중간(제자리)에 있을 때 열면 메뉴 아래쪽이 화면 밖으로 나가서, 손가락·휠로는 메뉴 안만 스크롤되고
+  // 마지막 템플릿까지 못 닿는다 → 지금 보이는 화면의 아래 끝까지만 키우고 그 안에서 스크롤 (휴대폰 키보드가 떠 있으면 그 위까지)
+  useLayoutEffect(() => {
+    const menu = menuRef.current;
+    if (!open || !menu) return;
+    const viewport = window.visualViewport;
+    const bottom = viewport ? viewport.offsetTop + viewport.height : window.innerHeight;
+    menu.style.maxHeight = `${Math.max(Math.floor(bottom - menu.getBoundingClientRect().top - 12), 160)}px`;
+  }, [open]);
 
   function insert(key: TemplateKey) {
     const block = createTemplate(key);
@@ -51,8 +62,8 @@ export function TemplateMenu({ editor }: { editor: Editor }) {
         ＋ 템플릿
       </button>
       {open ? (
-        // 템플릿이 많아져서, 툴바가 화면 위에 붙어 있을 때도 끝까지 닿도록 화면 높이 안에서 스크롤
-        <div className="absolute top-10 left-0 z-30 max-h-[calc(100dvh-6rem)] w-64 overflow-y-auto overscroll-contain rounded-2xl border border-line bg-surface p-1.5 shadow-lg shadow-black/10">
+        // 템플릿이 많아서 화면 높이 안에서 스크롤 (실제 높이는 위에서 열 때 잰다)
+        <div ref={menuRef} className="absolute top-10 left-0 z-30 max-h-[calc(100dvh-6rem)] w-64 overflow-y-auto overscroll-contain rounded-2xl border border-line bg-surface p-1.5 shadow-lg shadow-black/10">
           {TEMPLATES.map((template) => (
             <button
               key={template.key}

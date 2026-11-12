@@ -315,7 +315,16 @@ export function ConversationEditor({
   }
 
   return (
-    <div ref={rootRef} className="@container scroll-mt-20 rounded-[24px] border border-accent/50 bg-surface p-4 shadow-sm sm:p-5">
+    <div
+      ref={rootRef}
+      // Esc = 완료 (고친 내용은 이미 미리보기에 반영돼 있어서 따로 '취소'가 없다). 이름 바꾸기 칸의 Esc는 그 칸만 닫는다
+      onKeyDown={(event) => {
+        if (event.key !== 'Escape' || event.defaultPrevented || event.nativeEvent.isComposing) return;
+        event.preventDefault();
+        done();
+      }}
+      className="@container scroll-mt-20 rounded-[24px] border border-accent/50 bg-surface p-4 shadow-sm sm:p-5"
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-baseline gap-x-2">
           <span className="text-sm font-bold">{templateLabel(draft)}</span>
@@ -734,15 +743,27 @@ function SpeakerChips({
   onRename: (from: string, to: string) => void;
 }) {
   const [renaming, setRenaming] = useState<string | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  // Enter·Esc로 이름 칸을 닫으면 그 사람의 ✎ 단추로 포커스를 돌려준다 (칸이 사라지면서 포커스가 화면 맨 앞으로 튕기지 않게)
+  const refocusRef = useRef<string | null>(null);
 
-  function finishRename(from: string, to: string) {
+  useEffect(() => {
+    const name = refocusRef.current;
+    if (renaming !== null || name === null) return;
+    refocusRef.current = null;
+    rootRef.current?.querySelector<HTMLButtonElement>(`button[data-rename="${CSS.escape(name)}"]`)?.focus();
+  }, [renaming, speakers]);
+
+  function finishRename(from: string, to: string, refocus = false) {
     setRenaming(null);
     const next = to.trim();
-    if (next && next !== from) onRename(from, next);
+    const renamed = next !== '' && next !== from;
+    if (renamed) onRename(from, next);
+    if (refocus) refocusRef.current = renamed ? next : from;
   }
 
   return (
-    <div className="mt-3 flex flex-wrap items-center gap-1.5">
+    <div ref={rootRef} className="mt-3 flex flex-wrap items-center gap-1.5">
       <span className="mr-1 text-xs font-semibold text-muted">등장인물</span>
       {speakers.map((name) => {
         if (renaming === name) {
@@ -757,8 +778,11 @@ function SpeakerChips({
                 if (event.nativeEvent.isComposing || event.keyCode === 229) return;
                 if (event.key === 'Enter') {
                   event.preventDefault();
-                  finishRename(name, event.currentTarget.value);
+                  finishRename(name, event.currentTarget.value, true);
                 } else if (event.key === 'Escape') {
+                  // 편집 창 전체의 Esc(완료)로 번지지 않게
+                  event.preventDefault();
+                  refocusRef.current = name;
                   setRenaming(null);
                 }
               }}
@@ -820,6 +844,7 @@ function SpeakerChips({
             <button
               type="button"
               onClick={() => setRenaming(name)}
+              data-rename={name}
               title="이름 모두 바꾸기"
               aria-label={`${name} 이름 모두 바꾸기`}
               className={cn('grid size-6 place-items-center rounded-full transition hover:bg-surface-2 hover:text-fg', right ? 'text-fg' : 'text-muted')}

@@ -2,7 +2,7 @@
 
 import { NodeSelection } from '@tiptap/pm/state';
 import { Node, NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from '@tiptap/react';
-import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { StoryBlockView } from '@/components/story-block-view';
 import { announce } from '@/lib/announce';
 import { newId, parseStoryBlock, templateLabel, type StoryBlock } from '@/lib/story-blocks';
@@ -85,12 +85,24 @@ function StoryBlockItem({ node, editor, getPos, selected, deleteNode, extension 
   const [menuOpen, setMenuOpen] = useState(false);
   const [canMove, setCanMove] = useState({ up: false, down: false });
 
+  const cardRef = useRef<HTMLDivElement>(null);
+  // '완료'·Esc로 편집 창을 닫으면 포커스를 이 카드로 돌려준다 (창이 사라지면서 포커스가 화면 맨 앞으로 튕기지 않게)
+  const refocusCardRef = useRef(false);
+
   const open = () => {
     if (uid !== null) store.set(uid); // 다른 템플릿 편집 창은 닫힌다 (닫히면서 고친 내용 저장)
   };
   const close = () => {
-    if (store.get() === uid) store.set(null);
+    if (store.get() !== uid) return;
+    refocusCardRef.current = true;
+    store.set(null);
   };
+
+  useEffect(() => {
+    if (editing || !refocusCardRef.current) return;
+    refocusCardRef.current = false;
+    cardRef.current?.focus();
+  }, [editing]);
 
   // 방금 넣은 템플릿: 대화형은 대본 편집 창을 바로 열고, 카드형은 다른 편집 창을 닫는다 (첫 칸에 커서)
   // '방금 넣음' 표시는 한 번 쓰고 지운다 (되돌리기 기록에는 남기지 않음)
@@ -276,6 +288,7 @@ function StoryBlockItem({ node, editor, getPos, selected, deleteNode, extension 
           // 도구 막대는 카드(버튼) 바깥에 둔다 — 버튼 안의 버튼은 화면 낭독기에서 묻힐 수 있어서
           <div className={cn(frame, 'has-focus-visible:ring-2 has-focus-visible:ring-accent')}>
             <div
+              ref={cardRef}
               role="button"
               tabIndex={0}
               aria-label={`${templateLabel(block)} ${editName}`}
