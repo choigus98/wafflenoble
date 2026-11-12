@@ -139,10 +139,13 @@ function useDraft<T extends StoryBlock>(block: T, onChange: (block: StoryBlock) 
 const INLINE_EDIT =
   'min-h-6 rounded-md bg-transparent outline-none ring-1 ring-transparent transition placeholder:text-(--wn-muted) placeholder:opacity-70 hover:ring-(--wn-border) focus:ring-2 focus:ring-accent';
 
-/** 줄바꿈 칸(wrap)이 비어 있을 때 자리표시가 다 보이는 최소 너비 (한글 1em, 나머지 0.55em으로 어림, 칸보다 넓지 않게) */
+/**
+ * 줄바꿈 칸(wrap)이 비어 있을 때 자리표시가 다 보이는 최소 너비 (한글 1em, 나머지 0.55em으로 어림).
+ * 칸 앞에 작은 그림·로고가 붙은 줄도 있어서 칸 너비에서 2.5rem을 뺀 만큼까지만, 그래도 최소 32px
+ */
 function placeholderWidth(text: string): string {
   const em = [...text].reduce((sum, char) => sum + (/[\u3131-\u318e\uac00-\ud7a3]/.test(char) ? 1 : 0.55), 0);
-  return `min(${em.toFixed(1)}em, 100%)`;
+  return `max(2rem, min(${em.toFixed(1)}em, 100% - 2.5rem))`;
 }
 
 export function InlineCardEditor({

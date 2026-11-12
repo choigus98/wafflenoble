@@ -1670,6 +1670,8 @@ function TodoCard({ data }: { data: TodoData }) {
           ) : null}
         </div>
       ) : null}
+      {/* 아무것도 안 적었으면 빈 상자 대신 한 줄 */}
+      {!title && !date && lines.length === 0 ? <div className="text-sm text-(--wn-todo-muted)">할 일 없음</div> : null}
       {lines.length > 0 ? (
         <ul aria-label="할 일" className={cn('space-y-0.5', title || date || total > 0 ? 'mt-2.5' : '')}>
           {lines.map((line, index) =>
