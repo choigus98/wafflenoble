@@ -13,6 +13,7 @@ import {
   useEditingTemplateUid,
 } from '@/components/admin/story-block/story-block-node';
 import { ChangesDialog } from '@/components/admin/changes-dialog';
+import { CheckMenu, type CheckTool } from '@/components/admin/check-menu';
 import { CharGoal } from '@/components/admin/char-goal';
 import { FindBar, FindReplace } from '@/components/admin/find-replace';
 import { LongSentenceMarks, LongSentencePanel } from '@/components/admin/long-sentence-panel';
@@ -91,7 +92,7 @@ function plainTextSlice(text: string, schema: Schema): Slice {
 
 /** 글자수 + 본문 통계(문단 · 대사 · 템플릿, lib/body-stats.ts) */
 /** 도구 막대 아래에 뜨는 창 (한 번에 하나만) */
-type EditorPanel = 'find' | 'spelling' | 'scenes' | 'repeats' | 'long';
+type EditorPanel = 'find' | CheckTool;
 
 function countText(editor: Editor) {
   const text = editor.state.doc.textContent;
@@ -1057,67 +1058,8 @@ function Toolbar({
           <path d="M16 16l4.5 4.5" />
         </svg>
       </button>
-      <button
-        type="button"
-        onClick={onPolish}
-        title={'문장 부호 다듬기: ... → …, " " → “ ”, \' \' → ‘ ’ (템플릿 안은 그대로)'}
-        aria-label="문장 부호 다듬기"
-        className="grid h-8 min-w-8 place-items-center rounded-lg px-2 text-[13px] font-semibold text-fg transition hover:bg-surface-2"
-      >
-        <span aria-hidden="true">“…”</span>
-      </button>
-      <button
-        type="button"
-        onClick={() => onTogglePanel('spelling')}
-        aria-expanded={panel === 'spelling'}
-        title="자주 틀리는 말 찾기: 됬 → 됐, 몇일 → 며칠, 할께 → 할게 … (템플릿 안은 그대로)"
-        aria-label="자주 틀리는 말 찾기"
-        className={cn('grid h-8 min-w-8 place-items-center rounded-lg px-2 transition', panel === 'spelling' ? 'bg-accent-soft text-accent' : 'text-fg hover:bg-surface-2')}
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-4">
-          <path d="M5 9.5l3.5 3.5L16 5.5" />
-          <path d="M3 19c1.5-1.6 3-1.6 4.5 0s3 1.6 4.5 0 3-1.6 4.5 0 3 1.6 4.5 0" />
-        </svg>
-      </button>
-      <button
-        type="button"
-        onClick={() => onTogglePanel('repeats')}
-        aria-expanded={panel === 'repeats'}
-        title="반복되는 말 찾기: 세 번 이상 나온 낱말과 횟수 (조사는 떼고 셈)"
-        aria-label="반복되는 말 찾기"
-        className={cn('grid h-8 min-w-8 place-items-center rounded-lg px-2 transition', panel === 'repeats' ? 'bg-accent-soft text-accent' : 'text-fg hover:bg-surface-2')}
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-4">
-          <path d="M6 19V9M12 19V5M18 19v-6" />
-          <path d="M3 19h18" />
-        </svg>
-      </button>
-      <button
-        type="button"
-        onClick={() => onTogglePanel('long')}
-        aria-expanded={panel === 'long'}
-        title="긴 문장 찾기: 80 · 100 · 150자보다 긴 문장"
-        aria-label="긴 문장 찾기"
-        className={cn('grid h-8 min-w-8 place-items-center rounded-lg px-2 transition', panel === 'long' ? 'bg-accent-soft text-accent' : 'text-fg hover:bg-surface-2')}
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-4">
-          <path d="M4 6h12M4 11h16M4 16h7" />
-          <path d="M14 19h7M18 16.5l3 2.5-3 2.5" />
-        </svg>
-      </button>
-      <button
-        type="button"
-        onClick={() => onTogglePanel('scenes')}
-        aria-expanded={panel === 'scenes'}
-        title="장면 바로가기: 장면 전환(✦)으로 나뉜 장면 목록"
-        aria-label="장면 바로가기"
-        className={cn('grid h-8 min-w-8 place-items-center rounded-lg px-2 transition', panel === 'scenes' ? 'bg-accent-soft text-accent' : 'text-fg hover:bg-surface-2')}
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-4">
-          <path d="M10 6h10M10 12h10M10 18h10" />
-          <path d="M5 4l1.6 2L5 8 3.4 6zM5 10l1.6 2L5 14l-1.6-2zM5 16l1.6 2L5 20l-1.6-2z" fill="currentColor" strokeWidth="1" />
-        </svg>
-      </button>
+      {/* 글 다듬기 도구는 '글 점검' 메뉴 하나로 (휴대폰에서 도구 막대가 너무 길어지지 않게) */}
+      <CheckMenu openTool={panel === 'find' ? null : panel} onPolish={onPolish} onTool={onTogglePanel} />
       <button
         type="button"
         onClick={onToggleFocus}
