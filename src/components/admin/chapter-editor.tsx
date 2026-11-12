@@ -20,7 +20,9 @@ import { Badge, Button, buttonClass } from '@/components/ui';
 import { PrivateNote } from '@/components/admin/private-note';
 import { useDismiss } from '@/components/use-dismiss';
 import { formatDateTime, formatNumber, formatSchedule, formatTime } from '@/lib/format';
+import { announce } from '@/lib/announce';
 import { plainTextToBlocks } from '@/lib/paste';
+import { punctuationEdits } from '@/lib/punctuation';
 import type { RevisionItem } from '@/lib/queries/admin';
 import { cn } from '@/lib/utils';
 
@@ -156,6 +158,21 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
   const openFind = () => {
     setFindOpen(true);
     setFindSession((value) => value + 1);
+  };
+
+  /** 문장 부호 다듬기: 본문 전체를 한 번에 (되돌리기 한 번이면 전부 원래대로). 템플릿 안은 그대로 (lib/punctuation.ts) */
+  const polishPunctuation = () => {
+    if (!editor) return;
+    const edits = punctuationEdits(editor.state.doc);
+    const text =
+      edits.length === 0 ? '다듬을 문장 부호가 없어요' : `문장 부호 ${edits.length}곳을 다듬었어요. 되돌리려면 되돌리기(⌘Z / Ctrl+Z)`;
+    if (edits.length > 0) {
+      const tr = editor.state.tr;
+      for (const edit of [...edits].reverse()) tr.insertText(edit.text, edit.from, edit.to);
+      editor.view.dispatch(tr);
+    }
+    setMessage({ tone: 'info', text });
+    announce(text);
   };
 
   function clearTimer() {
@@ -554,7 +571,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
       <div className="sticky top-0 z-20 -mx-1 mt-5 bg-bg/90 px-1 py-2 backdrop-blur-md">
         <div className="flex flex-wrap items-center justify-between gap-2">
           {editor ? (
-            <Toolbar editor={editor} onFind={openFind} focusMode={focusMode} onToggleFocus={toggleFocusMode} />
+            <Toolbar editor={editor} onFind={openFind} onPolish={polishPunctuation} focusMode={focusMode} onToggleFocus={toggleFocusMode} />
           ) : (
             <div className="h-10" />
           )}
@@ -839,11 +856,13 @@ function SchedulePopover({
 function Toolbar({
   editor,
   onFind,
+  onPolish,
   focusMode,
   onToggleFocus,
 }: {
   editor: Editor;
   onFind: () => void;
+  onPolish: () => void;
   focusMode: boolean;
   onToggleFocus: () => void;
 }) {
@@ -929,6 +948,15 @@ function Toolbar({
           <circle cx="11" cy="11" r="6.5" />
           <path d="M16 16l4.5 4.5" />
         </svg>
+      </button>
+      <button
+        type="button"
+        onClick={onPolish}
+        title={'문장 부호 다듬기: ... → …, " " → “ ”, \' \' → ‘ ’ (템플릿 안은 그대로)'}
+        aria-label="문장 부호 다듬기"
+        className="grid h-8 min-w-8 place-items-center rounded-lg px-2 text-[13px] font-semibold text-fg transition hover:bg-surface-2"
+      >
+        <span aria-hidden="true">“…”</span>
       </button>
       <button
         type="button"
