@@ -1,5 +1,11 @@
+import type { ReactNode } from 'react';
 import {
   CHAT_COLORS,
+  chatColorKey,
+  isMine,
+  kakaoTitle,
+  parseScript,
+  scriptSpeakers,
   type ChatData,
   type DonationData,
   type KakaoData,
@@ -8,11 +14,25 @@ import {
 } from '@/lib/story-blocks';
 import { cn } from '@/lib/utils';
 
-// 템플릿 카드. 상태가 없어서 열람 화면(서버)과 에디터 미리보기(브라우저)가 같이 쓴다.
-// 기기 화면을 흉내 내므로 사이트 테마와 상관없이 항상 어두운 색으로 그린다.
+// 템플릿 카드. 상태가 없어서 열람 화면(서버)과 에디터(브라우저)가 같이 쓴다.
+// 색은 globals.css의 --wn-* 토큰이라 사이트 테마(밝게/어둡게)를 따라간다.
 // 열람 화면의 .novel-body p 스타일이 끼어들지 않도록 안쪽에는 p 태그를 쓰지 않는다.
 
-const CARD = 'wn-block mx-auto w-full max-w-[460px] rounded-[22px] border border-white/10 text-[#f2f2f5]';
+const CARD = 'wn-block mx-auto w-full max-w-[460px] rounded-[22px] border border-(--wn-border) text-(--wn-fg) shadow-sm';
+
+/**
+ * 에디터에서 카드 위의 글자를 바로 고칠 수 있도록, 글자 자리를 입력칸으로 바꿔 그리는 함수.
+ * 열람 화면에서는 넘기지 않으므로 그냥 글자로 그려진다.
+ */
+export type FieldRenderer = (spec: {
+  name: string;
+  value: string;
+  label: string;
+  placeholder: string;
+  maxLength: number;
+  className: string;
+  multiline?: boolean;
+}) => ReactNode;
 
 export function StoryBlockView({ block }: { block: StoryBlock }) {
   switch (block.kind) {
@@ -27,54 +47,47 @@ export function StoryBlockView({ block }: { block: StoryBlock }) {
   }
 }
 
-function LiveCard({ data }: { data: LiveData }) {
+export function LiveCard({ data, field }: { data: LiveData; field?: FieldRenderer }) {
+  const editing = Boolean(field);
+  const slot = (name: keyof LiveData, label: string, maxLength: number, className: string) =>
+    field ? (
+      field({ name, value: data[name], label, placeholder: label, maxLength, className })
+    ) : (
+      <span className={className}>{data[name]}</span>
+    );
+
   return (
-    <div className={cn(CARD, 'bg-[#1f212b] px-5 py-4')}>
+    <div className={cn(CARD, 'bg-(--wn-live-bg) px-5 py-4')}>
       <div className="flex items-start justify-between gap-3">
-        <span className="pt-1 text-[17px] font-bold">{data.streamer}</span>
-        {data.badge ? (
-          <span className="shrink-0 rounded-full bg-[#4a1b20] px-3 py-1 text-[13px] font-bold tracking-wide text-[#ff5b61]">
-            {data.badge}
-          </span>
-        ) : null}
+        {slot('streamer', '방송인', 40, 'min-w-0 pt-1 text-[17px] font-bold')}
+        {editing || data.badge
+          ? slot(
+              'badge',
+              '배지',
+              20,
+              'shrink-0 rounded-full bg-(--wn-live-badge-bg) px-3 py-1 text-center text-[13px] font-bold tracking-wide text-(--wn-live-badge-fg)',
+            )
+          : null}
       </div>
-      {data.title ? <div className="mt-2 text-[21px] leading-snug font-bold whitespace-pre-wrap">{data.title}</div> : null}
+      {editing || data.title ? (
+        <div className="mt-2">{slot('title', '방송 제목', 120, 'block w-full text-[21px] leading-snug font-bold whitespace-pre-wrap')}</div>
+      ) : null}
       <div className="mt-3 flex items-center justify-between gap-3 text-sm">
-        {data.viewers ? (
-          <span className="flex items-center gap-1.5 font-medium text-[#ff95b0]">
-            <span aria-hidden="true" className="size-3 rounded-full border-2 border-[#ffd3df] bg-[#ff95b0]" />
-            시청자 {data.viewers}명
+        {editing || data.viewers ? (
+          <span className="flex items-center gap-1.5 font-medium text-(--wn-live-viewers)">
+            <span
+              aria-hidden="true"
+              className="size-3 shrink-0 rounded-full border-2 border-(--wn-live-dot-ring) bg-(--wn-live-viewers)"
+            />
+            {/* 글자를 한 덩어리로 묶어야 flex 간격이 '1,024'와 '명' 사이에 끼지 않는다 */}
+            <span>
+              시청자 {slot('viewers', '시청자 수', 20, '')}명
+            </span>
           </span>
         ) : (
           <span />
         )}
-        {data.category ? <span className="text-white/65">{data.category}</span> : null}
-      </div>
-    </div>
-  );
-}
-
-function ChatCard({ data }: { data: ChatData }) {
-  const people = new Map(data.people.map((person) => [person.id, person]));
-  const messages = data.messages.filter((message) => message.text.trim());
-  return (
-    <div className={cn(CARD, 'bg-[#1b1d25] px-5 pt-4 pb-5')}>
-      <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-3.5">
-        <span className="text-[17px] font-bold">{data.title}</span>
-        {data.badge ? <span className="text-[13px] font-semibold tracking-wide text-white/65">{data.badge}</span> : null}
-      </div>
-      <div className="space-y-3 pt-4">
-        {messages.map((message) => {
-          const person = people.get(message.from);
-          return (
-            <div key={message.id}>
-              <div className="text-sm font-bold" style={{ color: CHAT_COLORS[person?.color ?? 'blue'] }}>
-                {person?.name}
-              </div>
-              <div className="mt-0.5 whitespace-pre-wrap">{message.text}</div>
-            </div>
-          );
-        })}
+        {editing || data.category ? slot('category', '카테고리', 40, 'min-w-0 text-right text-(--wn-muted)') : null}
       </div>
     </div>
   );
@@ -89,74 +102,130 @@ function SignalIcon({ className }: { className?: string }) {
   );
 }
 
-function DonationCard({ data }: { data: DonationData }) {
-  const footer = data.footer.trim() || `${data.donor} 님이 치즈 후원을 보냈습니다.`;
+export function DonationCard({ data, field }: { data: DonationData; field?: FieldRenderer }) {
+  const editing = Boolean(field);
+  const autoFooter = `${data.donor} 님이 치즈 후원을 보냈습니다.`;
+  const slot = (name: keyof DonationData, label: string, maxLength: number, className: string, multiline = false) =>
+    field ? (
+      field({ name, value: data[name], label, placeholder: label, maxLength, className, multiline })
+    ) : (
+      <span className={className}>{data[name]}</span>
+    );
+
   return (
-    <div className={cn(CARD, 'bg-black px-5 py-4')}>
-      <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-3.5">
-        <span className="flex items-center gap-2 text-base font-bold">
-          <SignalIcon className="size-5 shrink-0 text-[#1fca70]" />
-          {data.platform}
+    <div className={cn(CARD, 'bg-(--wn-don-bg) px-5 py-4')}>
+      <div className="flex items-center justify-between gap-3 border-b border-(--wn-line) pb-3.5">
+        <span className="flex min-w-0 items-center gap-2 text-base font-bold">
+          <SignalIcon className="size-5 shrink-0 text-(--wn-don-accent)" />
+          {slot('platform', '위쪽 문구', 40, 'min-w-0')}
         </span>
-        {data.badge ? (
-          <span className="shrink-0 rounded-full bg-[#0d3320] px-3 py-1 text-[13px] font-semibold text-[#22d374]">
-            {data.badge}
-          </span>
-        ) : null}
+        {editing || data.badge
+          ? slot(
+              'badge',
+              '배지',
+              20,
+              'shrink-0 rounded-full bg-(--wn-don-badge-bg) px-3 py-1 text-center text-[13px] font-semibold text-(--wn-don-badge-fg)',
+            )
+          : null}
       </div>
       <div className="flex items-baseline justify-between gap-3 pt-4">
-        <span className="text-[17px] font-bold">{data.donor}</span>
-        <span className="text-[26px] leading-none font-extrabold tracking-tight text-[#1fca70] tabular-nums">
-          {data.amount}
-        </span>
+        {slot('donor', '후원자', 40, 'min-w-0 text-[17px] font-bold')}
+        {slot(
+          'amount',
+          '금액',
+          40,
+          'min-w-0 text-right text-[26px] leading-none font-extrabold tracking-tight text-(--wn-don-accent) tabular-nums',
+        )}
       </div>
-      {data.message ? (
-        <div className="mt-3.5 rounded-2xl bg-[#26272b] px-4 py-3.5 leading-relaxed whitespace-pre-wrap">{data.message}</div>
+      {editing || data.message ? (
+        <div className="mt-3.5 rounded-2xl bg-(--wn-don-box) px-4 py-3.5 leading-relaxed whitespace-pre-wrap">
+          {slot('message', '후원 메시지', 2000, 'block w-full', true)}
+        </div>
       ) : null}
-      <div className="mt-3 text-right text-xs text-white/55">{footer}</div>
+      <div className="mt-3 text-right text-xs text-(--wn-muted)">
+        {field
+          ? field({
+              name: 'footer',
+              value: data.footer,
+              label: '아래쪽 문구',
+              placeholder: autoFooter,
+              maxLength: 120,
+              className: 'block w-full text-right',
+            })
+          : data.footer.trim() || autoFooter}
+      </div>
+    </div>
+  );
+}
+
+function ChatCard({ data }: { data: ChatData }) {
+  const lines = parseScript(data.script);
+  const speakers = scriptSpeakers(lines);
+  return (
+    <div className={cn(CARD, 'bg-(--wn-chat-bg) px-5 pt-4 pb-5')}>
+      <div className="flex items-center justify-between gap-3 border-b border-(--wn-line) pb-3.5">
+        <span className="text-[17px] font-bold">{data.title}</span>
+        {data.badge ? <span className="text-[13px] font-semibold tracking-wide text-(--wn-muted)">{data.badge}</span> : null}
+      </div>
+      <div className="space-y-3 pt-4">
+        {lines.map((line, index) =>
+          line.type === 'notice' ? (
+            <div key={index} className="text-center text-xs text-(--wn-muted)">
+              {line.text}
+            </div>
+          ) : (
+            <div key={index}>
+              <div className="text-sm font-bold" style={{ color: CHAT_COLORS[chatColorKey(line.name, speakers, data.colors)] }}>
+                {line.name}
+              </div>
+              <div className="mt-0.5 whitespace-pre-wrap">{line.text}</div>
+            </div>
+          ),
+        )}
+      </div>
     </div>
   );
 }
 
 function KakaoCard({ data }: { data: KakaoData }) {
-  const people = new Map(data.people.map((person) => [person.id, person]));
-  const other = data.people.find((person) => person.id !== data.meId);
-  const title = data.mode === 'dm' ? other?.name : data.room;
-  const messages = data.messages.filter((message) => message.text.trim());
+  const lines = parseScript(data.script);
   return (
-    <div className={cn(CARD, 'overflow-hidden bg-black')}>
-      <div className="bg-[#252527] px-4 py-3 text-center">
-        <div className="text-base font-bold">{title}</div>
+    <div className={cn(CARD, 'overflow-hidden bg-(--wn-kakao-bg)')}>
+      <div className="bg-(--wn-kakao-head) px-4 py-3 text-center text-(--wn-kakao-head-fg)">
+        <div className="text-base font-bold">{kakaoTitle(data, lines)}</div>
         {data.mode === 'group' && data.memberCount ? (
-          <div className="mt-0.5 text-xs text-white/55">{data.memberCount}명 참여 중</div>
+          <div className="mt-0.5 text-xs text-(--wn-kakao-sub)">{data.memberCount}명 참여 중</div>
         ) : null}
       </div>
       <div className="px-4 pt-2 pb-5">
-        {data.date ? (
-          <div className="flex justify-center pt-2">
-            <span className="rounded-full bg-[#252527] px-3 py-1 text-xs text-white/80">{data.date}</span>
-          </div>
-        ) : null}
-        {messages.map((message, index) => {
-          const mine = message.from === data.meId;
-          const startsRun = index === 0 || messages[index - 1].from !== message.from;
+        {lines.map((line, index) => {
+          if (line.type === 'notice') {
+            return (
+              <div key={index} className="flex justify-center pt-4">
+                <span className="rounded-full bg-(--wn-kakao-pill-bg) px-3 py-1 text-center text-xs text-(--wn-kakao-pill-fg)">
+                  {line.text}
+                </span>
+              </div>
+            );
+          }
+          const mine = isMine(line.name, data.me);
+          const previous = lines[index - 1];
+          const startsRun = !previous || previous.type !== 'message' || previous.name !== line.name;
           return (
             <div
-              key={message.id}
+              key={index}
               className={cn('flex flex-col', mine ? 'items-end' : 'items-start', startsRun ? 'mt-4' : 'mt-1.5')}
             >
-              {!mine && startsRun ? (
-                <span className="mb-1 ml-0.5 text-xs text-white/70">{people.get(message.from)?.name}</span>
-              ) : null}
+              {!mine && startsRun ? <span className="mb-1 ml-0.5 text-xs text-(--wn-kakao-name)">{line.name}</span> : null}
               <div
                 className={cn(
                   'max-w-[80%] rounded-[18px] px-3.5 py-2 leading-snug whitespace-pre-wrap',
-                  mine ? 'bg-[#f6b8cd] text-[#1d1a1b]' : 'bg-[#2c2c2e] text-white',
+                  mine ? 'bg-(--wn-kakao-me-bg) text-(--wn-kakao-me-fg)' : 'bg-(--wn-kakao-other-bg) text-(--wn-kakao-other-fg)',
                 )}
               >
-                {message.text}
+                {line.text}
               </div>
-              {message.time ? <span className="mt-1 text-[11px] text-white/50">{message.time}</span> : null}
+              {line.time ? <span className="mt-1 text-[11px] text-(--wn-kakao-time)">{line.time}</span> : null}
             </div>
           );
         })}

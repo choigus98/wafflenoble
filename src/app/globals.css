@@ -14,6 +14,43 @@
   --danger: #c0392f;
   --like: #e0503c;
   color-scheme: light;
+
+  /* 이야기 속 화면 템플릿 — 밝은 화면 */
+  --wn-fg: #17181c;
+  --wn-muted: #6b7280;
+  --wn-border: rgb(0 0 0 / 0.08);
+  --wn-line: rgb(0 0 0 / 0.08);
+  --wn-stage: #ebe5dc; /* 에디터 미리보기 바탕 */
+  --wn-live-bg: #ffffff;
+  --wn-live-badge-bg: #ffe4e6;
+  --wn-live-badge-fg: #e5484d;
+  --wn-live-viewers: #d64f7a;
+  --wn-live-dot-ring: #ffd3df;
+  --wn-chat-bg: #ffffff;
+  --wn-don-bg: #ffffff;
+  --wn-don-accent: #10a35a;
+  --wn-don-badge-bg: #dcf6e8;
+  --wn-don-badge-fg: #0f8f4f;
+  --wn-don-box: #f2f3f5;
+  --wn-kakao-bg: #bacee0;
+  --wn-kakao-head: #a9bfd3;
+  --wn-kakao-head-fg: #17181c;
+  --wn-kakao-sub: #3e5266;
+  --wn-kakao-pill-bg: rgb(0 0 0 / 0.16);
+  --wn-kakao-pill-fg: #ffffff;
+  --wn-kakao-other-bg: #ffffff;
+  --wn-kakao-other-fg: #191919;
+  --wn-kakao-me-bg: #f6b8cd;
+  --wn-kakao-me-fg: #1d1a1b;
+  --wn-kakao-name: #3e5266;
+  --wn-kakao-time: #4c6075;
+  --wn-nick-blue: #2f6fd6;
+  --wn-nick-purple: #8a4fd8;
+  --wn-nick-green: #23924a;
+  --wn-nick-yellow: #b7791f;
+  --wn-nick-pink: #d6457a;
+  --wn-nick-teal: #138f88;
+  --wn-nick-orange: #d4662a;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -30,6 +67,43 @@
     --danger: #f06a60;
     --like: #ff6b5a;
     color-scheme: dark;
+
+    /* 이야기 속 화면 템플릿 — 어두운 화면 */
+    --wn-fg: #f2f2f5;
+    --wn-muted: rgb(255 255 255 / 0.6);
+    --wn-border: rgb(255 255 255 / 0.1);
+    --wn-line: rgb(255 255 255 / 0.1);
+    --wn-stage: #0e0e10;
+    --wn-live-bg: #1f212b;
+    --wn-live-badge-bg: #4a1b20;
+    --wn-live-badge-fg: #ff5b61;
+    --wn-live-viewers: #ff95b0;
+    --wn-live-dot-ring: #ffd3df;
+    --wn-chat-bg: #1b1d25;
+    --wn-don-bg: #000000;
+    --wn-don-accent: #1fca70;
+    --wn-don-badge-bg: #0d3320;
+    --wn-don-badge-fg: #22d374;
+    --wn-don-box: #26272b;
+    --wn-kakao-bg: #000000;
+    --wn-kakao-head: #252527;
+    --wn-kakao-head-fg: #f2f2f5;
+    --wn-kakao-sub: rgb(255 255 255 / 0.55);
+    --wn-kakao-pill-bg: #252527;
+    --wn-kakao-pill-fg: rgb(255 255 255 / 0.8);
+    --wn-kakao-other-bg: #2c2c2e;
+    --wn-kakao-other-fg: #ffffff;
+    --wn-kakao-me-bg: #f6b8cd;
+    --wn-kakao-me-fg: #1d1a1b;
+    --wn-kakao-name: rgb(255 255 255 / 0.7);
+    --wn-kakao-time: rgb(255 255 255 / 0.5);
+    --wn-nick-blue: #8fb8ff;
+    --wn-nick-purple: #d7a9ff;
+    --wn-nick-green: #a3e5a6;
+    --wn-nick-yellow: #ffd77e;
+    --wn-nick-pink: #ffa3c4;
+    --wn-nick-teal: #86e1dc;
+    --wn-nick-orange: #ffb486;
   }
 }
 
@@ -46,6 +120,42 @@
   --danger: #f06a60;
   --like: #ff6b5a;
   color-scheme: dark;
+
+  --wn-fg: #f2f2f5;
+  --wn-muted: rgb(255 255 255 / 0.6);
+  --wn-border: rgb(255 255 255 / 0.1);
+  --wn-line: rgb(255 255 255 / 0.1);
+  --wn-stage: #0e0e10;
+  --wn-live-bg: #1f212b;
+  --wn-live-badge-bg: #4a1b20;
+  --wn-live-badge-fg: #ff5b61;
+  --wn-live-viewers: #ff95b0;
+  --wn-live-dot-ring: #ffd3df;
+  --wn-chat-bg: #1b1d25;
+  --wn-don-bg: #000000;
+  --wn-don-accent: #1fca70;
+  --wn-don-badge-bg: #0d3320;
+  --wn-don-badge-fg: #22d374;
+  --wn-don-box: #26272b;
+  --wn-kakao-bg: #000000;
+  --wn-kakao-head: #252527;
+  --wn-kakao-head-fg: #f2f2f5;
+  --wn-kakao-sub: rgb(255 255 255 / 0.55);
+  --wn-kakao-pill-bg: #252527;
+  --wn-kakao-pill-fg: rgb(255 255 255 / 0.8);
+  --wn-kakao-other-bg: #2c2c2e;
+  --wn-kakao-other-fg: #ffffff;
+  --wn-kakao-me-bg: #f6b8cd;
+  --wn-kakao-me-fg: #1d1a1b;
+  --wn-kakao-name: rgb(255 255 255 / 0.7);
+  --wn-kakao-time: rgb(255 255 255 / 0.5);
+  --wn-nick-blue: #8fb8ff;
+  --wn-nick-purple: #d7a9ff;
+  --wn-nick-green: #a3e5a6;
+  --wn-nick-yellow: #ffd77e;
+  --wn-nick-pink: #ffa3c4;
+  --wn-nick-teal: #86e1dc;
+  --wn-nick-orange: #ffb486;
 }
 
 @theme inline {
@@ -128,7 +238,8 @@ body {
 }
 
 /* ─── 이야기 속 화면 템플릿 (방송창·채팅·후원·카톡) ─────────────────
-   기기 화면처럼 항상 어둡게, 읽기 설정(글자 크기·글꼴)과 상관없이 같은 크기로 그린다 */
+   색은 위의 --wn-* 토큰으로 사이트 테마(밝게/어둡게)를 따라가고,
+   읽기 설정(글자 크기·글꼴)과 상관없이 같은 크기로 그린다 */
 .wn-block {
   font-family: var(--font-sans);
   font-size: 15px;
@@ -137,7 +248,6 @@ body {
   white-space: normal;
   word-break: keep-all;
   overflow-wrap: anywhere;
-  color-scheme: dark;
 }
 
 /* 에디터 */

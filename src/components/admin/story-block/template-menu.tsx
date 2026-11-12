@@ -35,7 +35,8 @@ export function TemplateMenu({ editor }: { editor: Editor }) {
     // 템플릿이 선택된 상태에서 그냥 넣으면 그 템플릿이 새 것으로 바뀌어 버린다 → 선택된 템플릿 뒤에 넣기
     const { selection } = editor.state;
     const at = selection instanceof NodeSelection ? selection.to : selection.from;
-    editor.chain().focus().insertContentAt(at, content).run();
+    // focus()는 쓰지 않는다: Tiptap이 포커스를 한 박자 늦게 잡아서, 새 템플릿의 입력칸에 준 포커스를 빼앗아 간다
+    editor.chain().insertContentAt(at, content).run();
 
     // 넣고 나면 새 템플릿이 선택된 상태가 되므로, 커서를 바로 뒤 문단으로 옮긴다 (없으면 빈 문단을 만든다)
     const after = editor.state.selection;

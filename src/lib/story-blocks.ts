@@ -1,30 +1,33 @@
 import { z } from 'zod';
 
-// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (라이브 방송창, 실시간 채팅창, 후원 알림, 카톡 1:1·단체방).
+// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림).
 // 저장 형식: <div data-wn-block="종류" data-wn-data="JSON"></div>
 // 에디터(Tiptap 노드), 서버(저장할 때 검증), 열람 화면(렌더링)이 모두 이 파일을 같이 쓴다.
+//
+// 대화형 템플릿은 '대본' 텍스트를 그대로 저장한다. 쓰는 사람은 평소 대사 쓰듯 적기만 하면 된다.
+//   양띵: 수진아 뭐 해? [오후 8:14]   ← 이름: 대사, 줄 끝 [시간]
+//   나: 방송 준비하고 있어요!          ← '나:'는 오른쪽 말풍선
+//   네 ㅎㅎ 조금만 하려고요            ← 이름 없이 쓰면 앞사람의 다음 말풍선
+//   --- 2026년 10월 5일 ---          ← 가운데 날짜·안내 표시
 
 export const CHAT_COLOR_KEYS = ['blue', 'purple', 'green', 'yellow', 'pink', 'teal', 'orange'] as const;
 export type ChatColor = (typeof CHAT_COLOR_KEYS)[number];
 
-// 닉네임 색은 이 목록 안에서만 고른다 (임의의 CSS 값이 저장되지 않게)
+// 닉네임 색은 이 목록 안에서만 고른다 (임의의 CSS 값이 저장되지 않게).
+// 실제 색은 globals.css의 --wn-nick-* 토큰이라 밝은/어두운 화면에서 각각 잘 보이는 색으로 바뀐다
 export const CHAT_COLORS: Record<ChatColor, string> = {
-  blue: '#8fb8ff',
-  purple: '#d7a9ff',
-  green: '#a3e5a6',
-  yellow: '#ffd77e',
-  pink: '#ffa3c4',
-  teal: '#86e1dc',
-  orange: '#ffb486',
+  blue: 'var(--wn-nick-blue)',
+  purple: 'var(--wn-nick-purple)',
+  green: 'var(--wn-nick-green)',
+  yellow: 'var(--wn-nick-yellow)',
+  pink: 'var(--wn-nick-pink)',
+  teal: 'var(--wn-nick-teal)',
+  orange: 'var(--wn-nick-orange)',
 };
 
-export const LIMITS = { people: 30, messages: 500, name: 30, message: 2000 } as const;
+export const LIMITS = { name: 15, script: 20000, lines: 500, colors: 50, message: 2000 } as const;
 
 const text = (max: number) => z.string().max(max);
-const idSchema = z.string().regex(/^[a-z0-9]{1,16}$/);
-
-const personSchema = z.object({ id: idSchema, name: text(LIMITS.name), color: z.enum(CHAT_COLOR_KEYS) });
-const messageSchema = z.object({ id: idSchema, from: idSchema, text: text(LIMITS.message), time: text(20) });
 
 const liveSchema = z.object({
   streamer: text(40),
@@ -43,21 +46,22 @@ const donationSchema = z.object({
   footer: text(120), // 비우면 '○○ 님이 치즈 후원을 보냈습니다.'
 });
 
+const kakaoSchema = z.object({
+  mode: z.enum(['dm', 'group']),
+  title: text(40), // 방 제목. 1:1은 비우면 상대 이름
+  memberCount: text(10), // 단체방 '○명 참여 중'
+  me: text(LIMITS.name), // 이 이름의 대사도 오른쪽 말풍선 ('나:'는 항상 오른쪽)
+  script: text(LIMITS.script),
+});
+
 const chatSchema = z.object({
   title: text(60),
   badge: text(20),
-  people: z.array(personSchema).max(LIMITS.people),
-  messages: z.array(messageSchema).max(LIMITS.messages),
-});
-
-const kakaoSchema = z.object({
-  mode: z.enum(['dm', 'group']),
-  room: text(40), // 단체방 이름 (1:1은 상대 이름이 제목)
-  memberCount: text(10),
-  date: text(40),
-  meId: idSchema, // 오른쪽(분홍) 말풍선
-  people: z.array(personSchema).min(1).max(LIMITS.people),
-  messages: z.array(messageSchema).max(LIMITS.messages),
+  script: text(LIMITS.script),
+  // 닉네임별로 직접 고른 색. 없으면 등장 순서대로 자동
+  colors: z
+    .record(text(LIMITS.name), z.enum(CHAT_COLOR_KEYS))
+    .refine((value) => Object.keys(value).length <= LIMITS.colors),
 });
 
 export const storyBlockSchema = z.discriminatedUnion('kind', [
@@ -72,8 +76,87 @@ export type LiveData = z.infer<typeof liveSchema>;
 export type DonationData = z.infer<typeof donationSchema>;
 export type ChatData = z.infer<typeof chatSchema>;
 export type KakaoData = z.infer<typeof kakaoSchema>;
-export type ChatPerson = z.infer<typeof personSchema>;
-export type ChatMessage = z.infer<typeof messageSchema>;
+
+// ─── 대본 읽기 ─────────────────────────────────────────
+
+export type ScriptLine =
+  | { type: 'notice'; text: string }
+  | { type: 'message'; name: string; text: string; time: string };
+
+// 15자 이내의 '이름:'만 이름으로 본다 (긴 문장 속 콜론은 대사로 취급)
+const NAME_PREFIX = /^([^:：]{1,15}?)\s*[:：]\s*/;
+const TIME_SUFFIX = /\s*[[(]((?:오전|오후)\s*\d{1,2}:\d{2}|\d{1,2}:\d{2})[\])]\s*$/;
+
+export function parseScript(script: string): ScriptLine[] {
+  const lines: ScriptLine[] = [];
+  let speaker = '';
+  for (const raw of script.split(/\r?\n/)) {
+    if (lines.length >= LIMITS.lines) break;
+    const line = raw.trim();
+    if (!line) continue;
+
+    if (/^-{2,}/.test(line)) {
+      const notice = line.replace(/^-+\s*/, '').replace(/\s*-+$/, '');
+      if (notice) lines.push({ type: 'notice', text: notice });
+      continue;
+    }
+
+    let name = speaker;
+    let body = line;
+    const match = line.match(NAME_PREFIX);
+    // '8:30에 보자'처럼 숫자로 시작하는 줄은 이름이 아니라 대사로 본다
+    if (match && !/^\d+$/.test(match[1].trim())) {
+      name = match[1].trim();
+      body = line.slice(match[0].length);
+    }
+    if (!name) continue; // 첫 줄부터 이름이 없으면 누가 말하는지 알 수 없어서 건너뛴다
+    speaker = name;
+
+    let time = '';
+    const timeMatch = body.match(TIME_SUFFIX);
+    if (timeMatch && timeMatch.index !== undefined) {
+      time = timeMatch[1];
+      body = body.slice(0, timeMatch.index).trimEnd();
+    }
+    if (body) lines.push({ type: 'message', name, text: body, time });
+  }
+  return lines;
+}
+
+/** 대본에 나오는 이름 (처음 나온 순서) */
+export function scriptSpeakers(lines: ScriptLine[]): string[] {
+  const names: string[] = [];
+  for (const line of lines) {
+    if (line.type === 'message' && !names.includes(line.name)) names.push(line.name);
+  }
+  return names;
+}
+
+/** 대본에서 줄 앞의 '이름:'만 골라 바꾼다 (대사 안의 같은 글자는 그대로) */
+export function renameSpeaker(script: string, from: string, to: string): string {
+  if (!from || !to || from === to) return script;
+  return script
+    .split('\n')
+    .map((line) => {
+      const match = line.match(/^(\s*)([^:：]{1,15}?)(\s*[:：])/);
+      return match && match[2].trim() === from ? `${match[1]}${to}${match[3]}${line.slice(match[0].length)}` : line;
+    })
+    .join('\n');
+}
+
+export function isMine(name: string, me: string): boolean {
+  return name === '나' || (me.trim() !== '' && name === me.trim());
+}
+
+export function kakaoTitle(data: KakaoData, lines: ScriptLine[]): string {
+  if (data.title.trim()) return data.title;
+  if (data.mode === 'dm') return scriptSpeakers(lines).find((name) => !isMine(name, data.me)) ?? '대화';
+  return '단체방';
+}
+
+export function chatColorKey(name: string, speakers: string[], colors: Record<string, ChatColor>): ChatColor {
+  return colors[name] ?? CHAT_COLOR_KEYS[Math.max(0, speakers.indexOf(name)) % CHAT_COLOR_KEYS.length];
+}
 
 // ─── 템플릿 ────────────────────────────────────────────
 
@@ -100,32 +183,43 @@ function todayLabel(): string {
   return new Intl.DateTimeFormat('ko-KR', { dateStyle: 'full', timeZone: 'Asia/Seoul' }).format(new Date());
 }
 
-/** 새로 넣을 템플릿. 구조가 바로 보이도록 예시 내용을 채워 둔다 */
+/** 새로 넣을 템플릿. 쓰는 법이 바로 보이도록 예시 대본을 채워 둔다 */
 export function createTemplate(key: TemplateKey): StoryBlock {
   switch (key) {
+    case 'kakao-dm':
+      return {
+        kind: 'kakao',
+        data: {
+          mode: 'dm',
+          title: '',
+          memberCount: '',
+          me: '나',
+          script: [`--- ${todayLabel()} ---`, '상대: 뭐 해? [오후 8:14]', '나: 방송 준비하고 있어요! [오후 8:15]'].join('\n'),
+        },
+      };
+    case 'kakao-group':
+      return {
+        kind: 'kakao',
+        data: {
+          mode: 'group',
+          title: '단체방',
+          memberCount: '3',
+          me: '나',
+          script: [`--- ${todayLabel()} ---`, '친구1: 얘들아 내일 뭐 할까?', '친구2: 게임 하자!', '나: 저도 좋아요 [오후 7:21]'].join(
+            '\n',
+          ),
+        },
+      };
+    case 'chat':
+      return {
+        kind: 'chat',
+        data: { title: '방송인 채팅', badge: 'LIVE', colors: {}, script: ['시청자1: 방송 켰다!', '시청자2: 오늘 뭐 함?'].join('\n') },
+      };
     case 'live':
       return {
         kind: 'live',
         data: { streamer: '방송인', badge: 'LIVE', title: '방송 제목', viewers: '1,024', category: '종합 게임' },
       };
-    case 'chat': {
-      const [a, b] = [newId(), newId()];
-      return {
-        kind: 'chat',
-        data: {
-          title: '방송인 채팅',
-          badge: 'LIVE',
-          people: [
-            { id: a, name: '시청자1', color: 'blue' },
-            { id: b, name: '시청자2', color: 'purple' },
-          ],
-          messages: [
-            { id: newId(), from: a, text: '방송 켰다!', time: '' },
-            { id: newId(), from: b, text: '오늘 뭐 함?', time: '' },
-          ],
-        },
-      };
-    }
     case 'donation':
       return {
         kind: 'donation',
@@ -138,81 +232,7 @@ export function createTemplate(key: TemplateKey): StoryBlock {
           footer: '',
         },
       };
-    case 'kakao-dm': {
-      const [me, other] = [newId(), newId()];
-      return {
-        kind: 'kakao',
-        data: {
-          mode: 'dm',
-          room: '',
-          memberCount: '',
-          date: todayLabel(),
-          meId: me,
-          people: [
-            { id: me, name: '나', color: 'pink' },
-            { id: other, name: '상대', color: 'blue' },
-          ],
-          messages: [
-            { id: newId(), from: other, text: '뭐 해?', time: '오후 8:14' },
-            { id: newId(), from: me, text: '방송 준비하고 있어요!', time: '오후 8:15' },
-          ],
-        },
-      };
-    }
-    case 'kakao-group': {
-      const [me, a, b] = [newId(), newId(), newId()];
-      return {
-        kind: 'kakao',
-        data: {
-          mode: 'group',
-          room: '단체방',
-          memberCount: '3',
-          date: todayLabel(),
-          meId: me,
-          people: [
-            { id: me, name: '나', color: 'pink' },
-            { id: a, name: '친구1', color: 'blue' },
-            { id: b, name: '친구2', color: 'green' },
-          ],
-          messages: [
-            { id: newId(), from: a, text: '얘들아 내일 뭐 할까?', time: '' },
-            { id: newId(), from: b, text: '게임 하자!', time: '' },
-            { id: newId(), from: me, text: '저도 좋아요', time: '오후 7:21' },
-          ],
-        },
-      };
-    }
   }
-}
-
-// ─── 여러 줄 한 번에 넣기 ──────────────────────────────
-
-/**
- * "이름: 대사" 형식의 여러 줄을 메시지 목록으로 바꾼다.
- * - 콜론이 없는 줄은 바로 앞 대사에 줄바꿈으로 이어 붙인다
- * - 줄 끝의 [오후 8:14] 또는 (8:14)는 시간으로 뺀다
- */
-export function parseChatLines(input: string): Array<{ name: string; text: string; time: string }> {
-  const result: Array<{ name: string; text: string; time: string }> = [];
-  for (const raw of input.split(/\r?\n/)) {
-    const line = raw.trim();
-    if (!line) continue;
-    const match = line.match(/^([^:：]{1,30}?)\s*[:：]\s*(.*)$/);
-    // '8:30에 보자'처럼 숫자로 시작하는 줄은 이름이 아니라 이어지는 대사로 본다
-    if (match && !/^\d+$/.test(match[1].trim())) {
-      let body = match[2];
-      let time = '';
-      const timeMatch = body.match(/\s*[[(]((?:오전|오후)\s*\d{1,2}:\d{2}|\d{1,2}:\d{2})[\])]\s*$/);
-      if (timeMatch && timeMatch.index !== undefined) {
-        time = timeMatch[1];
-        body = body.slice(0, timeMatch.index).trimEnd();
-      }
-      result.push({ name: match[1].trim(), text: body, time });
-    } else if (result.length > 0) {
-      result[result.length - 1].text += `\n${line}`;
-    }
-  }
-  return result;
 }
 
 // ─── HTML 저장·읽기 ────────────────────────────────────
