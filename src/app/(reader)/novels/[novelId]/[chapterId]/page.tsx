@@ -87,7 +87,13 @@ async function ChapterView({ params }: Pick<PageProps<'/novels/[novelId]/[chapte
         {/* 목차 목록은 이 묶음의 오른쪽 끝에 맞춰 펼쳐진다 */}
         <div data-print-hide="" className="relative flex shrink-0 gap-2">
           {/* 소리 내어 듣기: 이 브라우저에 음성 읽기가 있을 때만 단추가 보인다 */}
-          {chapter.contentHtml ? <ChapterListen key={chapter.id} /> : null}
+          {chapter.contentHtml ? (
+            <ChapterListen
+              key={chapter.id}
+              // 끝까지 들으면 '다음 화도 듣기' (길드원에게 공개된 다음 화일 때만 — 다음 화 미리 보기와 같은 조건)
+              next={next && nextOpening !== null ? { href: `/novels/${novel.id}/${next.id}`, label: `${next.position}화` } : null}
+            />
+          ) : null}
           {toc.length > 1 ? (
             <ChapterToc
               // 다른 회차로 가면 닫힌 상태로 새로 그린다

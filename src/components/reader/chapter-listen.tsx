@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { announce } from '@/lib/announce';
 import { scrollBehavior } from '@/lib/motion';
@@ -14,6 +15,8 @@ import { cn } from '@/lib/utils';
 // - 머리의 단추로 켜고 끈다. 머리는 회차 맨 위에만 있어서, 읽어 내려가면 오른쪽 아래(책갈피 단추 위)에도 듣기 단추가 뜬다
 //   (머리까지 올라가서 누르면 '지금 읽는 문단'이 맨 위로 바뀌어 버리므로)
 // - 듣는 동안은 화면 아래(오른쪽 단추들을 피해서)에 작은 막대
+// - 끝까지 들으면 공개된 다음 화가 있을 때 막대가 '다음 화도 듣기'로 바뀌고, 누르면 다음 화로 가서 처음부터 이어 읽는다
+//   (화면 안에서 넘어가야 브라우저가 소리 내기를 계속 허락해서, 페이지를 새로 읽지 않고 넘어간다)
 
 const CONTENT_ID = 'chapter-content';
 // 이만큼 내려가면 오른쪽 아래 듣기 단추가 뜬다 (책갈피 단추와 같게)
@@ -23,7 +26,11 @@ const CURRENT = 'wn-speak-current';
 const PLAYER_SPACE = 88;
 
 type Unit = { element: HTMLElement; text: string };
-type Status = 'idle' | 'playing' | 'paused';
+type Status = 'idle' | 'playing' | 'paused' | 'done';
+
+// '다음 화도 듣기'로 넘어갈 회차 주소. 넘어간 화면의 듣기가 처음 그려질 때 보고 처음부터 읽기 시작한다
+// (화면 안에서 넘어가니 모듈 값이 그대로 남고, 새로 고치면 사라져서 엉뚱하게 저절로 읽지 않음)
+let continueTo: string | null = null;
 
 function barBottom(): number {
   return document.querySelector('header')?.getBoundingClientRect().bottom ?? 0;
@@ -60,7 +67,8 @@ function clearMarks() {
   document.querySelectorAll(`#${CONTENT_ID} .${CURRENT}`).forEach((element) => element.classList.remove(CURRENT));
 }
 
-export function ChapterListen() {
+export function ChapterListen({ next }: { next: { href: string; label: string } | null }) {
+  const router = useRouter();
   const supported = useSyncExternalStore(subscribeNothing, () => speechEngine() !== null, () => false);
   const [status, setStatus] = useState<Status>('idle');
   const [place, setPlace] = useState({ index: 0, total: 0 });
@@ -79,6 +87,7 @@ export function ChapterListen() {
   const focusPlayerRef = useRef(false);
   const mainRef = useRef<HTMLButtonElement>(null);
   const [scrolled, setScrolled] = useState(false);
+  const startRef = useRef<(fromFloat: boolean, fromTop?: boolean) => void>(() => {});
 
   // 본문을 읽어 내려가면 오른쪽 아래 듣기 단추를 띄운다
   useEffect(() => {
@@ -127,13 +136,34 @@ export function ChapterListen() {
     };
   }, []);
 
+  // '다음 화도 듣기'로 넘어온 회차면 처음부터 이어 읽기 (다음 프레임에 — 그리기가 끝나고 맨 위로 간 뒤)
+  useEffect(() => {
+    startRef.current = start;
+  });
+  useEffect(() => {
+    if (continueTo !== window.location.pathname) return;
+    const timer = window.setTimeout(() => {
+      continueTo = null;
+      // 앞 화면의 단추가 사라졌으니 포커스는 새 막대의 멈춤 단추로 (키보드로 이어 가도 자리를 잃지 않게)
+      startRef.current(true, true);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   function speakAt(index: number) {
     const engine = speechEngine();
     const units = unitsRef.current;
     if (!engine) return;
     if (index >= units.length) {
-      closePlayer();
-      announce('회차 끝까지 다 읽었어요');
+      if (next) {
+        // 막대는 그대로 두고 '다음 화도 듣기'로 (포커스는 같은 단추에 남는다)
+        clearMarks();
+        setStatus('done');
+        announce(`회차 끝까지 다 읽었어요. ${next.label}도 들을 수 있어요`);
+      } else {
+        closePlayer();
+        announce('회차 끝까지 다 읽었어요');
+      }
       return;
     }
     const run = runRef.current;
@@ -156,8 +186,8 @@ export function ChapterListen() {
     );
   }
 
-  /** fromFloat: 떠 있는 듣기 단추로 시작(그 단추가 사라지므로 포커스를 막대로) */
-  function start(fromFloat: boolean) {
+  /** fromFloat: 떠 있는 듣기 단추로 시작(그 단추가 사라지므로 포커스를 막대로), fromTop: 지금 읽는 곳 말고 첫 덩어리부터 */
+  function start(fromFloat: boolean, fromTop = false) {
     const engine = speechEngine();
     const units = readableUnits();
     if (!engine || units.length === 0) return;
@@ -172,7 +202,14 @@ export function ChapterListen() {
     runRef.current += 1;
     engine.cancel();
     setStatus('playing');
-    speakAt(Math.max(0, units.findIndex((unit) => unit.element.getBoundingClientRect().bottom > top)));
+    speakAt(fromTop ? 0 : Math.max(0, units.findIndex((unit) => unit.element.getBoundingClientRect().bottom > top)));
+  }
+
+  /** 다음 화로 넘어가서 처음부터 듣기 */
+  function goNext() {
+    if (!next) return;
+    continueTo = next.href;
+    router.push(next.href);
   }
 
   function pause() {
@@ -256,14 +293,22 @@ export function ChapterListen() {
           <button
             ref={mainRef}
             type="button"
-            onClick={status === 'playing' ? pause : resume}
-            aria-label={status === 'playing' ? '멈춤' : '이어 듣기'}
+            onClick={status === 'done' ? goNext : status === 'playing' ? pause : resume}
+            aria-label={status === 'done' ? `${next?.label ?? '다음 화'}도 듣기` : status === 'playing' ? '멈춤' : '이어 듣기'}
             className={cn(
-              'grid size-10 shrink-0 place-items-center rounded-xl transition hover:brightness-95',
+              'flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl transition hover:brightness-95',
+              status === 'done' ? 'bg-accent px-3 text-[13px] font-semibold text-accent-fg' : 'w-10',
               status === 'playing' ? 'bg-accent-soft text-accent' : 'bg-accent text-accent-fg',
             )}
           >
-            {status === 'playing' ? (
+            {status === 'done' ? (
+              <>
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="size-4">
+                  <path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z" />
+                </svg>
+                <span aria-hidden="true">다음 화도 듣기</span>
+              </>
+            ) : status === 'playing' ? (
               <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="size-4">
                 <rect x="6.5" y="5" width="4" height="14" rx="1" />
                 <rect x="13.5" y="5" width="4" height="14" rx="1" />
@@ -275,20 +320,23 @@ export function ChapterListen() {
             )}
           </button>
           <p className="min-w-0 flex-1 px-1.5 leading-tight">
-            <span className="block truncate text-[13px] font-semibold">{status === 'playing' ? '듣는 중' : '멈춤'}</span>
-            <span className="block text-xs text-muted tabular-nums">
-              {place.index + 1} / {place.total}
+            <span className="block truncate text-[13px] font-semibold">{status === 'done' ? '다 읽었어요' : status === 'playing' ? '듣는 중' : '멈춤'}</span>
+            <span className="block truncate text-xs text-muted tabular-nums">
+              {status === 'done' ? next?.label : `${place.index + 1} / ${place.total}`}
             </span>
           </p>
-          <button
-            type="button"
-            onClick={cycleRate}
-            aria-label={`읽는 빠르기 ${rateLabel}, 누르면 ${nextRateLabel}`}
-            title="빠르기는 다음 문단부터 바뀌어요"
-            className="h-10 shrink-0 rounded-xl px-2.5 text-xs font-semibold text-muted transition hover:bg-surface-2 hover:text-fg"
-          >
-            {rateLabel}
-          </button>
+          {/* 다 읽은 뒤에는 빠르기 대신 '다음 화도 듣기'와 그만 듣기만 */}
+          {status === 'done' ? null : (
+            <button
+              type="button"
+              onClick={cycleRate}
+              aria-label={`읽는 빠르기 ${rateLabel}, 누르면 ${nextRateLabel}`}
+              title="빠르기는 다음 문단부터 바뀌어요"
+              className="h-10 shrink-0 rounded-xl px-2.5 text-xs font-semibold text-muted transition hover:bg-surface-2 hover:text-fg"
+            >
+              {rateLabel}
+            </button>
+          )}
           <button
             type="button"
             onClick={stop}
