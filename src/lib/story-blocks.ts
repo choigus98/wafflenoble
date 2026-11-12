@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물, 이메일, 검색 결과, 휴대폰 알림, 문자 메시지, 영수증).
+// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물, 이메일, 검색 결과, 휴대폰 알림, 문자 메시지, 영수증, 위치 공유).
 // 저장 형식: <div data-wn-block="종류" data-wn-data="JSON"></div>
 // 에디터(Tiptap 노드), 서버(저장할 때 검증), 열람 화면(렌더링)이 모두 이 파일을 같이 쓴다.
 //
@@ -152,6 +152,13 @@ const receiptSchema = z.object({
   footer: text(120), // 맨 아래 한 줄. 비우면 안 보임
 });
 
+const locationSchema = z.object({
+  badge: text(40), // 위쪽 작은 표시 ('위치 공유', '실시간 위치 · 15분 남음'). 비우면 안 보임
+  place: text(60), // 장소 이름
+  address: text(120), // 주소. 비우면 안 보임
+  note: text(120), // 한 줄 메모 ('여기서 기다릴게'). 비우면 안 보임
+});
+
 /** 전화 화면 모드를 바꿀 때, 아직 고치지 않은 기본 문구는 새 모드에 맞게 바꿔 준다 */
 export const CALL_DETAIL_DEFAULT = { incoming: '휴대전화', active: '00:12' } as const;
 
@@ -172,6 +179,7 @@ export const storyBlockSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('push'), data: pushSchema }),
   z.object({ kind: z.literal('sms'), data: smsSchema }),
   z.object({ kind: z.literal('receipt'), data: receiptSchema }),
+  z.object({ kind: z.literal('location'), data: locationSchema }),
 ]);
 
 export type StoryBlock = z.infer<typeof storyBlockSchema>;
@@ -190,6 +198,7 @@ export type SearchData = z.infer<typeof searchSchema>;
 export type PushData = z.infer<typeof pushSchema>;
 export type SmsData = z.infer<typeof smsSchema>;
 export type ReceiptData = z.infer<typeof receiptSchema>;
+export type LocationData = z.infer<typeof locationSchema>;
 
 /** 메일 보낸 사람 '김지은 <jieun@example.com>' → 이름과 주소. 꺾쇠가 없으면 적은 그대로 이름으로 */
 export function splitMailSender(from: string): { name: string; address: string } {
@@ -562,7 +571,8 @@ export type TemplateKey =
   | 'search'
   | 'push'
   | 'sms'
-  | 'receipt';
+  | 'receipt'
+  | 'location';
 
 export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }> = [
   { key: 'kakao-dm', label: '카톡 1:1 대화', hint: '두 사람의 메신저 대화' },
@@ -583,6 +593,7 @@ export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }>
   { key: 'push', label: '휴대폰 알림', hint: '잠금화면에 쌓인 알림' },
   { key: 'sms', label: '문자 메시지', hint: '회색·파란 말풍선 문자' },
   { key: 'receipt', label: '영수증', hint: '가게 · 품목 · 합계' },
+  { key: 'location', label: '위치 공유', hint: '장소 · 주소 · 지도 그림' },
 ];
 
 export function templateLabel(block: StoryBlock): string {
@@ -708,6 +719,11 @@ export function createTemplate(key: TemplateKey): StoryBlock {
           likes: '128',
           script: ['익명1: 답글은 이렇게 써요 [3분 전]', '익명2: 한 줄에 하나씩 [1분 전]'].join('\n'),
         },
+      };
+    case 'location':
+      return {
+        kind: 'location',
+        data: { badge: '위치 공유', place: '골목 끝 와플 가게', address: '와플시 반죽구 시럽로 12, 1층', note: '여기서 기다릴게' },
       };
     case 'receipt':
       return {

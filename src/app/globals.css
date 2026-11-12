@@ -108,6 +108,14 @@
   --wn-receipt-ink: #1f1d1a;
   --wn-receipt-muted: #6b6459;
   --wn-receipt-line: rgb(0 0 0 / 0.25);
+  --wn-loc-bg: #ffffff;
+  --wn-loc-map-bg: #eef1e8;
+  --wn-loc-road: #ffffff;
+  --wn-loc-park: #cfe3c1;
+  --wn-loc-water: #c6dcf0;
+  --wn-loc-pin: #e5484d;
+  --wn-loc-badge: #2f7a43;
+  --wn-loc-note-bg: #f2f4f1;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -218,6 +226,14 @@
     --wn-receipt-ink: #f2ede4;
     --wn-receipt-muted: #b9b0a3;
     --wn-receipt-line: rgb(255 255 255 / 0.25);
+    --wn-loc-bg: #17191e;
+    --wn-loc-map-bg: #262b2f;
+    --wn-loc-road: #3b4248;
+    --wn-loc-park: #2c3a2c;
+    --wn-loc-water: #23324a;
+    --wn-loc-pin: #ff6b6f;
+    --wn-loc-badge: #7fd29a;
+    --wn-loc-note-bg: rgb(255 255 255 / 0.07);
   }
 }
 
@@ -327,6 +343,14 @@
   --wn-receipt-ink: #f2ede4;
   --wn-receipt-muted: #b9b0a3;
   --wn-receipt-line: rgb(255 255 255 / 0.25);
+  --wn-loc-bg: #17191e;
+  --wn-loc-map-bg: #262b2f;
+  --wn-loc-road: #3b4248;
+  --wn-loc-park: #2c3a2c;
+  --wn-loc-water: #23324a;
+  --wn-loc-pin: #ff6b6f;
+  --wn-loc-badge: #7fd29a;
+  --wn-loc-note-bg: rgb(255 255 255 / 0.07);
 }
 
 @theme inline {

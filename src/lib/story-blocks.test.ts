@@ -58,6 +58,7 @@ const KEYS: TemplateKey[] = [
   'push',
   'sms',
   'receipt',
+  'location',
 ];
 
 function withTrickyText(block: StoryBlock): StoryBlock {
@@ -92,6 +93,8 @@ function withTrickyText(block: StoryBlock): StoryBlock {
       };
     case 'search':
       return { ...block, data: { ...block.data, query: TRICKY, script: `${block.data.script}\n\n${TRICKY}\nexample.com/?q="x"&y=<1>` } };
+    case 'location':
+      return { ...block, data: { ...block.data, place: '와플 <가게> & "1층"', note: TRICKY } };
     case 'receipt':
       return { ...block, data: { ...block.data, store: '가게 <b>&</b> "따옴표"', script: `${block.data.script}\n${TRICKY}: 1,000원` } };
     case 'push':

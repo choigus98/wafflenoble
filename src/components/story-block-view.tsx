@@ -22,6 +22,7 @@ import {
   type DonationData,
   type KakaoData,
   type LiveData,
+  type LocationData,
   type MailData,
   type NewsData,
   type NoteData,
@@ -88,6 +89,8 @@ export function StoryBlockView({ block }: { block: StoryBlock }) {
       return <SmsCard data={block.data} />;
     case 'receipt':
       return <ReceiptCard data={block.data} />;
+    case 'location':
+      return <LocationCard data={block.data} />;
   }
 }
 
@@ -973,6 +976,58 @@ function ReceiptCard({ data }: { data: ReceiptData }) {
         </table>
         {data.footer.trim() ? (
           <div className={cn('mt-3 pt-3 text-center text-xs whitespace-pre-wrap text-(--wn-receipt-muted)', dash)}>{data.footer}</div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+/** 위치 공유: 작은 지도 그림(장식) · 위치 공유 표시 · 장소 이름 · 주소 · 한 줄 메모. 에디터에서는 field로 카드 위에서 바로 고친다 */
+export function LocationCard({ data, field }: { data: LocationData; field?: FieldRenderer }) {
+  const editing = Boolean(field);
+  const slot = (name: keyof LocationData, label: string, maxLength: number, className: string) =>
+    field ? (
+      field({ name, value: data[name], label, placeholder: label, maxLength, className })
+    ) : (
+      <span className={className}>{data[name]}</span>
+    );
+
+  return (
+    <div className={cn(CARD, 'overflow-hidden bg-(--wn-loc-bg)')}>
+      {/* 진짜 지도가 아니라 분위기만 내는 그림 */}
+      <svg viewBox="0 0 320 150" aria-hidden="true" className="block h-auto w-full" preserveAspectRatio="xMidYMid slice">
+        <rect width="320" height="150" fill="var(--wn-loc-map-bg)" />
+        <rect x="196" y="18" width="92" height="52" rx="14" fill="var(--wn-loc-park)" />
+        <path d="M0 118 C60 104 92 132 150 124 S260 98 320 112 V150 H0 Z" fill="var(--wn-loc-water)" />
+        <g stroke="var(--wn-loc-road)" strokeLinecap="round" fill="none">
+          <path d="M-10 84 L330 70" strokeWidth="11" />
+          <path d="M118 -10 L138 160" strokeWidth="9" />
+          <path d="M40 -10 L64 104" strokeWidth="5" />
+          <path d="M210 82 L232 160" strokeWidth="5" />
+          <path d="M150 36 L330 30" strokeWidth="5" />
+        </g>
+        <ellipse cx="160" cy="80" rx="9" ry="3.5" fill="black" opacity="0.18" />
+        <path d="M160 79 C160 79 145 61 145 50 A15 15 0 0 1 175 50 C175 61 160 79 160 79 Z" fill="var(--wn-loc-pin)" />
+        <circle cx="160" cy="50" r="5.5" fill="white" />
+      </svg>
+      <div className="px-4 pt-3 pb-4">
+        {editing || data.badge.trim() ? (
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-(--wn-loc-badge)">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="size-3.5 shrink-0">
+              <path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z" />
+            </svg>
+            {slot('badge', '위쪽 표시 (비우면 안 보여요)', 40, '')}
+          </div>
+        ) : null}
+        <div className="mt-1">{slot('place', '장소 이름', 60, 'block w-full text-[17px] leading-snug font-bold break-keep')}</div>
+        {editing || data.address.trim() ? (
+          <div className="mt-0.5 text-[13px] text-(--wn-muted)">
+            {editing ? null : <span className="sr-only">주소 </span>}
+            {slot('address', '주소 (비우면 안 보여요)', 120, 'block w-full break-keep')}
+          </div>
+        ) : null}
+        {editing || data.note.trim() ? (
+          <div className="mt-2.5 rounded-xl bg-(--wn-loc-note-bg) px-3 py-2 text-sm">{slot('note', '한 줄 메모 (비우면 안 보여요)', 120, 'block w-full break-keep')}</div>
         ) : null}
       </div>
     </div>
