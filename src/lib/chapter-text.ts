@@ -13,11 +13,13 @@ import {
   parseReceiptScript,
   parseScript,
   parseStoryBlock,
+  parseTodoScript,
   pollStatus,
   rankChangeText,
   receiptTotal,
   smsContact,
   templateLabel,
+  todoProgress,
   type StoryBlock,
 } from '@/lib/story-blocks';
 
@@ -110,6 +112,12 @@ export function storyBlockToText(block: StoryBlock): string {
           data.memo.trim() && `메모: ${data.memo.trim()}`,
           data.date.trim() && `일시: ${data.date.trim()}`,
         );
+      }
+      case 'todo': {
+        const items = parseTodoScript(block.data.script);
+        const { done, total } = todoProgress(items);
+        const rows = items.map((line) => (line.type === 'section' ? (line.text ? `— ${line.text} —` : '---') : `${line.done ? '[x]' : '[ ]'} ${line.text}`));
+        return lines(block.data.date, block.data.title, rows.join('\n'), total > 0 && `${done}/${total} 완료`);
       }
       case 'rank': {
         const rows = parseRankScript(block.data.script).map((line) =>

@@ -14,6 +14,8 @@ import {
   kakaoTitle,
   musicProgress,
   parseRankScript,
+  parseTodoScript,
+  todoProgress,
   parseComments,
   parsePollScript,
   parsePushScript,
@@ -77,6 +79,7 @@ const KEYS: TemplateKey[] = [
   'item',
   'music',
   'rank',
+  'todo',
 ];
 
 function withTrickyText(block: StoryBlock): StoryBlock {
@@ -127,6 +130,8 @@ function withTrickyText(block: StoryBlock): StoryBlock {
       return { ...block, data: { ...block.data, title: '<b>밤</b>의 "와플" & 😀', lyric: `${TRICKY}\n둘째 줄` } };
     case 'rank':
       return { ...block, data: { ...block.data, title: '<b>랭킹</b> & "후원"', script: `${block.data.script}\n${TRICKY}: 1,000원 ▲1` } };
+    case 'todo':
+      return { ...block, data: { ...block.data, title: '<b>할 일</b> & "목록"', script: `${block.data.script}\n[x] ${TRICKY}` } };
     case 'receipt':
       return { ...block, data: { ...block.data, store: '가게 <b>&</b> "따옴표"', script: `${block.data.script}\n${TRICKY}: 1,000원` } };
     case 'push':
@@ -680,5 +685,25 @@ describe('실시간 순위 대본', () => {
       '6|2024||',
       '7|▲3||',
     ]);
+  });
+});
+
+describe('할 일 목록 대본', () => {
+  it('끝낸 일 · 아직 · 묶음 제목 · 구분선, 여러 표기', () => {
+    const lines = parseTodoScript(['[x] 반죽', '[ ] 시럽', '그냥 쓴 일', '--- 저녁 ---', '[v] 설거지', '✓ 정리', '☐ 전화', '- 산책', '---', '[x]', '[X] 끝'].join('\n'));
+    expect(lines).toEqual([
+      { type: 'item', text: '반죽', done: true },
+      { type: 'item', text: '시럽', done: false },
+      { type: 'item', text: '그냥 쓴 일', done: false },
+      { type: 'section', text: '저녁' },
+      { type: 'item', text: '설거지', done: true },
+      { type: 'item', text: '정리', done: true },
+      { type: 'item', text: '전화', done: false },
+      { type: 'item', text: '산책', done: false },
+      { type: 'section', text: '' },
+      { type: 'item', text: '끝', done: true },
+    ]);
+    expect(todoProgress(lines)).toEqual({ done: 4, total: 8 });
+    expect(todoProgress([])).toEqual({ done: 0, total: 0 });
   });
 });

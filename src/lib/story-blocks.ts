@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물, 이메일, 검색 결과, 휴대폰 알림, 문자 메시지, 영수증, 위치 공유, 투표, 송금 완료, 알람, 일정, 아이템 획득, 음악 재생, 실시간 순위).
+// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물, 이메일, 검색 결과, 휴대폰 알림, 문자 메시지, 영수증, 위치 공유, 투표, 송금 완료, 알람, 일정, 아이템 획득, 음악 재생, 실시간 순위, 할 일 목록).
 // 저장 형식: <div data-wn-block="종류" data-wn-data="JSON"></div>
 // 에디터(Tiptap 노드), 서버(저장할 때 검증), 열람 화면(렌더링)이 모두 이 파일을 같이 쓴다.
 //
@@ -203,6 +203,12 @@ const musicSchema = z.object({
   lyric: text(200), // 가사 (여러 줄 가능). 비우면 안 보임
 });
 
+const todoSchema = z.object({
+  title: text(60), // 목록 제목 ('가게 문 열기 전에')
+  date: text(40), // 제목 위 작은 글 ('11월 13일 목요일'). 비우면 안 보임
+  script: text(LIMITS.script), // 항목 대본 (규칙은 parseTodoScript 위 설명)
+});
+
 const rankSchema = z.object({
   title: text(60), // 순위표 제목 ('실시간 후원 랭킹', '이번 주 음원 차트')
   badge: text(40), // 제목 옆 작은 표시 ('LIVE', '11월 13일 02:00 기준'). 비우면 안 보임
@@ -245,6 +251,7 @@ export const storyBlockSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('item'), data: itemSchema }),
   z.object({ kind: z.literal('music'), data: musicSchema }),
   z.object({ kind: z.literal('rank'), data: rankSchema }),
+  z.object({ kind: z.literal('todo'), data: todoSchema }),
 ]);
 
 export type StoryBlock = z.infer<typeof storyBlockSchema>;
@@ -271,6 +278,7 @@ export type EventData = z.infer<typeof eventSchema>;
 export type ItemData = z.infer<typeof itemSchema>;
 export type MusicData = z.infer<typeof musicSchema>;
 export type RankData = z.infer<typeof rankSchema>;
+export type TodoData = z.infer<typeof todoSchema>;
 
 /** 메일 보낸 사람 '김지은 <jieun@example.com>' → 이름과 주소. 꺾쇠가 없으면 적은 그대로 이름으로 */
 export function splitMailSender(from: string): { name: string; address: string } {
@@ -744,6 +752,42 @@ export function itemGradeKey(grade: string): ItemGrade {
   return ITEM_GRADE_WORDS.find(([, words]) => words.some((word) => text.includes(word)))?.[0] ?? 'common';
 }
 
+// ─── 할 일 목록 대본 ──────────────────────────────────────
+// 한 줄에 하나
+//   [x] 와플 반죽 숙성시키기   ← 끝낸 일 ([v] · [✓] · ✓ · ☑ 로 시작해도 됨)
+//   [ ] 시럽 사 오기           ← 아직 안 한 일 (그냥 써도 되고, ☐ · '- ' 로 시작해도 됨)
+//   --- 문 닫고 ---            ← 묶음 제목 (글자 없이 ---만 쓰면 구분선)
+
+export type TodoLine = { type: 'item'; text: string; done: boolean } | { type: 'section'; text: string };
+
+const TODO_DONE = /^(?:\[[xXvV✓✔]\]|[☑✅✔✓])\s*/;
+const TODO_OPEN = /^(?:\[\s?\]|☐|[-•·]\s)\s*/;
+const TODO_SECTION = /^-{3,}\s*(.*?)\s*-*$/;
+
+export function parseTodoScript(script: string): TodoLine[] {
+  const lines: TodoLine[] = [];
+  for (const raw of script.split(/\r?\n/)) {
+    if (lines.length >= LIMITS.lines) break;
+    const line = raw.trim();
+    if (!line) continue;
+    const section = line.match(TODO_SECTION);
+    if (section) {
+      lines.push({ type: 'section', text: section[1] });
+      continue;
+    }
+    const done = TODO_DONE.test(line);
+    const text = line.replace(done ? TODO_DONE : TODO_OPEN, '').trim();
+    if (text) lines.push({ type: 'item', text, done });
+  }
+  return lines;
+}
+
+/** 끝낸 일 수 / 전체 할 일 수 */
+export function todoProgress(lines: TodoLine[]): { done: number; total: number } {
+  const items = lines.filter((line) => line.type === 'item');
+  return { done: items.filter((line) => line.done).length, total: items.length };
+}
+
 // ─── 실시간 순위 대본 ──────────────────────────────────────
 // 한 줄에 한 자리. 순위는 위에서부터 1, 2, 3 … (앞에 '15.'·'15위'처럼 쓰면 그 순위부터 이어서, 같은 순위도 됨)
 //   밥알: 1,250,000원 ▲2     ← '이름: 점수', 줄 끝에 오르내림 (▲2 · ▼1 · NEW · -)
@@ -860,7 +904,8 @@ export type TemplateKey =
   | 'event'
   | 'item'
   | 'music'
-  | 'rank';
+  | 'rank'
+  | 'todo';
 
 export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }> = [
   { key: 'kakao-dm', label: '카톡 1:1 대화', hint: '두 사람의 메신저 대화' },
@@ -889,6 +934,7 @@ export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }>
   { key: 'item', label: '아이템 획득', hint: '이름 · 등급 색 · 능력치' },
   { key: 'music', label: '음악 재생', hint: '노래 제목 · 가수 · 재생 막대 · 가사' },
   { key: 'rank', label: '실시간 순위', hint: '방송 · 게임 · 음원 차트 랭킹, 오르내림' },
+  { key: 'todo', label: '할 일 목록', hint: '메모 앱 체크리스트 · 투두 · 끝낸 개수' },
 ];
 
 export function templateLabel(block: StoryBlock): string {
@@ -1019,6 +1065,15 @@ export function createTemplate(key: TemplateKey): StoryBlock {
       return {
         kind: 'location',
         data: { badge: '위치 공유', place: '골목 끝 와플 가게', address: '와플시 반죽구 시럽로 12, 1층', note: '여기서 기다릴게' },
+      };
+    case 'todo':
+      return {
+        kind: 'todo',
+        data: {
+          title: '가게 문 열기 전에',
+          date: lockScreenDate(),
+          script: ['[x] 와플 반죽 숙성시키기', '[x] 버터 녹여 두기', '[ ] 시럽 새로 사 오기', '[ ] 간판 불 켜기', '--- 문 닫고 ---', '[ ] 할머니께 전화하기'].join('\n'),
+        },
       };
     case 'rank':
       return {

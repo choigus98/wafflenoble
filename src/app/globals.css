@@ -167,6 +167,12 @@
   --wn-rank-me-bg: #fff1e6;
   --wn-rank-badge-bg: rgb(201 42 42 / 0.1);
   --wn-rank-badge-fg: #c92a2a;
+  /* 할 일 목록: 끝낸 일 글자(--wn-todo-muted)는 종이 바탕 대비 4.5:1 이상, 체크 동그라미는 그림이라 3:1 이상 */
+  --wn-todo-bg: #fffdf5;
+  --wn-todo-muted: #6b6455;
+  --wn-todo-accent: #c17d10;
+  --wn-todo-accent-fg: #ffffff;
+  --wn-todo-line: rgb(0 0 0 / 0.08);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -333,6 +339,11 @@
     --wn-rank-me-bg: rgb(255 169 77 / 0.14);
     --wn-rank-badge-bg: rgb(255 135 135 / 0.16);
     --wn-rank-badge-fg: #ff9a9a;
+    --wn-todo-bg: #1c1b17;
+    --wn-todo-muted: rgb(255 255 255 / 0.6);
+    --wn-todo-accent: #f0b429;
+    --wn-todo-accent-fg: #1c1b17;
+    --wn-todo-line: rgb(255 255 255 / 0.1);
   }
 }
 
@@ -498,6 +509,11 @@
   --wn-rank-me-bg: rgb(255 169 77 / 0.14);
   --wn-rank-badge-bg: rgb(255 135 135 / 0.16);
   --wn-rank-badge-fg: #ff9a9a;
+  --wn-todo-bg: #1c1b17;
+  --wn-todo-muted: rgb(255 255 255 / 0.6);
+  --wn-todo-accent: #f0b429;
+  --wn-todo-accent-fg: #1c1b17;
+  --wn-todo-line: rgb(255 255 255 / 0.1);
 }
 
 @theme inline {

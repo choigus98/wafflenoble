@@ -19,6 +19,7 @@ import {
   parseScript,
   parseSearchResults,
   parseSystemScript,
+  parseTodoScript,
   pollPercentLabel,
   pollStatus,
   pollTotal,
@@ -29,6 +30,7 @@ import {
   scriptSpeakers,
   smsContact,
   splitMailSender,
+  todoProgress,
   type AlarmData,
   type CallData,
   type ChatData,
@@ -53,6 +55,7 @@ import {
   type SnsData,
   type StoryBlock,
   type SystemData,
+  type TodoData,
   type TransferData,
 } from '@/lib/story-blocks';
 import { cn } from '@/lib/utils';
@@ -126,6 +129,8 @@ export function StoryBlockView({ block }: { block: StoryBlock }) {
       return <MusicCard data={block.data} />;
     case 'rank':
       return <RankCard data={block.data} />;
+    case 'todo':
+      return <TodoCard data={block.data} />;
   }
 }
 
@@ -1634,6 +1639,70 @@ function RankCard({ data }: { data: RankData }) {
             ),
           )}
         </ol>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * 할 일 목록: 메모 앱 체크리스트 (날짜 · 제목 · 끝낸 개수 · 항목). 항목은 대본으로 한 줄씩 (parseTodoScript).
+ * 끝낸 일은 동그라미에 체크 + 취소선(색만으로 구분하지 않게), 낭독기에는 '와플 반죽 숙성시키기, 완료'처럼 읽힌다
+ */
+function TodoCard({ data }: { data: TodoData }) {
+  const lines = parseTodoScript(data.script);
+  const { done, total } = todoProgress(lines);
+  const title = data.title.trim();
+  const date = data.date.trim();
+
+  return (
+    <div className={cn(CARD, 'bg-(--wn-todo-bg) px-5 pt-4 pb-4')}>
+      {date ? <div className="text-xs font-medium text-(--wn-todo-muted)">{date}</div> : null}
+      {title || total > 0 ? (
+        <div className={cn('flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5', date && 'mt-1')}>
+          <span className="min-w-32 flex-1 text-[18px] leading-snug font-bold break-keep">{title}</span>
+          {total > 0 ? (
+            <span className="shrink-0 text-xs font-semibold text-(--wn-todo-muted) tabular-nums">
+              {done}/{total} 완료
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+      {lines.length > 0 ? (
+        <ul aria-label="할 일" className={cn('space-y-0.5', title || date || total > 0 ? 'mt-2.5' : '')}>
+          {lines.map((line, index) =>
+            line.type === 'section' ? (
+              line.text ? (
+                <li key={index} className="pt-2.5 pb-0.5 text-xs font-bold text-(--wn-todo-muted) break-keep">
+                  {line.text}
+                </li>
+              ) : (
+                <li key={index} aria-hidden="true" className="py-2">
+                  <span className="block h-px bg-(--wn-todo-line)" />
+                </li>
+              )
+            ) : (
+              <li key={index} className="flex items-start gap-2.5 py-1">
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    'mt-0.5 grid size-5 shrink-0 place-items-center rounded-full border-[1.5px]',
+                    line.done ? 'border-(--wn-todo-accent) bg-(--wn-todo-accent) text-(--wn-todo-accent-fg)' : 'border-(--wn-todo-muted)',
+                  )}
+                >
+                  {line.done ? (
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="size-3">
+                      <path d="M5 10.5l3.2 3.2L15 7" />
+                    </svg>
+                  ) : null}
+                </span>
+                <span className={cn('min-w-0 flex-1 leading-relaxed break-keep', line.done && 'text-(--wn-todo-muted) line-through decoration-(--wn-todo-muted)')}>
+                  {line.text}
+                  <span className="sr-only">{line.done ? ', 완료' : ', 미완료'}</span>
+                </span>
+              </li>
+            ),
+          )}
+        </ul>
       ) : null}
     </div>
   );

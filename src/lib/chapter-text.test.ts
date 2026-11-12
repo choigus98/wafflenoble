@@ -94,6 +94,11 @@ describe('회차 텍스트로 내보내기', () => {
         '* 15. 와플집 딸: 120,000원 ▲5',
       ].join('\n'),
     );
+    const todo = createTemplate('todo');
+    if (todo.kind !== 'todo') throw new Error('할 일 목록 템플릿이 아니에요');
+    expect(storyBlockToText({ ...todo, data: { ...todo.data, date: '' } })).toBe(
+      ['[할 일 목록]', '가게 문 열기 전에', '[x] 와플 반죽 숙성시키기', '[x] 버터 녹여 두기', '[ ] 시럽 새로 사 오기', '[ ] 간판 불 켜기', '— 문 닫고 —', '[ ] 할머니께 전화하기', '2/5 완료'].join('\n'),
+    );
   });
 
   it('투표·영수증은 자동으로 낸 값(참여 인원·합계)도', () => {
@@ -104,7 +109,7 @@ describe('회차 텍스트로 내보내기', () => {
   });
 
   it('모든 템플릿이 머리 한 줄 + 글로 풀린다 (빈 줄 없이)', () => {
-    const keys = ['kakao-dm', 'kakao-group', 'live', 'chat', 'donation', 'post', 'system-quest', 'system-status', 'news', 'call-incoming', 'call-active', 'note', 'sns', 'mail', 'search', 'push', 'sms', 'receipt', 'location', 'poll', 'transfer', 'alarm', 'event', 'item', 'music', 'rank'] as const;
+    const keys = ['kakao-dm', 'kakao-group', 'live', 'chat', 'donation', 'post', 'system-quest', 'system-status', 'news', 'call-incoming', 'call-active', 'note', 'sns', 'mail', 'search', 'push', 'sms', 'receipt', 'location', 'poll', 'transfer', 'alarm', 'event', 'item', 'music', 'rank', 'todo'] as const;
     for (const key of keys) {
       const text = storyBlockToText(createTemplate(key));
       const [head, ...rest] = text.split('\n');
