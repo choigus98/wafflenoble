@@ -63,6 +63,12 @@ export function ReaderSettings({ share }: { share?: { path: string; title: strin
             onSelect={(index) => update({ gap: index === 1 ? undefined : index })}
           />
           <Option
+            label="문단 정렬"
+            options={['왼쪽', '양쪽 맞춤']}
+            selected={settings.align === 'justify' ? 1 : 0}
+            onSelect={(index) => update({ align: index === 1 ? 'justify' : undefined })}
+          />
+          <Option
             label="글꼴"
             options={['고딕', '명조']}
             selected={settings.font === 'serif' ? 1 : 0}
@@ -83,7 +89,7 @@ export function ReaderSettings({ share }: { share?: { path: string; title: strin
             selected={settings.theme === 'light' ? 1 : settings.theme === 'dark' ? 2 : 0}
             onSelect={(index) => update({ theme: index === 1 ? 'light' : index === 2 ? 'dark' : undefined })}
           />
-          {/* 글자·간격만 처음대로 (화면 모드는 그대로). 이미 기본값이면 눌러도 바뀌는 게 없다고 알려 주되,
+          {/* 글자·간격·정렬만 처음대로 (화면 모드는 그대로). 이미 기본값이면 눌러도 바뀌는 게 없다고 알려 주되,
               disabled로 막으면 누른 직후 포커스가 사라져서 aria-disabled로 */}
           <div className="flex justify-end">
             <button
@@ -92,14 +98,14 @@ export function ReaderSettings({ share }: { share?: { path: string; title: strin
               onClick={() => {
                 if (atDefault) return;
                 saveReaderPrefs(resetReadingPrefs(settings));
-                announce('글자 크기와 간격을 처음대로 되돌렸어요');
+                announce('글자 크기와 간격, 정렬을 처음대로 되돌렸어요');
               }}
               className={cn(
                 'h-8 rounded-lg px-2 text-xs font-semibold text-muted transition',
                 atDefault ? 'cursor-default opacity-50' : 'hover:bg-surface-2 hover:text-fg',
               )}
             >
-              글자·간격 처음대로
+              글자·간격·정렬 처음대로
             </button>
           </div>
           {share ? <CopyLinkButton path={share.path} title={share.title} chapterLabel={share.chapterLabel} variant="block" label="이 회차 링크 복사" /> : null}

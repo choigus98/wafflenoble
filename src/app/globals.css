@@ -656,6 +656,10 @@ body:has(article[data-reading]) :is(#main, [data-reader-bar]) {
 .novel-body p {
   margin: 0 0 var(--reader-gap);
 }
+/* 읽기 설정 '문단 정렬: 양쪽 맞춤' (마지막 줄은 그대로 왼쪽) */
+:root[data-align="justify"] .novel-body p {
+  text-align: justify;
+}
 /* 빈 줄도 한 줄 높이를 차지하게 */
 .novel-body p:empty::after {
   content: "\00a0";
