@@ -102,6 +102,28 @@ function StoryBlockItem({ node, editor, getPos, selected, deleteNode, extension 
     if (window.confirm('이 템플릿을 지울까요?')) deleteNode();
   }
 
+  /**
+   * 바로 아래에 똑같은 템플릿을 하나 더 넣고, 새 것을 고치는 상태로 연다 (대화를 이어 쓸 때).
+   * 되돌리기(Ctrl/⌘+Z) 한 번이면 복제한 것이 사라진다.
+   */
+  function duplicate() {
+    if (editor.isDestroyed) return;
+    const pos = getPos();
+    if (typeof pos !== 'number') return;
+    // 카드 위에서 고치던 칸이 있으면 먼저 반영한다 (칸에서 벗어날 때 저장되므로)
+    const active = document.activeElement;
+    if (active instanceof HTMLElement && editor.view.nodeDOM(pos)?.contains(active)) active.blur();
+    const current = editor.state.doc.nodeAt(pos);
+    if (!current || current.attrs.uid !== uid) return;
+    editor
+      .chain()
+      .insertContentAt(pos + current.nodeSize, {
+        type: 'storyBlock',
+        attrs: { kind: current.attrs.kind, data: structuredClone(current.attrs.data), isNew: true, uid: newId() },
+      })
+      .run();
+  }
+
   if (!block) {
     return (
       <NodeViewWrapper className="my-6">
@@ -138,6 +160,14 @@ function StoryBlockItem({ node, editor, getPos, selected, deleteNode, extension 
       {extra}
       <button
         type="button"
+        onClick={duplicate}
+        title="바로 아래에 똑같이 하나 더"
+        className="h-7 rounded-full px-2.5 text-xs font-semibold text-muted hover:bg-surface-2 hover:text-fg"
+      >
+        복제
+      </button>
+      <button
+        type="button"
         onClick={remove}
         className="h-7 rounded-full px-2.5 text-xs font-semibold text-muted hover:bg-danger/10 hover:text-danger"
       >
@@ -166,21 +196,24 @@ function StoryBlockItem({ node, editor, getPos, selected, deleteNode, extension 
         ) : editing ? (
           <ConversationEditor block={block} onChange={commit} onClose={close} onDelete={deleteNode} />
         ) : (
-          // 카톡·채팅창·게시글: 카드를 누르면 편집 창이 열린다
-          <div
-            role="button"
-            tabIndex={0}
-            aria-label={`${templateLabel(block)} ${editName}`}
-            onClick={open}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                open();
-              }
-            }}
-            className={cn(frame, 'cursor-pointer focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none')}
-          >
-            <StoryBlockView block={block} />
+          // 카톡·채팅창·게시글: 카드를 누르면 편집 창이 열린다.
+          // 도구 막대는 카드(버튼) 바깥에 둔다 — 버튼 안의 버튼은 화면 낭독기에서 묻힐 수 있어서
+          <div className={cn(frame, 'has-focus-visible:ring-2 has-focus-visible:ring-accent')}>
+            <div
+              role="button"
+              tabIndex={0}
+              aria-label={`${templateLabel(block)} ${editName}`}
+              onClick={open}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  open();
+                }
+              }}
+              className="cursor-pointer rounded-[20px] focus-visible:outline-none"
+            >
+              <StoryBlockView block={block} />
+            </div>
             {toolbar(
               <button type="button" onClick={open} className="h-7 rounded-full bg-accent px-3 text-xs font-semibold text-accent-fg">
                 {editLabel}
