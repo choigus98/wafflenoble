@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { readBookmarksRaw, saveBookmarks, subscribeBookmarks } from '@/components/reader/bookmarks-store';
-import { bookmarkSnippet, findBookmarkTarget, parseBookmarks, toggleBookmark } from '@/lib/bookmarks';
+import { bookmarkSnippet, findBookmarkTarget, linkTarget, parseBookmarks, toggleBookmark } from '@/lib/bookmarks';
 
 // 회차 화면 '책갈피': 오른쪽 아래 단추(맨 위로 단추 위)로 지금 읽는 곳(위쪽 바 바로 아래 첫 문단)에 꽂고, 같은 곳에서 다시 누르면 뺀다.
 // 꽂아 둔 문단은 왼쪽 여백에 강조색 줄. 작품 화면 책갈피 목록에서 오면(#bm-순번) 그 문단으로 옮기고 잠깐 칠한다
@@ -70,19 +70,25 @@ export function ChapterBookmark({ novelId, chapterId, position, title }: { novel
     units.forEach((unit, at) => unit.classList.toggle('wn-bookmarked', marked.has(at)));
   }, [mine]);
 
-  // 책갈피 목록에서 왔으면(#bm-순번) 그 문단으로
+  // 책갈피 목록이나 '출처와 함께 복사' 링크로 왔으면(#bm-순번) 그 문단으로.
+  // 같은 회차를 보던 중에 주소 끝만 바뀐 경우(링크를 같은 화면에서 열기·주소창에 붙여 넣기)도 따라간다
   useEffect(() => {
-    const match = window.location.hash.match(/^#bm-(\d+)$/);
-    if (!match) return;
-    const index = Number(match[1]);
-    const units = contentUnits();
-    const saved = parseBookmarks(readBookmarksRaw()).find((item) => item.chapterId === chapterId && item.index === index);
-    const target = units[findBookmarkTarget(units.map(unitText), index, saved?.snippet ?? '')];
-    if (!target) return;
-    window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - barBottom() - 16 });
-    target.tabIndex = -1;
-    target.focus({ preventScroll: true });
-    flash(target);
+    const go = () => {
+      const match = window.location.hash.match(/^#bm-(\d+)$/);
+      if (!match) return;
+      const index = Number(match[1]);
+      const units = contentUnits();
+      const saved = parseBookmarks(readBookmarksRaw()).find((item) => item.chapterId === chapterId && item.index === index);
+      const target = units[linkTarget(units.map(unitText), index, saved?.snippet ?? null)];
+      if (!target) return;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - barBottom() - 16 });
+      target.tabIndex = -1;
+      target.focus({ preventScroll: true });
+      flash(target);
+    };
+    go();
+    window.addEventListener('hashchange', go);
+    return () => window.removeEventListener('hashchange', go);
   }, [chapterId]);
 
   function say(text: string) {

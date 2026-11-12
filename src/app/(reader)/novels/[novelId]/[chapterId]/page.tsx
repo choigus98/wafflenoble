@@ -134,7 +134,8 @@ async function ChapterView({ params }: Pick<PageProps<'/novels/[novelId]/[chapte
         </aside>
       ) : null}
 
-      <footer data-print-hide="" className="space-y-7 border-t border-line pt-7">
+      {/* 좁은 화면에서는 오른쪽 아래 떠 있는 단추(듣기·책갈피·맨 위로)가 다음 화 단추를 덮지 않게, 맨 아래까지 내리면 단추 줄이 그 위로 오도록 아래 여백을 더 둔다 */}
+      <footer data-print-hide="" className="space-y-7 border-t border-line pt-7 pb-24 lg:pb-0">
         <div className="flex flex-col items-center gap-3">
           <LikeButton
             chapterId={chapter.id}

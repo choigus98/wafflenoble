@@ -6,14 +6,21 @@ import { quoteText } from '@/lib/share-text';
 
 // 회차 화면 '출처와 함께 복사': 본문 글을 고르면(드래그·길게 눌러 고르기) 고른 곳 바로 아래에 단추가 뜨고,
 // 누르면 고른 글 + 『작품』 N화 「제목」 + 링크를 복사한다 (단톡방에 인용해 붙이기 좋게).
-// 휴대폰은 고른 글 위에 기본 메뉴(복사·공유)가 뜨므로 단추는 아래에, 화면 아래 끝이면 위에
+// 휴대폰은 고른 글 위에 기본 메뉴(복사·공유)가 뜨므로 단추는 아래에, 화면 아래 끝이면 위에.
+// 링크 끝에는 고른 글이 시작하는 문단 순번(#bm-순번, 책갈피와 같은 기준)을 붙여서, 받은 사람이 열면 그 문단으로 가서 잠깐 칠해진다
 
 const CONTENT_ID = 'chapter-content';
 const BUTTON_HEIGHT = 40;
 const BUTTON_WIDTH = 168;
 const TOAST_MS = 2500;
 
-type Spot = { top: number; left: number; text: string };
+type Spot = { top: number; left: number; text: string; unit: number };
+
+/** 고른 글이 시작하는 본문 덩어리(문단·인용·템플릿) 순번 — 책갈피와 같은 기준 (못 찾으면 -1) */
+function unitIndex(content: HTMLElement, node: Node): number {
+  const units = [...content.querySelectorAll<HTMLElement>(':scope > .contents > *, :scope > :not(.contents)')];
+  return units.findIndex((unit) => unit === node || unit.contains(node));
+}
 
 /** 지금 고른 글이 본문 안이면 단추 자리와 글 (아니면 null) */
 function measure(): Spot | null {
@@ -31,7 +38,7 @@ function measure(): Spot | null {
   const top = below + BUTTON_HEIGHT <= window.innerHeight - 8 ? below : Math.max(8, first.top - 8 - BUTTON_HEIGHT);
   const center = last.left + last.width / 2;
   const left = Math.min(Math.max(8, center - BUTTON_WIDTH / 2), window.innerWidth - BUTTON_WIDTH - 8);
-  return { top, left, text };
+  return { top, left, text, unit: unitIndex(content, range.startContainer) };
 }
 
 export function QuoteCopy({ title, chapterLabel, path }: { title: string; chapterLabel: string; path: string | null }) {
@@ -65,7 +72,7 @@ export function QuoteCopy({ title, chapterLabel, path }: { title: string; chapte
 
   async function copy() {
     if (!spot) return;
-    const url = path ? new URL(path, window.location.origin).toString() : null;
+    const url = path ? new URL(`${path}${spot.unit >= 0 ? `#bm-${spot.unit}` : ''}`, window.location.origin).toString() : null;
     const text = quoteText(spot.text, title, chapterLabel, url);
     const ok = await copyToClipboard(text);
     if (!ok) window.prompt('아래 글을 길게 눌러 복사해 주세요', text);

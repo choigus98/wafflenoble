@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bookmarkSnippet, bookmarksOf, findBookmarkTarget, parseBookmarks, removeBookmark, toggleBookmark, type Bookmark } from '@/lib/bookmarks';
+import { bookmarkSnippet, bookmarksOf, findBookmarkTarget, linkTarget, parseBookmarks, removeBookmark, toggleBookmark, type Bookmark } from '@/lib/bookmarks';
 
 const mark = (patch: Partial<Bookmark> = {}): Bookmark => ({ novelId: 1, chapterId: 3, position: 3, title: '템플릿 예시', index: 4, snippet: '수진이 휴대폰을 확인했다.', at: 1000, ...patch });
 
@@ -37,5 +37,17 @@ describe('책갈피', () => {
   it('작품마다, 최근에 꽂은 차례로', () => {
     const list = [mark({ at: 1 }), mark({ novelId: 2, at: 5 }), mark({ index: 7, at: 3 })];
     expect(bookmarksOf(list, 1).map((item) => item.at)).toEqual([3, 1]);
+  });
+});
+
+describe("'#bm-순번' 링크로 왔을 때", () => {
+  it('이 기기에 책갈피가 있으면 첫머리로 다시 찾고, 없으면(남이 보낸 링크) 순번 그대로 — 빈 덩어리(장면 전환)로 새지 않게', () => {
+    const snippets = ['첫 문단', '', '셋째', '넷째'];
+    expect(linkTarget(snippets, 3, null)).toBe(3);
+    expect(linkTarget(snippets, 9, null)).toBe(3);
+    expect(linkTarget(snippets, 0, '넷째')).toBe(3);
+    expect(linkTarget([], 2, null)).toBe(-1);
+    // 예전처럼 빈 첫머리로 찾으면 장면 전환(1)으로 가 버렸다
+    expect(findBookmarkTarget(snippets, 3, '')).toBe(1);
   });
 });

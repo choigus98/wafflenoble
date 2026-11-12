@@ -69,6 +69,15 @@ export function findBookmarkTarget(snippets: string[], index: number, snippet: s
   return Math.min(index, snippets.length - 1);
 }
 
+/**
+ * '#bm-순번' 링크로 왔을 때 갈 덩어리: 이 기기에 그 책갈피가 있으면 첫머리로 다시 찾고(글이 고쳐져 밀렸어도),
+ * 없으면(남이 보낸 '출처와 함께 복사' 링크 등) 순번 그대로 (본문보다 뒤면 마지막 덩어리). 덩어리가 없으면 -1
+ */
+export function linkTarget(snippets: string[], index: number, snippet: string | null): number {
+  if (snippet !== null) return findBookmarkTarget(snippets, index, snippet);
+  return snippets.length === 0 ? -1 : Math.min(index, snippets.length - 1);
+}
+
 /** 작품 화면 목록 · 회차 화면에서 이 작품(회차) 책갈피만, 최근에 꽂은 차례로 */
 export function bookmarksOf(list: Bookmark[], novelId: number): Bookmark[] {
   return list.filter((item) => item.novelId === novelId).sort((a, b) => b.at - a.at);
