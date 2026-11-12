@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useRef, useState, type KeyboardEvent, type Ref } from 'react';
-import { DonationCard, LiveCard, NewsCard, StoryBlockView, type FieldRenderer } from '@/components/story-block-view';
+import { CallCard, DonationCard, LiveCard, NewsCard, StoryBlockView, type FieldRenderer } from '@/components/story-block-view';
 import { Button } from '@/components/ui';
 import {
+  CALL_DETAIL_DEFAULT,
   CHAT_COLORS,
   CHAT_COLOR_KEYS,
   LIMITS,
@@ -31,7 +32,7 @@ import { cn } from '@/lib/utils';
 // 입력은 화면에 바로 보이고, 문서(→ 자동저장)에는 잠깐 모았다가 반영한다 (커서 튐 방지, 저장 횟수 줄이기)
 const COMMIT_DELAY_MS = 300;
 
-type CardBlock = Extract<StoryBlock, { kind: 'live' | 'donation' | 'news' }>;
+type CardBlock = Extract<StoryBlock, { kind: 'live' | 'donation' | 'news' | 'call' }>;
 type ConversationBlock = Extract<StoryBlock, { kind: 'kakao' | 'chat' | 'post' | 'system' }>;
 
 const TEXTAREA =
@@ -110,7 +111,7 @@ export function InlineCardEditor({
 }) {
   // 입력칸에서 벗어나면 바로 반영한다 (고치자마자 발행을 눌러도 마지막 글자가 빠지지 않게)
   const { draft, update, flush } = useDraft(block, onChange);
-  const firstField = draft.kind === 'live' ? 'streamer' : draft.kind === 'donation' ? 'donor' : 'title';
+  const firstField = draft.kind === 'live' ? 'streamer' : draft.kind === 'donation' ? 'donor' : draft.kind === 'call' ? 'name' : 'title';
 
   const field: FieldRenderer = ({ name, value, label, placeholder, maxLength, className, multiline }) => {
     const set = (next: string) => update({ ...draft, data: { ...draft.data, [name]: next } } as CardBlock);
@@ -150,6 +151,40 @@ export function InlineCardEditor({
       return <DonationCard data={draft.data} field={field} />;
     case 'news':
       return <NewsCard data={draft.data} field={field} />;
+    case 'call': {
+      const call = draft;
+      // 모드를 바꾸면, 아직 안 고친 기본 문구는 새 모드에 맞게 (휴대전화 ↔ 00:12)
+      const setMode = (mode: 'incoming' | 'active') => {
+        if (mode === call.data.mode) return;
+        const detail = call.data.detail.trim();
+        const untouched = detail === '' || detail === CALL_DETAIL_DEFAULT[call.data.mode];
+        update({ ...call, data: { ...call.data, mode, detail: untouched ? CALL_DETAIL_DEFAULT[mode] : call.data.detail } });
+        // 단추를 누른 바로 그때 저장 (입력칸처럼 '벗어날 때'가 없으므로)
+        window.setTimeout(flush, 0);
+      };
+      return (
+        <div className="space-y-2">
+          {/* 카드 오른쪽 위 도구 막대(휴대폰 폭에서 늘 보임) 아래에 오도록 위 여백 + 왼쪽 정렬 */}
+          <div role="group" aria-label="전화 화면 종류" className="mt-5 ml-1 flex w-fit rounded-full bg-surface-2 p-1 text-xs font-semibold">
+            {(['incoming', 'active'] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                aria-pressed={call.data.mode === mode}
+                onClick={() => setMode(mode)}
+                className={cn(
+                  'h-8 rounded-full px-3 transition',
+                  call.data.mode === mode ? 'bg-surface text-fg shadow-sm' : 'text-muted hover:text-fg',
+                )}
+              >
+                {mode === 'incoming' ? '걸려 오는 전화' : '통화 중'}
+              </button>
+            ))}
+          </div>
+          <CallCard data={call.data} field={field} />
+        </div>
+      );
+    }
   }
 }
 

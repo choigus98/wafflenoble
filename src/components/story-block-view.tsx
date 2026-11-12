@@ -11,6 +11,7 @@ import {
   parseSystemScript,
   postCommentCount,
   scriptSpeakers,
+  type CallData,
   type ChatData,
   type DonationData,
   type KakaoData,
@@ -58,6 +59,8 @@ export function StoryBlockView({ block }: { block: StoryBlock }) {
       return <SystemCard data={block.data} />;
     case 'news':
       return <NewsCard data={block.data} />;
+    case 'call':
+      return <CallCard data={block.data} />;
   }
 }
 
@@ -444,6 +447,97 @@ export function NewsCard({ data, field }: { data: NewsData; field?: FieldRendere
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function PhoneIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}>
+      <path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.6a1 1 0 0 1-.25 1L6.6 10.8Z" />
+    </svg>
+  );
+}
+
+/** 전화 화면 아래 동그란 단추 모양 (실제로 누르는 단추가 아니라 그림) */
+function CallKey({ tone, label, children }: { tone: 'red' | 'green' | 'plain'; label: string; children: ReactNode }) {
+  return (
+    <span className="flex flex-col items-center gap-1.5">
+      <span
+        aria-hidden="true"
+        className={cn(
+          'grid size-14 place-items-center rounded-full',
+          tone === 'red' && 'bg-[#dc2626] text-white',
+          tone === 'green' && 'bg-[#16a34a] text-white',
+          tone === 'plain' && 'bg-(--wn-call-key-bg) text-(--wn-call-fg)',
+        )}
+      >
+        {children}
+      </span>
+      <span className="text-xs text-(--wn-call-muted)">{label}</span>
+    </span>
+  );
+}
+
+/** 전화 화면: 걸려 오는 전화 / 통화 중. 에디터에서는 field로 이름·문구를 카드 위에서 고친다 */
+export function CallCard({ data, field }: { data: CallData; field?: FieldRenderer }) {
+  const incoming = data.mode === 'incoming';
+  const name = data.name.trim();
+  const slot = (key: 'name' | 'detail', label: string, className: string) =>
+    field ? (
+      field({ name: key, value: data[key], label, placeholder: label, maxLength: 40, className })
+    ) : (
+      <span className={className}>{data[key]}</span>
+    );
+
+  return (
+    <div className="wn-block mx-auto flex w-full max-w-[340px] flex-col items-center rounded-[28px] border border-(--wn-border) bg-linear-to-b from-(--wn-call-bg-from) to-(--wn-call-bg-to) px-6 pt-9 pb-7 text-center text-(--wn-call-fg) shadow-sm">
+      <span className="sr-only">{incoming ? '걸려 오는 전화' : '통화 중'}</span>
+      <span
+        aria-hidden="true"
+        className="grid size-20 place-items-center rounded-full bg-(--wn-call-avatar-bg) text-[30px] font-semibold text-(--wn-call-avatar-fg)"
+      >
+        {name ? [...name][0] : '?'}
+      </span>
+      <div className="mt-4 w-full">{slot('name', '이름', 'block w-full text-center text-[26px] leading-tight font-semibold')}</div>
+      <div className="mt-1.5 w-full">
+        {slot('detail', incoming ? '번호 종류 (예: 휴대전화)' : '통화 시간 (예: 03:12)', 'block w-full text-center text-[15px] text-(--wn-call-muted) tabular-nums')}
+      </div>
+      {incoming ? (
+        <div className="mt-12 flex w-full justify-between px-2">
+          <CallKey tone="red" label="거절">
+            <PhoneIcon className="size-6 rotate-[135deg]" />
+          </CallKey>
+          <CallKey tone="green" label="응답">
+            <PhoneIcon className="size-6" />
+          </CallKey>
+        </div>
+      ) : (
+        <>
+          <div className="mt-10 grid w-full grid-cols-3 gap-y-5">
+            <CallKey tone="plain" label="소리 끔">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-6">
+                <path d="M9 9v3a3 3 0 0 0 5.1 2.1M15 9.3V5a3 3 0 0 0-5.9-.7M19 10v2a7 7 0 0 1-.8 3.2M5 10v2a7 7 0 0 0 11.1 5.7M12 19v3M3 3l18 18" />
+              </svg>
+            </CallKey>
+            <CallKey tone="plain" label="키패드">
+              <svg viewBox="0 0 24 24" fill="currentColor" className="size-6">
+                {[5, 12, 19].flatMap((y) => [5, 12, 19].map((x) => <circle key={`${x}-${y}`} cx={x} cy={y} r="1.8" />))}
+              </svg>
+            </CallKey>
+            <CallKey tone="plain" label="스피커">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-6">
+                <path d="M11 5 6 9H3v6h3l5 4V5ZM15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" />
+              </svg>
+            </CallKey>
+          </div>
+          <div className="mt-7">
+            <CallKey tone="red" label="종료">
+              <PhoneIcon className="size-6 rotate-[135deg]" />
+            </CallKey>
+          </div>
+        </>
+      )}
     </div>
   );
 }

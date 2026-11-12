@@ -33,7 +33,19 @@ function postData(patch: Partial<PostData> = {}): PostData {
   if (block.kind !== 'post') throw new Error('게시글 템플릿이 아니에요');
   return { ...block.data, ...patch };
 }
-const KEYS: TemplateKey[] = ['kakao-dm', 'kakao-group', 'live', 'chat', 'donation', 'post', 'system-quest', 'system-status', 'news'];
+const KEYS: TemplateKey[] = [
+  'kakao-dm',
+  'kakao-group',
+  'live',
+  'chat',
+  'donation',
+  'post',
+  'system-quest',
+  'system-status',
+  'news',
+  'call-incoming',
+  'call-active',
+];
 
 function withTrickyText(block: StoryBlock): StoryBlock {
   switch (block.kind) {
@@ -53,6 +65,8 @@ function withTrickyText(block: StoryBlock): StoryBlock {
       return { ...block, data: { ...block.data, title: `${TRICKY}`, script: `${block.data.script}\n스킬: ${TRICKY}` } };
     case 'news':
       return { ...block, data: { ...block.data, title: TRICKY, body: `${TRICKY}\n\n둘째 문단 <b>굵게?</b>` } };
+    case 'call':
+      return { ...block, data: { ...block.data, name: '엄마 <3 & "아빠"' } };
   }
 }
 

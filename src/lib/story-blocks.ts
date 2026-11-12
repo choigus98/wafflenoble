@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사).
+// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면).
 // 저장 형식: <div data-wn-block="종류" data-wn-data="JSON"></div>
 // 에디터(Tiptap 노드), 서버(저장할 때 검증), 열람 화면(렌더링)이 모두 이 파일을 같이 쓴다.
 //
@@ -92,6 +92,15 @@ const newsSchema = z.object({
   body: text(LIMITS.body), // 빈 줄로 문단을 나눈다
 });
 
+const callSchema = z.object({
+  mode: z.enum(['incoming', 'active']), // 걸려 오는 전화 / 통화 중
+  name: text(40),
+  detail: text(40), // 걸려 오는 전화: '휴대전화' 같은 번호 종류, 통화 중: '03:12' 같은 통화 시간
+});
+
+/** 전화 화면 모드를 바꿀 때, 아직 고치지 않은 기본 문구는 새 모드에 맞게 바꿔 준다 */
+export const CALL_DETAIL_DEFAULT = { incoming: '휴대전화', active: '00:12' } as const;
+
 // 새 종류는 끝에 덧붙이기만 한다 (이미 저장된 블록은 그대로 읽혀야 하므로 기존 종류·필드는 바꾸지 않는다)
 export const storyBlockSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('live'), data: liveSchema }),
@@ -101,6 +110,7 @@ export const storyBlockSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('post'), data: postSchema }),
   z.object({ kind: z.literal('system'), data: systemSchema }),
   z.object({ kind: z.literal('news'), data: newsSchema }),
+  z.object({ kind: z.literal('call'), data: callSchema }),
 ]);
 
 export type StoryBlock = z.infer<typeof storyBlockSchema>;
@@ -111,6 +121,7 @@ export type KakaoData = z.infer<typeof kakaoSchema>;
 export type PostData = z.infer<typeof postSchema>;
 export type SystemData = z.infer<typeof systemSchema>;
 export type NewsData = z.infer<typeof newsSchema>;
+export type CallData = z.infer<typeof callSchema>;
 
 // ─── 대본 읽기 ─────────────────────────────────────────
 
@@ -335,7 +346,9 @@ export type TemplateKey =
   | 'post'
   | 'system-quest'
   | 'system-status'
-  | 'news';
+  | 'news'
+  | 'call-incoming'
+  | 'call-active';
 
 export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }> = [
   { key: 'kakao-dm', label: '카톡 1:1 대화', hint: '두 사람의 메신저 대화' },
@@ -347,10 +360,13 @@ export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }>
   { key: 'system-quest', label: '시스템 창 · 퀘스트', hint: '[퀘스트 발생!] 같은 알림' },
   { key: 'system-status', label: '시스템 창 · 상태창', hint: '이름·레벨·능력치' },
   { key: 'news', label: '뉴스 기사', hint: '언론사 · 제목 · 기자 · 본문' },
+  { key: 'call-incoming', label: '전화 · 걸려 오는 전화', hint: '이름 · 거절/응답' },
+  { key: 'call-active', label: '전화 · 통화 중', hint: '이름 · 통화 시간' },
 ];
 
 export function templateLabel(block: StoryBlock): string {
   if (block.kind === 'system') return '시스템 창';
+  if (block.kind === 'call') return '전화 화면';
   const key: TemplateKey = block.kind === 'kakao' ? (block.data.mode === 'dm' ? 'kakao-dm' : 'kakao-group') : block.kind;
   return TEMPLATES.find((template) => template.key === key)?.label ?? '템플릿';
 }
@@ -453,6 +469,10 @@ export function createTemplate(key: TemplateKey): StoryBlock {
           script: ['「잃어버린 기억을 찾아라」', '제한 시간: 24시간', '보상: ???', '--- 실패 시 ---', '기억이 하나 사라집니다.'].join('\n'),
         },
       };
+    case 'call-incoming':
+      return { kind: 'call', data: { mode: 'incoming', name: '상대', detail: CALL_DETAIL_DEFAULT.incoming } };
+    case 'call-active':
+      return { kind: 'call', data: { mode: 'active', name: '상대', detail: CALL_DETAIL_DEFAULT.active } };
     case 'news':
       return {
         kind: 'news',

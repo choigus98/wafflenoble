@@ -67,6 +67,13 @@
   --wn-sys-glow: rgb(59 130 246 / 0.16);
   --wn-news-bg: #ffffff;
   --wn-news-press: #a3201c;
+  --wn-call-bg-from: #eef2f8;
+  --wn-call-bg-to: #dde5f0;
+  --wn-call-fg: #111827;
+  --wn-call-muted: #4b5563;
+  --wn-call-avatar-bg: #c7d2e2;
+  --wn-call-avatar-fg: #334155;
+  --wn-call-key-bg: rgb(0 0 0 / 0.08);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -136,6 +143,13 @@
     --wn-sys-glow: rgb(58 160 255 / 0.32);
     --wn-news-bg: #1a1b20;
     --wn-news-press: #ff8f85;
+    --wn-call-bg-from: #1d2433;
+    --wn-call-bg-to: #0e121a;
+    --wn-call-fg: #f5f7fb;
+    --wn-call-muted: rgb(255 255 255 / 0.65);
+    --wn-call-avatar-bg: #3a4457;
+    --wn-call-avatar-fg: #e5e9f0;
+    --wn-call-key-bg: rgb(255 255 255 / 0.12);
   }
 }
 
@@ -204,6 +218,13 @@
   --wn-sys-glow: rgb(58 160 255 / 0.32);
   --wn-news-bg: #1a1b20;
   --wn-news-press: #ff8f85;
+  --wn-call-bg-from: #1d2433;
+  --wn-call-bg-to: #0e121a;
+  --wn-call-fg: #f5f7fb;
+  --wn-call-muted: rgb(255 255 255 / 0.65);
+  --wn-call-avatar-bg: #3a4457;
+  --wn-call-avatar-fg: #e5e9f0;
+  --wn-call-key-bg: rgb(255 255 255 / 0.12);
 }
 
 @theme inline {
@@ -285,7 +306,7 @@ body {
   font-weight: 700;
 }
 
-/* ─── 이야기 속 화면 템플릿 (방송창·채팅·후원·카톡·게시글·시스템 창·뉴스) ─────────────────
+/* ─── 이야기 속 화면 템플릿 (방송창·채팅·후원·카톡·게시글·시스템 창·뉴스·전화) ─────────────────
    색은 위의 --wn-* 토큰으로 사이트 테마(밝게/어둡게)를 따라가고,
    읽기 설정(글자 크기·글꼴)과 상관없이 같은 크기로 그린다 */
 .wn-block {
