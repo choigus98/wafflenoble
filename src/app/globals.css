@@ -684,6 +684,42 @@ body:has(article[data-reading]) :is(#main, [data-reader-bar]) {
   max-width: var(--reader-width);
 }
 
+/* 바탕 '종이': 밝은 화면일 때 회차 읽기 화면만 누런 종이 색으로 (위쪽 바·단추·상자까지 같은 톤, 템플릿 카드는 그대로).
+   종이 위에서도 글자 대비 4.5:1 이상이 되게 흐린 글자·강조·좋아요 색을 조금 진하게.
+   화면 모드를 '밝게'로 골랐을 때와, '자동'인데 기기가 밝은 화면일 때 (어두운 화면에서는 아무것도 안 바뀜) */
+:root {
+  --paper-bg: #f5ecd7;
+  --paper-surface: #fbf5e8;
+  --paper-surface-2: #eee2c8;
+  --paper-line: #e0d0ae;
+  --paper-accent-soft: #f0ddba;
+  --paper-muted: #685a4c;
+  --paper-accent: #875010;
+  --paper-like: #b8351f;
+}
+:root[data-bg="paper"][data-theme="light"] body:has(article[data-reading]) {
+  --bg: var(--paper-bg);
+  --surface: var(--paper-surface);
+  --surface-2: var(--paper-surface-2);
+  --line: var(--paper-line);
+  --accent-soft: var(--paper-accent-soft);
+  --muted: var(--paper-muted);
+  --accent: var(--paper-accent);
+  --like: var(--paper-like);
+}
+@media (prefers-color-scheme: light) {
+  :root[data-bg="paper"]:not([data-theme]) body:has(article[data-reading]) {
+    --bg: var(--paper-bg);
+    --surface: var(--paper-surface);
+    --surface-2: var(--paper-surface-2);
+    --line: var(--paper-line);
+    --accent-soft: var(--paper-accent-soft);
+    --muted: var(--paper-muted);
+    --accent: var(--paper-accent);
+    --like: var(--paper-like);
+  }
+}
+
 /* ─── 본문 (열람 화면과 에디터가 같은 스타일을 쓴다) ─────────────── */
 .novel-body {
   font-family: var(--reader-font);
