@@ -1,11 +1,12 @@
 import Link from 'next/link';
+import { ScheduleCalendar, ScheduleViews } from '@/components/admin/schedule-calendar';
 import { Badge } from '@/components/ui';
 import { formatSchedule, formatUntil } from '@/lib/format';
 import { adminListScheduledChapters } from '@/lib/queries/admin';
 
 /**
  * 관리자 홈: 예약해 둔 회차를 공개 시각이 빠른 순으로 (작품이 여러 개여도 한눈에). 예약이 없으면 아무것도 안 그린다.
- * 작품이 비공개면 시간이 돼도 길드원에게 안 보이므로 따로 표시한다
+ * 작품이 비공개면 시간이 돼도 길드원에게 안 보이므로 따로 표시한다. '달력'으로 바꾸면 이번 달부터 날짜별로
  */
 export async function ScheduledChapters() {
   const items = await adminListScheduledChapters();
@@ -14,9 +15,27 @@ export async function ScheduledChapters() {
 
   return (
     <section aria-labelledby="scheduled-chapters-title" className="space-y-3">
-      <h2 id="scheduled-chapters-title" className="font-bold">
-        예약된 회차 <span className="text-muted">{items.length}</span>
-      </h2>
+      <ScheduleViews
+        heading={
+          <h2 id="scheduled-chapters-title" className="font-bold">
+            예약된 회차 <span className="text-muted">{items.length}</span>
+          </h2>
+        }
+        calendar={
+          <ScheduleCalendar
+            now={now.toISOString()}
+            items={items.map((item) => ({
+              chapterId: item.chapterId,
+              novelId: item.novelId,
+              novelTitle: item.novelTitle,
+              novelPublished: item.novelPublished,
+              position: item.position,
+              title: item.title,
+              at: item.publishedAt.toISOString(),
+            }))}
+          />
+        }
+        list={
       <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
         {items.map((item) => (
           <li key={item.chapterId}>
@@ -41,6 +60,8 @@ export async function ScheduledChapters() {
           </li>
         ))}
       </ul>
+        }
+      />
     </section>
   );
 }
