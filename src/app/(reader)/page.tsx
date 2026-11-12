@@ -1,7 +1,9 @@
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { NovelCover } from '@/components/novel-cover';
-import { Badge, Skeleton } from '@/components/ui';
+import { ChapterReadStatus } from '@/components/reader/chapter-read-status';
+import { Badge, ButtonLink, Skeleton } from '@/components/ui';
+import { COVER_COLORS, resolveCoverColor } from '@/lib/cover';
 import { formatRelative } from '@/lib/format';
 import { listNovels } from '@/lib/queries/reader';
 import { SERIAL_STATUS_LABEL } from '@/lib/utils';
@@ -18,7 +20,7 @@ export default function HomePage() {
 }
 
 async function NovelGrid() {
-  const { viewer, novels } = await listNovels();
+  const { viewer, novels, continueReading } = await listNovels();
   const now = new Date();
 
   if (novels.length === 0) {
@@ -39,7 +41,9 @@ async function NovelGrid() {
   }
 
   return (
-    <ul className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3">
+    <>
+      {continueReading ? <ContinueReading item={continueReading} now={now} /> : null}
+      <ul className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3">
       {novels.map((novel) => (
         <li key={novel.id}>
           <Link href={`/novels/${novel.id}`} className="group block rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent">
@@ -62,7 +66,57 @@ async function NovelGrid() {
           </Link>
         </li>
       ))}
-    </ul>
+      </ul>
+    </>
+  );
+}
+
+type ContinueItem = NonNullable<Awaited<ReturnType<typeof listNovels>>['continueReading']>;
+
+/** 길드원 홈 맨 위 '이어 읽기': 가장 최근에 연 회차로 바로, 다음 화가 있으면 다음 화로도 */
+function ContinueReading({ item, now }: { item: ContinueItem; now: Date }) {
+  const { background, foreground } = COVER_COLORS[resolveCoverColor(item.novelId, item.coverColor)];
+  const chapterHref = `/novels/${item.novelId}/${item.chapterId}`;
+  return (
+    <section aria-labelledby="continue-title" className="mb-8 rounded-2xl border border-line bg-surface p-4 sm:p-5">
+      <h2 id="continue-title" className="text-xs font-semibold text-muted">
+        이어 읽기
+      </h2>
+      <div className="mt-3 flex items-center gap-3.5">
+        {/* 작은 표지: 작품 색과 와플 무늬만 */}
+        <span
+          aria-hidden="true"
+          className="relative block aspect-[3/4] w-11 shrink-0 overflow-hidden rounded-lg shadow-sm ring-1 ring-black/5"
+          style={{ background, color: foreground }}
+        >
+          <span
+            className="absolute inset-0 opacity-[0.15]"
+            style={{
+              backgroundImage: 'linear-gradient(currentColor 1px, transparent 1px), linear-gradient(90deg, currentColor 1px, transparent 1px)',
+              backgroundSize: '9px 9px',
+            }}
+          />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[13px] text-muted">{item.novelTitle}</p>
+          <p className="truncate font-semibold">
+            {item.position}화{item.title ? ` ${item.title}` : ''}
+          </p>
+          <p className="mt-0.5 text-xs text-muted">{formatRelative(item.at, now)} 읽음</p>
+        </div>
+        <ChapterReadStatus chapterId={item.chapterId} readByMe={false} />
+      </div>
+      <div className="mt-4 flex gap-2">
+        <ButtonLink href={chapterHref} className="flex-1">
+          이어 읽기 · {item.position}화
+        </ButtonLink>
+        {item.next ? (
+          <ButtonLink href={`/novels/${item.novelId}/${item.next.id}`} variant="secondary">
+            다음 화 · {item.next.position}화
+          </ButtonLink>
+        ) : null}
+      </div>
+    </section>
   );
 }
 

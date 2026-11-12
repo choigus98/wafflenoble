@@ -1,5 +1,5 @@
 import 'server-only';
-import { and, asc, count, desc, eq, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gt, or, sql } from 'drizzle-orm';
 import { requireViewer } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { chapterViews, chapters, novels } from '@/lib/db/schema';
@@ -20,11 +20,56 @@ import {
 // 누가 읽었는지(이름)는 여기서 절대 조회하지 않는다 — 관리자 화면 전용.
 
 
+/**
+ * 길드원 홈 '이어 읽기': 이 길드원이 가장 최근에 연 회차(지금도 보이는 것만)와 그 작품의 다음 회차.
+ * 길드원 본인의 기록만 본다 (누가 읽었는지는 여기서 다루지 않음)
+ */
+async function continueReadingFor(readerId: string) {
+  const [last] = await db
+    .select({
+      at: chapterViews.lastViewedAt,
+      chapterId: chapters.id,
+      position: chapters.position,
+      title: chapters.title,
+      novelId: novels.id,
+      novelTitle: novels.title,
+      coverColor: novels.coverColor,
+    })
+    .from(chapterViews)
+    .innerJoin(chapters, eq(chapters.id, chapterViews.chapterId))
+    .innerJoin(novels, eq(novels.id, chapters.novelId))
+    .where(and(eq(chapterViews.readerId, readerId), eq(novels.isPublished, true), isVisibleChapter))
+    .orderBy(desc(chapterViews.lastViewedAt))
+    .limit(1);
+  if (!last) return null;
+  const [next] = await db
+    .select({ id: chapters.id, position: chapters.position, title: chapters.title })
+    .from(chapters)
+    .where(
+      and(
+        eq(chapters.novelId, last.novelId),
+        isVisibleChapter,
+        or(gt(chapters.position, last.position), and(eq(chapters.position, last.position), gt(chapters.id, last.chapterId))),
+      ),
+    )
+    .orderBy(asc(chapters.position), asc(chapters.id))
+    .limit(1);
+  return { ...last, next: next ?? null };
+}
+
 export async function listNovels() {
   const viewer = await requireViewer();
   const isAdmin = viewer.kind === 'admin';
   const readerId = viewer.kind === 'reader' ? viewer.reader.id : null;
-  const rows = await db
+  const [rows, continueReading] = await Promise.all([
+    listNovelRows(isAdmin, readerId),
+    readerId ? continueReadingFor(readerId) : Promise.resolve(null),
+  ]);
+  return { viewer, novels: rows, continueReading };
+}
+
+function listNovelRows(isAdmin: boolean, readerId: string | null) {
+  return db
     .select({
       id: novels.id,
       title: novels.title,
@@ -40,7 +85,6 @@ export async function listNovels() {
     .from(novels)
     .where(isAdmin ? undefined : eq(novels.isPublished, true))
     .orderBy(sql`${novelLastVisibleAt} desc nulls last`, desc(novels.createdAt));
-  return { viewer, novels: rows };
 }
 
 /** 이 작품에서 다음에 공개될 예약 회차의 공개 시각. 제목·내용은 알려 주지 않는다 */
