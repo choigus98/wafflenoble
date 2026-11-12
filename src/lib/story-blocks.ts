@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림).
+// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글).
 // 저장 형식: <div data-wn-block="종류" data-wn-data="JSON"></div>
 // 에디터(Tiptap 노드), 서버(저장할 때 검증), 열람 화면(렌더링)이 모두 이 파일을 같이 쓴다.
 //
@@ -9,6 +9,8 @@ import { z } from 'zod';
 //   나: 방송 준비하고 있어요!          ← '나:'는 오른쪽 말풍선
 //   네 ㅎㅎ 조금만 하려고요            ← 이름 없이 쓰면 앞사람의 다음 말풍선
 //   --- 2026년 10월 5일 ---          ← 가운데 날짜·안내 표시
+//
+// 커뮤니티 게시글의 댓글도 대본으로 쓴다 (규칙은 parseComments 위 설명)
 
 export const CHAT_COLOR_KEYS = ['blue', 'purple', 'green', 'yellow', 'pink', 'teal', 'orange'] as const;
 export type ChatColor = (typeof CHAT_COLOR_KEYS)[number];
@@ -25,7 +27,7 @@ export const CHAT_COLORS: Record<ChatColor, string> = {
   orange: 'var(--wn-nick-orange)',
 };
 
-export const LIMITS = { name: 15, script: 20000, lines: 500, colors: 50, message: 2000 } as const;
+export const LIMITS = { name: 15, script: 20000, lines: 500, colors: 50, message: 2000, body: 5000 } as const;
 
 const text = (max: number) => z.string().max(max);
 
@@ -64,11 +66,25 @@ const chatSchema = z.object({
     .refine((value) => Object.keys(value).length <= LIMITS.colors),
 });
 
+const postSchema = z.object({
+  board: text(40), // 게시판 이름. 비우면 안 보임
+  title: text(120),
+  author: text(LIMITS.name), // 글쓴이. 댓글에 같은 이름(또는 '글쓴이:')이 나오면 '글쓴이' 표시
+  date: text(40), // 쓴 시각. 적은 그대로 보여 줌
+  views: text(20), // 조회 수. 비우면 안 보임
+  likes: text(20), // 추천 수. 비우면 안 보임
+  commentCount: text(10), // 댓글 수. 비우면 아래 댓글 개수
+  body: text(LIMITS.body),
+  script: text(LIMITS.script), // 댓글 대본
+});
+
+// 새 종류는 끝에 덧붙이기만 한다 (이미 저장된 블록은 그대로 읽혀야 하므로 기존 종류·필드는 바꾸지 않는다)
 export const storyBlockSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('live'), data: liveSchema }),
   z.object({ kind: z.literal('chat'), data: chatSchema }),
   z.object({ kind: z.literal('donation'), data: donationSchema }),
   z.object({ kind: z.literal('kakao'), data: kakaoSchema }),
+  z.object({ kind: z.literal('post'), data: postSchema }),
 ]);
 
 export type StoryBlock = z.infer<typeof storyBlockSchema>;
@@ -76,6 +92,7 @@ export type LiveData = z.infer<typeof liveSchema>;
 export type DonationData = z.infer<typeof donationSchema>;
 export type ChatData = z.infer<typeof chatSchema>;
 export type KakaoData = z.infer<typeof kakaoSchema>;
+export type PostData = z.infer<typeof postSchema>;
 
 // ─── 대본 읽기 ─────────────────────────────────────────
 
@@ -86,6 +103,13 @@ export type ScriptLine =
 // 15자 이내의 '이름:'만 이름으로 본다 (긴 문장 속 콜론은 대사로 취급)
 const NAME_PREFIX = /^([^:：]{1,15}?)\s*[:：]\s*/;
 const TIME_SUFFIX = /\s*[[(]((?:오전|오후)\s*\d{1,2}:\d{2}|\d{1,2}:\d{2})[\])]\s*$/;
+
+/** 줄 앞의 '이름:'을 떼어 낸다. '8:30에 보자'처럼 숫자로 시작하는 줄은 이름이 아니라 대사로 본다 */
+function splitName(line: string): { name: string; body: string } | null {
+  const match = line.match(NAME_PREFIX);
+  if (!match || /^\d+$/.test(match[1].trim())) return null;
+  return { name: match[1].trim(), body: line.slice(match[0].length) };
+}
 
 export function parseScript(script: string): ScriptLine[] {
   const lines: ScriptLine[] = [];
@@ -101,14 +125,9 @@ export function parseScript(script: string): ScriptLine[] {
       continue;
     }
 
-    let name = speaker;
-    let body = line;
-    const match = line.match(NAME_PREFIX);
-    // '8:30에 보자'처럼 숫자로 시작하는 줄은 이름이 아니라 대사로 본다
-    if (match && !/^\d+$/.test(match[1].trim())) {
-      name = match[1].trim();
-      body = line.slice(match[0].length);
-    }
+    const named = splitName(line);
+    const name = named?.name ?? speaker;
+    let body = named?.body ?? line;
     if (!name) continue; // 첫 줄부터 이름이 없으면 누가 말하는지 알 수 없어서 건너뛴다
     speaker = name;
 
@@ -132,13 +151,17 @@ export function scriptSpeakers(lines: ScriptLine[]): string[] {
   return names;
 }
 
-/** 대본에서 줄 앞의 '이름:'만 골라 바꾼다 (대사 안의 같은 글자는 그대로) */
-export function renameSpeaker(script: string, from: string, to: string): string {
+/**
+ * 대본에서 줄 앞의 '이름:'만 골라 바꾼다 (대사 안의 같은 글자는 그대로).
+ * replies: 댓글 대본처럼 'ㄴ 이름:' 답글 줄의 이름도 바꾼다
+ */
+export function renameSpeaker(script: string, from: string, to: string, options: { replies?: boolean } = {}): string {
   if (!from || !to || from === to) return script;
+  const pattern = options.replies ? /^(\s*(?:ㄴ\s+|[└↳]\s*)?)([^:：]{1,15}?)(\s*[:：])/ : /^(\s*)([^:：]{1,15}?)(\s*[:：])/;
   return script
     .split('\n')
     .map((line) => {
-      const match = line.match(/^(\s*)([^:：]{1,15}?)(\s*[:：])/);
+      const match = line.match(pattern);
       return match && match[2].trim() === from ? `${match[1]}${to}${match[3]}${line.slice(match[0].length)}` : line;
     })
     .join('\n');
@@ -158,9 +181,96 @@ export function chatColorKey(name: string, speakers: string[], colors: Record<st
   return colors[name] ?? CHAT_COLOR_KEYS[Math.max(0, speakers.indexOf(name)) % CHAT_COLOR_KEYS.length];
 }
 
+// ─── 커뮤니티 댓글 대본 ────────────────────────────────
+//   익명1: 와 이거 진짜임? [20:31]     ← 닉네임: 댓글, 줄 끝 [시간] (20:31 · 11.12 20:31 · 3분 전 · 방금)
+//   ㄴ 글쓴이: ㅇㅇ 방금 봄            ← 앞에 'ㄴ '을 붙이면 답글. '글쓴이:'는 글쓴이 닉네임으로 보인다
+//   둘째 줄                           ← 이름 없이 쓰면 앞 댓글에 줄을 바꿔 이어서
+//   --- 삭제된 댓글입니다 ---          ← 이름 없는 회색 줄
+
+export type CommentLine =
+  | { type: 'notice'; text: string; reply: boolean }
+  | { type: 'comment'; name: string; text: string; time: string; reply: boolean };
+
+// 'ㄴ'은 뒤에 띄어쓰기가 있을 때만 답글 표시로 본다 ('ㄴㅇㄱ' 같은 닉네임이나 'ㄴㄴ 아님' 같은 말과 헷갈리지 않게)
+const REPLY_PREFIX = /^(?:ㄴ\s+|[└↳]\s*)/;
+// 댓글 시간은 대괄호만 쓴다 ('평점 (4.5)'처럼 괄호로 끝나는 댓글이 시간으로 바뀌지 않게)
+const COMMENT_TIME_SUFFIX = /\s*\[([^[\]]{1,24})\]\s*$/;
+const COMMENT_TIME =
+  /^(?:(?:\d{2,4}[./-])?\d{1,2}[./-]\d{1,2}\.?(?:\s+(?:(?:오전|오후)\s*)?\d{1,2}:\d{2})?|(?:(?:오전|오후)\s*)?\d{1,2}:\d{2}(?::\d{2})?|\d+\s*(?:초|분|시간|일|주|달|개월|년)\s*전|방금(?:\s*전)?|어제(?:\s+\d{1,2}:\d{2})?)$/;
+
+function splitCommentTime(body: string): { text: string; time: string } {
+  const match = body.match(COMMENT_TIME_SUFFIX);
+  if (!match || match.index === undefined || !COMMENT_TIME.test(match[1].trim())) return { text: body, time: '' };
+  return { text: body.slice(0, match.index).trimEnd(), time: match[1].trim() };
+}
+
+export function parseComments(script: string): CommentLine[] {
+  const lines: CommentLine[] = [];
+  for (const raw of script.split(/\r?\n/)) {
+    if (lines.length >= LIMITS.lines) break;
+    let line = raw.trim();
+    if (!line) continue;
+
+    // 답글 표시는 뒤에 '이름:'이나 '---'가 올 때만 답글로 본다
+    let reply = false;
+    const replyMatch = line.match(REPLY_PREFIX);
+    if (replyMatch) {
+      const rest = line.slice(replyMatch[0].length);
+      if (/^-{2,}/.test(rest) || splitName(rest)) {
+        reply = true;
+        line = rest;
+      }
+    }
+
+    if (/^-{2,}/.test(line)) {
+      const notice = line.replace(/^-+\s*/, '').replace(/\s*-+$/, '');
+      if (notice) lines.push({ type: 'notice', text: notice, reply });
+      continue;
+    }
+
+    const named = splitName(line);
+    if (!named) {
+      // 이름 없는 줄은 앞 댓글에 줄을 바꿔 잇는다 (첫 줄부터 이름이 없으면 누가 쓴 건지 몰라서 건너뛴다)
+      const previous = lines.at(-1);
+      if (previous?.type !== 'comment') continue;
+      const { text, time } = splitCommentTime(line);
+      if (text) previous.text = previous.text ? `${previous.text}\n${text}` : text;
+      if (time && !previous.time) previous.time = time;
+      continue;
+    }
+
+    const { text, time } = splitCommentTime(named.body);
+    if (text || time) lines.push({ type: 'comment', name: named.name, text, time, reply });
+  }
+  return lines;
+}
+
+/** 댓글을 쓴 사람 (처음 나온 순서) */
+export function commentSpeakers(lines: CommentLine[]): string[] {
+  const names: string[] = [];
+  for (const line of lines) {
+    if (line.type === 'comment' && !names.includes(line.name)) names.push(line.name);
+  }
+  return names;
+}
+
+export function isPostAuthor(name: string, author: string): boolean {
+  return name === '글쓴이' || (author.trim() !== '' && name === author.trim());
+}
+
+/** '글쓴이:'로 쓴 댓글은 글쓴이 닉네임으로 보여 준다 */
+export function commentDisplayName(name: string, author: string): string {
+  return name === '글쓴이' && author.trim() ? author.trim() : name;
+}
+
+/** 제목 옆·댓글 머리에 보일 댓글 수. 직접 적은 값이 먼저, 없으면 실제 댓글 개수 */
+export function postCommentCount(data: PostData, lines: CommentLine[]): string {
+  return data.commentCount.trim() || String(lines.filter((line) => line.type === 'comment').length);
+}
+
 // ─── 템플릿 ────────────────────────────────────────────
 
-export type TemplateKey = 'kakao-dm' | 'kakao-group' | 'live' | 'chat' | 'donation';
+export type TemplateKey = 'kakao-dm' | 'kakao-group' | 'live' | 'chat' | 'donation' | 'post';
 
 export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }> = [
   { key: 'kakao-dm', label: '카톡 1:1 대화', hint: '두 사람의 메신저 대화' },
@@ -168,6 +278,7 @@ export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }>
   { key: 'live', label: '라이브 방송창', hint: '방송인 · 제목 · 시청자 수' },
   { key: 'chat', label: '실시간 채팅창', hint: '시청자 닉네임과 채팅' },
   { key: 'donation', label: '후원 알림', hint: '후원자 · 금액 · 메시지' },
+  { key: 'post', label: '커뮤니티 게시글', hint: '게시판 글과 댓글' },
 ];
 
 export function templateLabel(block: StoryBlock): string {
@@ -181,6 +292,24 @@ export function newId(): string {
 
 function todayLabel(): string {
   return new Intl.DateTimeFormat('ko-KR', { dateStyle: 'full', timeZone: 'Asia/Seoul' }).format(new Date());
+}
+
+/** 게시글 시각 '2026.11.12 20:14' (글자는 직접 조립: 브라우저마다 날짜 표기가 달라서) */
+function postStamp(date = new Date()): string {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Seoul',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    })
+      .formatToParts(date)
+      .map((part) => [part.type, part.value]),
+  );
+  return `${parts.year}.${parts.month}.${parts.day} ${parts.hour}:${parts.minute}`;
 }
 
 /** 새로 넣을 템플릿. 쓰는 법이 바로 보이도록 예시 대본을 채워 둔다 */
@@ -230,6 +359,21 @@ export function createTemplate(key: TemplateKey): StoryBlock {
           amount: '10,000원',
           message: '후원 메시지를 적어 주세요',
           footer: '',
+        },
+      };
+    case 'post':
+      return {
+        kind: 'post',
+        data: {
+          board: '자유게시판',
+          title: '글 제목',
+          author: 'ㅇㅇ',
+          date: postStamp(),
+          views: '128',
+          likes: '12',
+          commentCount: '',
+          body: '본문을 적어 주세요.\n줄을 바꾸면 그대로 보여요.',
+          script: ['익명1: 첫 댓글 [3분 전]', 'ㄴ 글쓴이: 답글은 앞에 ㄴ을 붙여요 [1분 전]', '--- 삭제된 댓글입니다 ---'].join('\n'),
         },
       };
   }

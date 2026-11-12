@@ -2,14 +2,20 @@ import { describe, expect, it } from 'vitest';
 import { sanitizeChapterHtml } from '@/lib/content';
 import {
   chatColorKey,
+  commentDisplayName,
+  commentSpeakers,
   createTemplate,
   isMine,
+  isPostAuthor,
   kakaoTitle,
+  parseComments,
   parseScript,
+  postCommentCount,
   renameSpeaker,
   scriptSpeakers,
   splitStoryContent,
   type KakaoData,
+  type PostData,
   type StoryBlock,
   type TemplateKey,
 } from '@/lib/story-blocks';
@@ -20,7 +26,13 @@ const asEditorHtml = (kind: string, data: unknown) =>
   `<div data-wn-block="${kind}" data-wn-data="${browserAttr(JSON.stringify(data))}"></div>`;
 
 const TRICKY = '그 사람이 "안녕" 했어 <script>alert(1)</script> & 😀';
-const KEYS: TemplateKey[] = ['kakao-dm', 'kakao-group', 'live', 'chat', 'donation'];
+
+function postData(patch: Partial<PostData> = {}): PostData {
+  const block = createTemplate('post');
+  if (block.kind !== 'post') throw new Error('게시글 템플릿이 아니에요');
+  return { ...block.data, ...patch };
+}
+const KEYS: TemplateKey[] = ['kakao-dm', 'kakao-group', 'live', 'chat', 'donation', 'post'];
 
 function withTrickyText(block: StoryBlock): StoryBlock {
   switch (block.kind) {
@@ -31,6 +43,11 @@ function withTrickyText(block: StoryBlock): StoryBlock {
       return { ...block, data: { ...block.data, message: `감사합니다 ${TRICKY}\n(물론)` } };
     case 'live':
       return { ...block, data: { ...block.data, title: '게임 <img src=x onerror=alert(1)>' } };
+    case 'post':
+      return {
+        ...block,
+        data: { ...block.data, body: `${TRICKY}\n\n둘째 문단`, script: `${block.data.script}\nㄴ 양띵: ${TRICKY}` },
+      };
   }
 }
 
@@ -54,6 +71,8 @@ describe('템플릿 저장 형식', () => {
       '<div data-wn-block="unknown" data-wn-data="{}"></div>',
       asEditorHtml('chat', { title: 'x', badge: '', script: 'a: b', colors: { a: 'red; background:url(x)' } }),
       asEditorHtml('kakao', { mode: 'dm', title: 'x'.repeat(41), memberCount: '', me: '나', script: '' }),
+      // 게시글 본문 길이 제한(5,000자)을 넘김
+      asEditorHtml('post', postData({ body: 'x'.repeat(5001) })),
     ];
     for (const html of broken) expect(sanitizeChapterHtml(`<p>a</p>${html}`)).toBe('<p>a</p>');
   });
@@ -106,6 +125,80 @@ describe('대본 읽기', () => {
   it('이름 바꾸기는 줄 앞의 이름만 바꾼다', () => {
     expect(renameSpeaker('양띵: 양띵이 왔다\n나: 응\n  양띵 : 또 왔다', '양띵', '양띵언니')).toBe(
       '양띵언니: 양띵이 왔다\n나: 응\n  양띵언니 : 또 왔다',
+    );
+  });
+
+  it('카톡·채팅 대본에서는 ㄴ도 이름의 일부다 (답글 규칙은 댓글 대본에만)', () => {
+    expect(renameSpeaker('ㄴ 양띵: 안녕', '양띵', '수진')).toBe('ㄴ 양띵: 안녕');
+  });
+});
+
+describe('커뮤니티 댓글 대본', () => {
+  const script = [
+    '익명1: 와 이거 진짜임? [20:31]',
+    'ㄴ 글쓴이: ㅇㅇ 방금 봄 [11.12 20:32]',
+    '└감자도리: 레전드 ㅋㅋ [3분 전]',
+    '밥알: 둘째 줄까지 있는 댓글',
+    'ㄴㄴ 아님 이건 이어지는 줄 [방금]',
+    '자료 첨부함 [펌]',
+    '평점: 이번 화는 (4.5)',
+    '--- 삭제된 댓글입니다 ---',
+    'ㄴ --- 삭제된 답글입니다 ---',
+    'ㄴㅇㄱ: 닉네임이 ㄴ으로 시작',
+  ].join('\n');
+
+  it('답글·시간·이어 쓰기·회색 줄 규칙대로 나눈다', () => {
+    expect(parseComments(script)).toEqual([
+      { type: 'comment', name: '익명1', text: '와 이거 진짜임?', time: '20:31', reply: false },
+      { type: 'comment', name: '글쓴이', text: 'ㅇㅇ 방금 봄', time: '11.12 20:32', reply: true },
+      { type: 'comment', name: '감자도리', text: '레전드 ㅋㅋ', time: '3분 전', reply: true },
+      // 이름 없는 줄은 앞 댓글에 줄을 바꿔 붙고, 그 줄 끝 시간은 댓글 시간이 된다. 'ㄴㄴ'은 답글 표시가 아니다
+      {
+        type: 'comment',
+        name: '밥알',
+        text: '둘째 줄까지 있는 댓글\nㄴㄴ 아님 이건 이어지는 줄\n자료 첨부함 [펌]',
+        time: '방금',
+        reply: false,
+      },
+      // 시간은 대괄호만: 괄호로 끝나는 댓글은 그대로
+      { type: 'comment', name: '평점', text: '이번 화는 (4.5)', time: '', reply: false },
+      { type: 'notice', text: '삭제된 댓글입니다', reply: false },
+      { type: 'notice', text: '삭제된 답글입니다', reply: true },
+      // 'ㄴ' 뒤에 띄어쓰기가 없으면 닉네임의 일부
+      { type: 'comment', name: 'ㄴㅇㄱ', text: '닉네임이 ㄴ으로 시작', time: '', reply: false },
+    ]);
+  });
+
+  it('첫 줄부터 이름이 없으면 건너뛴다', () => {
+    expect(parseComments('누가 쓴 건지 모름\n익명: 안녕')).toEqual([
+      { type: 'comment', name: '익명', text: '안녕', time: '', reply: false },
+    ]);
+  });
+
+  it('여러 날짜·시간 표기를 시간으로 읽는다', () => {
+    for (const time of ['20:31', '오후 8:31', '2026.11.12 20:31', '11/12', '12-25 09:00', '방금 전', '1시간 전', '어제 23:10']) {
+      expect(parseComments(`익명: 댓글 [${time}]`)[0]).toMatchObject({ text: '댓글', time });
+    }
+    expect(parseComments('익명: 이번 화 [32]')[0]).toMatchObject({ text: '이번 화 [32]', time: '' });
+  });
+
+  it('댓글 쓴 사람·글쓴이 표시·댓글 수', () => {
+    const data = postData({ author: 'ㅇㅇ', commentCount: '', script });
+    const lines = parseComments(script);
+    expect(commentSpeakers(lines)).toEqual(['익명1', '글쓴이', '감자도리', '밥알', '평점', 'ㄴㅇㄱ']);
+    expect(isPostAuthor('글쓴이', '')).toBe(true);
+    expect(isPostAuthor('ㅇㅇ', 'ㅇㅇ')).toBe(true);
+    expect(isPostAuthor('익명1', 'ㅇㅇ')).toBe(false);
+    expect(commentDisplayName('글쓴이', 'ㅇㅇ')).toBe('ㅇㅇ');
+    expect(commentDisplayName('글쓴이', '')).toBe('글쓴이');
+    // 회색 줄은 세지 않는다. 직접 적은 댓글 수가 먼저
+    expect(postCommentCount(data, lines)).toBe('6');
+    expect(postCommentCount({ ...data, commentCount: '1,024' }, lines)).toBe('1,024');
+  });
+
+  it('이름 바꾸기는 답글 줄의 이름도 바꾼다', () => {
+    expect(renameSpeaker('익명1: 안녕\nㄴ 익명1: 또\n└ 익명1 : 또또\n익명2: 익명1 왔네', '익명1', '감자', { replies: true })).toBe(
+      '감자: 안녕\nㄴ 감자: 또\n└ 감자 : 또또\n익명2: 익명1 왔네',
     );
   });
 });

@@ -2,14 +2,19 @@ import type { ReactNode } from 'react';
 import {
   CHAT_COLORS,
   chatColorKey,
+  commentDisplayName,
   isMine,
+  isPostAuthor,
   kakaoTitle,
+  parseComments,
   parseScript,
+  postCommentCount,
   scriptSpeakers,
   type ChatData,
   type DonationData,
   type KakaoData,
   type LiveData,
+  type PostData,
   type StoryBlock,
 } from '@/lib/story-blocks';
 import { cn } from '@/lib/utils';
@@ -44,6 +49,8 @@ export function StoryBlockView({ block }: { block: StoryBlock }) {
       return <DonationCard data={block.data} />;
     case 'kakao':
       return <KakaoCard data={block.data} />;
+    case 'post':
+      return <PostCard data={block.data} />;
   }
 }
 
@@ -230,6 +237,112 @@ function KakaoCard({ data }: { data: KakaoData }) {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+function ThumbIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={className}>
+      <path d="M7 10v12" />
+      <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z" />
+    </svg>
+  );
+}
+
+function ReplyIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={className}>
+      <path d="M15 10l5 5-5 5" />
+      <path d="M4 4v7a4 4 0 0 0 4 4h12" />
+    </svg>
+  );
+}
+
+function PostCard({ data }: { data: PostData }) {
+  const comments = parseComments(data.script);
+  const count = postCommentCount(data, comments);
+  const meta = [data.author.trim(), data.date.trim(), data.views.trim() ? `조회 ${data.views.trim()}` : ''].filter(Boolean);
+  const showComments = comments.length > 0 || count !== '0';
+
+  return (
+    <div className={cn(CARD, 'overflow-hidden bg-(--wn-post-bg)')}>
+      <div className="border-b border-(--wn-line) px-5 pt-4 pb-3.5">
+        {data.board ? <div className="text-[13px] font-semibold text-(--wn-post-accent)">{data.board}</div> : null}
+        <div className={cn('text-[19px] leading-snug font-bold whitespace-pre-wrap', data.board && 'mt-1')}>
+          {data.title}
+          {count !== '0' ? (
+            <span className="ml-1.5 text-[15px] font-semibold text-(--wn-post-accent)">
+              <span aria-hidden="true">[{count}]</span>
+              <span className="sr-only">댓글 {count}개</span>
+            </span>
+          ) : null}
+        </div>
+        {meta.length > 0 ? (
+          <div className="mt-2 flex flex-wrap items-center gap-x-1.5 text-xs text-(--wn-muted)">
+            {meta.map((item, index) => (
+              <span key={index} className="flex items-center gap-x-1.5">
+                {index > 0 ? <span aria-hidden="true">·</span> : null}
+                <span className={cn(index === 0 && data.author.trim() && 'font-semibold text-(--wn-fg)')}>{item}</span>
+              </span>
+            ))}
+          </div>
+        ) : null}
+      </div>
+
+      {data.body ? <div className="px-5 pt-4 pb-5 leading-relaxed whitespace-pre-wrap">{data.body}</div> : null}
+
+      {data.likes.trim() ? (
+        <div className={cn('flex justify-center pb-5', !data.body && 'pt-5')}>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-(--wn-border) px-4 py-1.5 text-sm font-semibold text-(--wn-post-accent)">
+            <ThumbIcon className="size-4" />
+            <span>
+              <span className="sr-only">추천 </span>
+              {data.likes.trim()}
+            </span>
+          </span>
+        </div>
+      ) : null}
+
+      {showComments ? (
+        <div className="border-t border-(--wn-line) bg-(--wn-post-comments) px-5 pt-3.5 pb-2">
+          <div className="text-sm font-bold">
+            댓글 <span className="text-(--wn-post-accent)">{count}</span>
+          </div>
+          {comments.length > 0 ? (
+            <div className="mt-1 divide-y divide-(--wn-line)">
+              {comments.map((comment, index) => (
+                <div key={index} className={cn('flex gap-1.5 py-3', comment.reply && 'pl-1')}>
+                  {comment.reply ? (
+                    <>
+                      <ReplyIcon className="mt-0.5 size-4 shrink-0 text-(--wn-muted)" />
+                      <span className="sr-only">답글:</span>
+                    </>
+                  ) : null}
+                  {comment.type === 'notice' ? (
+                    <div className="min-w-0 text-sm text-(--wn-muted)">{comment.text}</div>
+                  ) : (
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="min-w-0 text-sm font-bold">{commentDisplayName(comment.name, data.author)}</span>
+                        {isPostAuthor(comment.name, data.author) ? (
+                          <span className="shrink-0 rounded-md bg-(--wn-post-badge-bg) px-1.5 py-px text-[11px] font-semibold text-(--wn-post-badge-fg)">
+                            글쓴이
+                          </span>
+                        ) : null}
+                        {comment.time ? <span className="ml-auto shrink-0 pl-2 text-xs text-(--wn-muted)">{comment.time}</span> : null}
+                      </div>
+                      {comment.text ? <div className="mt-0.5 leading-snug whitespace-pre-wrap">{comment.text}</div> : null}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="pt-1 pb-2" />
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -56,7 +56,9 @@ function StoryBlockItem({ node, editor, getPos, selected, deleteNode, extension 
   const block = parseStoryBlock(node.attrs.kind, node.attrs.data);
   const uid = node.attrs.uid as string | null;
   const isNew = node.attrs.isNew === true;
-  const isConversation = block?.kind === 'kakao' || block?.kind === 'chat';
+  const isConversation = block?.kind === 'kakao' || block?.kind === 'chat' || block?.kind === 'post';
+  const editLabel = block?.kind === 'post' ? '글 고치기' : '대본 고치기';
+  const editName = block?.kind === 'post' ? '고치기' : '대본 고치기'; // 읽어 주는 이름: '커뮤니티 게시글 고치기'
   const editing = uid !== null && editingUid === uid;
 
   const open = () => {
@@ -157,11 +159,11 @@ function StoryBlockItem({ node, editor, getPos, selected, deleteNode, extension 
         ) : editing ? (
           <ConversationEditor block={block} onChange={commit} onClose={close} onDelete={deleteNode} />
         ) : (
-          // 카톡·채팅창: 카드를 누르면 대본 편집 창이 열린다
+          // 카톡·채팅창·게시글: 카드를 누르면 편집 창이 열린다
           <div
             role="button"
             tabIndex={0}
-            aria-label={`${templateLabel(block)} 대본 고치기`}
+            aria-label={`${templateLabel(block)} ${editName}`}
             onClick={open}
             onKeyDown={(event) => {
               if (event.key === 'Enter' || event.key === ' ') {
@@ -174,7 +176,7 @@ function StoryBlockItem({ node, editor, getPos, selected, deleteNode, extension 
             <StoryBlockView block={block} />
             {toolbar(
               <button type="button" onClick={open} className="h-7 rounded-full bg-accent px-3 text-xs font-semibold text-accent-fg">
-                대본 고치기
+                {editLabel}
               </button>,
             )}
           </div>

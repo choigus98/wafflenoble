@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent, type Ref } from 'react';
 import { DonationCard, LiveCard, StoryBlockView, type FieldRenderer } from '@/components/story-block-view';
 import { Button } from '@/components/ui';
 import {
@@ -8,15 +8,20 @@ import {
   CHAT_COLOR_KEYS,
   LIMITS,
   chatColorKey,
+  commentSpeakers,
   isMine,
+  isPostAuthor,
   kakaoTitle,
+  parseComments,
   parseScript,
+  postCommentCount,
   renameSpeaker,
   scriptSpeakers,
   templateLabel,
   type ChatColor,
   type ChatData,
   type KakaoData,
+  type PostData,
   type StoryBlock,
 } from '@/lib/story-blocks';
 import { cn } from '@/lib/utils';
@@ -25,7 +30,16 @@ import { cn } from '@/lib/utils';
 const COMMIT_DELAY_MS = 300;
 
 type CardBlock = Extract<StoryBlock, { kind: 'live' | 'donation' }>;
-type ConversationBlock = Extract<StoryBlock, { kind: 'kakao' | 'chat' }>;
+type ConversationBlock = Extract<StoryBlock, { kind: 'kakao' | 'chat' | 'post' }>;
+
+const TEXTAREA =
+  'w-full resize-y rounded-2xl border border-line bg-surface px-4 py-3 text-base leading-relaxed text-fg field-sizing-content placeholder:text-muted/60 focus:border-accent focus:ring-3 focus:ring-accent/20 focus:outline-none';
+
+const SCRIPT_PLACEHOLDER: Record<ConversationBlock['kind'], string> = {
+  kakao: '양띵: 수진아 뭐 해? [오후 8:14]\n나: 방송 준비하고 있어요!',
+  chat: '밥알: 연화님 ㅎㅇ\n감자도리: 오늘 뭐함?',
+  post: '익명1: 와 이거 진짜임? [20:31]\nㄴ 글쓴이: ㅇㅇ 방금 봄',
+};
 
 function useDraft<T extends StoryBlock>(block: T, onChange: (block: StoryBlock) => void) {
   const [draft, setDraft] = useState<T>(block);
@@ -128,7 +142,7 @@ export function InlineCardEditor({
   return draft.kind === 'live' ? <LiveCard data={draft.data} field={field} /> : <DonationCard data={draft.data} field={field} />;
 }
 
-// ─── 카톡 · 채팅창: 대본으로 쓰기 ──────────────────────────
+// ─── 카톡 · 채팅창 · 게시글 댓글: 대본으로 쓰기 ──────────────
 
 export function ConversationEditor({
   block,
@@ -144,25 +158,32 @@ export function ConversationEditor({
   const { draft, update, flush, cancel } = useDraft(block, onChange);
   const rootRef = useRef<HTMLDivElement>(null);
   const scriptRef = useRef<HTMLTextAreaElement>(null);
+  const titleRef = useRef<HTMLInputElement>(null);
 
-  // 열리면 편집 창 머리가 위쪽 고정 툴바에 가리지 않게 스크롤하고, 대본 끝에 커서를 둔다
+  // 열리면 편집 창 머리가 위쪽 고정 툴바에 가리지 않게 스크롤하고, 커서를 둔다 (게시글은 제목 끝, 나머지는 대본 끝)
   useEffect(() => {
     rootRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
-    const textarea = scriptRef.current;
-    if (textarea) {
-      textarea.focus({ preventScroll: true });
-      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+    const target = titleRef.current ?? scriptRef.current;
+    if (target) {
+      target.focus({ preventScroll: true });
+      target.setSelectionRange(target.value.length, target.value.length);
     }
   }, []);
 
-  const lines = parseScript(draft.data.script);
-  const speakers = scriptSpeakers(lines);
+  const lines = draft.kind === 'post' ? [] : parseScript(draft.data.script);
+  const comments = draft.kind === 'post' ? parseComments(draft.data.script) : [];
+  const speakers = draft.kind === 'post' ? commentSpeakers(comments) : scriptSpeakers(lines);
 
-  function setData(patch: Partial<KakaoData> | Partial<ChatData>) {
+  function setData(patch: Partial<KakaoData> | Partial<ChatData> | Partial<PostData>) {
     update({ ...draft, data: { ...draft.data, ...patch } } as ConversationBlock);
   }
 
   function rename(from: string, to: string) {
+    if (draft.kind === 'post') {
+      const script = renameSpeaker(draft.data.script, from, to, { replies: true });
+      setData({ script, author: draft.data.author === from ? to : draft.data.author });
+      return;
+    }
     const script = renameSpeaker(draft.data.script, from, to);
     if (draft.kind === 'kakao') {
       setData({ script, me: draft.data.me === from ? to : draft.data.me });
@@ -196,14 +217,12 @@ export function ConversationEditor({
     onDelete();
   }
 
-  const isKakao = draft.kind === 'kakao';
-
   return (
     <div ref={rootRef} className="@container scroll-mt-20 rounded-[24px] border border-accent/50 bg-surface p-4 shadow-sm sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-baseline gap-x-2">
           <span className="text-sm font-bold">{templateLabel(draft)}</span>
-          <span className="text-xs text-muted">대본을 고치면 미리보기에 바로 보여요</span>
+          <span className="text-xs text-muted">{draft.kind === 'post' ? '고치면' : '대본을 고치면'} 미리보기에 바로 보여요</span>
         </div>
         <div className="flex gap-1.5">
           <Button type="button" variant="ghost" size="sm" className="hover:text-danger" onClick={remove}>
@@ -238,7 +257,7 @@ export function ConversationEditor({
               />
             ) : null}
           </>
-        ) : (
+        ) : draft.kind === 'chat' ? (
           <>
             <MiniInput label="제목" value={draft.data.title} maxLength={60} onChange={(title) => setData({ title })} inputClassName="w-44" />
             <MiniInput
@@ -250,23 +269,72 @@ export function ConversationEditor({
               inputClassName="w-32"
             />
           </>
+        ) : (
+          <>
+            <MiniInput label="게시판" value={draft.data.board} maxLength={40} onChange={(board) => setData({ board })} inputClassName="w-28" />
+            <MiniInput
+              label="글쓴이"
+              value={draft.data.author}
+              maxLength={LIMITS.name}
+              onChange={(author) => setData({ author })}
+              inputClassName="w-24"
+            />
+            <MiniInput label="시각" value={draft.data.date} maxLength={40} onChange={(date) => setData({ date })} inputClassName="w-36" />
+            <MiniInput label="조회" value={draft.data.views} maxLength={20} onChange={(views) => setData({ views })} inputClassName="w-14" />
+            <MiniInput label="추천" value={draft.data.likes} maxLength={20} onChange={(likes) => setData({ likes })} inputClassName="w-12" />
+            <MiniInput
+              label="댓글 수"
+              value={draft.data.commentCount}
+              maxLength={10}
+              placeholder={postCommentCount({ ...draft.data, commentCount: '' }, comments)}
+              onChange={(commentCount) => setData({ commentCount })}
+              inputClassName="w-12"
+            />
+          </>
         )}
       </div>
+      {draft.kind === 'post' ? (
+        <div className="mt-1.5 text-xs text-muted">게시판·조회·추천은 비우면 안 보이고, 댓글 수는 비우면 아래 댓글 개수로 보여요</div>
+      ) : null}
 
       {/* 넓으면 대본 | 미리보기 나란히 (대본이 길어져도 미리보기는 따라 내려옴), 좁으면 위아래 */}
       <div className="mt-3 grid items-start gap-3 @xl:grid-cols-2">
         <div className="flex flex-col gap-2">
+          {draft.kind === 'post' ? (
+            <>
+              <MiniInput
+                inputRef={titleRef}
+                label="제목"
+                value={draft.data.title}
+                maxLength={120}
+                onChange={(title) => setData({ title })}
+                className="w-full"
+                inputClassName="flex-1"
+              />
+              <textarea
+                value={draft.data.body}
+                onChange={(e) => setData({ body: e.target.value })}
+                aria-label="본문"
+                maxLength={LIMITS.body}
+                placeholder="본문"
+                className={cn(TEXTAREA, 'min-h-32')}
+              />
+              <span aria-hidden="true" className="mt-2 text-xs font-semibold text-muted">
+                댓글
+              </span>
+            </>
+          ) : null}
           <textarea
             ref={scriptRef}
             value={draft.data.script}
             onChange={(e) => setData({ script: e.target.value })}
-            aria-label="대본"
+            aria-label={draft.kind === 'post' ? '댓글 대본' : '대본'}
             spellCheck={false}
             maxLength={LIMITS.script}
-            placeholder={isKakao ? '양띵: 수진아 뭐 해? [오후 8:14]\n나: 방송 준비하고 있어요!' : '밥알: 연화님 ㅎㅇ\n감자도리: 오늘 뭐함?'}
-            className="min-h-60 w-full resize-y rounded-2xl border border-line bg-surface px-4 py-3 text-base leading-relaxed text-fg field-sizing-content placeholder:text-muted/60 focus:border-accent focus:ring-3 focus:ring-accent/20 focus:outline-none"
+            placeholder={SCRIPT_PLACEHOLDER[draft.kind]}
+            className={cn(TEXTAREA, draft.kind === 'post' ? 'min-h-40' : 'min-h-60')}
           />
-          <ScriptHelp kakao={isKakao} />
+          <ScriptHelp kind={draft.kind} />
         </div>
         <div className="max-h-[560px] overflow-y-auto rounded-2xl bg-(--wn-stage) p-3 @xl:sticky @xl:top-20">
           <StoryBlockView block={draft} />
@@ -280,6 +348,10 @@ export function ConversationEditor({
           onSetRight={draft.kind === 'kakao' ? (name) => setData({ me: name }) : undefined}
           colorOf={draft.kind === 'chat' ? (name) => chatColorKey(name, speakers, draft.data.colors) : undefined}
           onCycleColor={draft.kind === 'chat' ? cycleColor : undefined}
+          // '글쓴이:'로 쓴 사람은 이름이 이미 '글쓴이'라 따로 표시하지 않는다
+          badgeOf={
+            draft.kind === 'post' ? (name) => (name !== '글쓴이' && isPostAuthor(name, draft.data.author) ? '글쓴이' : null) : undefined
+          }
           onRename={rename}
         />
       ) : null}
@@ -301,7 +373,9 @@ function MiniInput({
   maxLength,
   suffix,
   inputMode,
+  className,
   inputClassName,
+  inputRef,
 }: {
   label: string;
   value: string;
@@ -310,12 +384,20 @@ function MiniInput({
   maxLength: number;
   suffix?: string;
   inputMode?: 'numeric';
+  className?: string;
   inputClassName?: string;
+  inputRef?: Ref<HTMLInputElement>;
 }) {
   return (
-    <label className="inline-flex h-10 max-w-full items-center gap-2 rounded-xl border border-line bg-surface px-3 focus-within:border-accent focus-within:ring-3 focus-within:ring-accent/20">
+    <label
+      className={cn(
+        'inline-flex h-10 max-w-full items-center gap-2 rounded-xl border border-line bg-surface px-3 focus-within:border-accent focus-within:ring-3 focus-within:ring-accent/20',
+        className,
+      )}
+    >
       <span className="shrink-0 text-xs font-semibold text-muted">{label}</span>
       <input
+        ref={inputRef}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
@@ -328,20 +410,31 @@ function MiniInput({
   );
 }
 
-function ScriptHelp({ kakao }: { kakao: boolean }) {
-  const items: Array<[string, string]> = kakao
-    ? [
-        ['이름: 대사', '한 줄에 하나'],
-        ['나: …', '오른쪽 말풍선'],
-        ['이름 없이 쓰기', '앞사람이 이어서'],
-        ['[오후 8:14]', '줄 끝에 시간'],
-        ['--- 10월 5일 ---', '가운데 날짜'],
-      ]
-    : [
-        ['닉네임: 채팅', '한 줄에 하나'],
-        ['이름 없이 쓰기', '같은 사람이 이어서'],
-        ['--- 안내 ---', '가운데 안내 문구'],
-      ];
+const SCRIPT_HELP: Record<ConversationBlock['kind'], Array<[string, string]>> = {
+  kakao: [
+    ['이름: 대사', '한 줄에 하나'],
+    ['나: …', '오른쪽 말풍선'],
+    ['이름 없이 쓰기', '앞사람이 이어서'],
+    ['[오후 8:14]', '줄 끝에 시간'],
+    ['--- 10월 5일 ---', '가운데 날짜'],
+  ],
+  chat: [
+    ['닉네임: 채팅', '한 줄에 하나'],
+    ['이름 없이 쓰기', '같은 사람이 이어서'],
+    ['--- 안내 ---', '가운데 안내 문구'],
+  ],
+  post: [
+    ['닉네임: 댓글', '한 줄에 하나'],
+    ['ㄴ 닉네임: …', '답글'],
+    ['글쓴이: …', '글쓴이 표시'],
+    ['이름 없이 쓰기', '앞 댓글에 줄바꿈'],
+    ['[3분 전]', '줄 끝에 시간'],
+    ['--- 삭제된 댓글입니다 ---', '회색 줄'],
+  ],
+};
+
+function ScriptHelp({ kind }: { kind: ConversationBlock['kind'] }) {
+  const items = SCRIPT_HELP[kind];
   return (
     <ul className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted">
       {items.map(([code, description]) => (
@@ -355,7 +448,7 @@ function ScriptHelp({ kakao }: { kakao: boolean }) {
 
 /**
  * 대본에 나오는 사람들. 여기서 이름을 바꾸면 대본의 그 사람 줄이 전부 바뀐다.
- * 카톡은 누가 오른쪽(나) 말풍선인지, 채팅창은 닉네임 색을 고른다.
+ * 카톡은 누가 오른쪽(나) 말풍선인지, 채팅창은 닉네임 색을 고른다. 게시글은 글쓴이를 표시한다.
  */
 function SpeakerChips({
   speakers,
@@ -363,6 +456,7 @@ function SpeakerChips({
   onSetRight,
   colorOf,
   onCycleColor,
+  badgeOf,
   onRename,
 }: {
   speakers: string[];
@@ -370,6 +464,7 @@ function SpeakerChips({
   onSetRight?: (name: string) => void;
   colorOf?: (name: string) => ChatColor;
   onCycleColor?: (name: string) => void;
+  badgeOf?: (name: string) => string | null;
   onRename: (from: string, to: string) => void;
 }) {
   const [renaming, setRenaming] = useState<string | null>(null);
@@ -426,6 +521,9 @@ function SpeakerChips({
               />
             ) : null}
             <span className="font-semibold">{name}</span>
+            {badgeOf?.(name) ? (
+              <span className="rounded-md bg-surface-2 px-1.5 py-px text-[11px] font-semibold text-muted">{badgeOf(name)}</span>
+            ) : null}
             {onSetRight ? (
               right ? (
                 // '나'는 항상 오른쪽. 다른 사람을 오른쪽으로 바꿨다면 눌러서 되돌린다

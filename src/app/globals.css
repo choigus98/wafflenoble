@@ -51,6 +51,11 @@
   --wn-nick-pink: #d6457a;
   --wn-nick-teal: #138f88;
   --wn-nick-orange: #d4662a;
+  --wn-post-bg: #ffffff;
+  --wn-post-accent: #3563d1;
+  --wn-post-comments: #f6f7f9;
+  --wn-post-badge-bg: #e7eefc;
+  --wn-post-badge-fg: #2f5bc2;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -104,6 +109,11 @@
     --wn-nick-pink: #ffa3c4;
     --wn-nick-teal: #86e1dc;
     --wn-nick-orange: #ffb486;
+    --wn-post-bg: #1b1d25;
+    --wn-post-accent: #8fb0ff;
+    --wn-post-comments: #15161c;
+    --wn-post-badge-bg: #25324f;
+    --wn-post-badge-fg: #a8c1ff;
   }
 }
 
@@ -156,6 +166,11 @@
   --wn-nick-pink: #ffa3c4;
   --wn-nick-teal: #86e1dc;
   --wn-nick-orange: #ffb486;
+  --wn-post-bg: #1b1d25;
+  --wn-post-accent: #8fb0ff;
+  --wn-post-comments: #15161c;
+  --wn-post-badge-bg: #25324f;
+  --wn-post-badge-fg: #a8c1ff;
 }
 
 @theme inline {
@@ -237,7 +252,7 @@ body {
   font-weight: 700;
 }
 
-/* ─── 이야기 속 화면 템플릿 (방송창·채팅·후원·카톡) ─────────────────
+/* ─── 이야기 속 화면 템플릿 (방송창·채팅·후원·카톡·게시글) ─────────────────
    색은 위의 --wn-* 토큰으로 사이트 테마(밝게/어둡게)를 따라가고,
    읽기 설정(글자 크기·글꼴)과 상관없이 같은 크기로 그린다 */
 .wn-block {
