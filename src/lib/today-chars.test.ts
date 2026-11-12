@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dayKey, msUntilNextDay, noteCount, openChapter, parseTodayStore, signedCount, type TodayStore } from '@/lib/today-chars';
+import { dayKey, msUntilNextDay, noteCount, openChapter, parseTodayStore, signedCount, type TodayStore, weekCounts, dayLabel } from '@/lib/today-chars';
 
 describe('오늘 쓴 글자수', () => {
   it('날짜는 한국 시간, 다음 자정까지 남은 시간', () => {
@@ -49,5 +49,31 @@ describe('오늘 쓴 글자수', () => {
     expect(signedCount(1234)).toBe('+1,234');
     expect(signedCount(-120)).toBe('−120');
     expect(signedCount(0)).toBe('0');
+  });
+});
+
+describe('최근 7일 쓴 글자수', () => {
+  it('한국 시간 오래된 날부터 오늘까지 7칸, 회차를 더하고 지운 만큼 빼고, 기록 없는 날은 0', () => {
+    // 한국 시간 11월 13일 오전 1시 (UTC로는 12일)
+    const now = new Date('2026-11-12T16:00:00Z');
+    const store = {
+      '2026-11-13': { '1': [100, 350] as [number, number], '2': [50, 20] as [number, number] },
+      '2026-11-11': { '1': [0, 1200] as [number, number] },
+      '2026-11-06': { '1': [0, 999] as [number, number] }, // 7일보다 앞
+    };
+    expect(weekCounts(store, now)).toEqual([
+      { date: '2026-11-07', count: 0 },
+      { date: '2026-11-08', count: 0 },
+      { date: '2026-11-09', count: 0 },
+      { date: '2026-11-10', count: 0 },
+      { date: '2026-11-11', count: 1200 },
+      { date: '2026-11-12', count: 0 },
+      { date: '2026-11-13', count: 220 },
+    ]);
+  });
+
+  it('날짜 이름: 요일 한 글자와 긴 이름', () => {
+    expect(dayLabel('2026-11-13')).toEqual({ weekday: '금', long: '11월 13일 (금)' });
+    expect(dayLabel('2026-11-08')).toEqual({ weekday: '일', long: '11월 8일 (일)' });
   });
 });

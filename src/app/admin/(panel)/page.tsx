@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Suspense } from 'react';
 import { RecentActivity } from '@/components/admin/recent-activity';
 import { ScheduledChapters } from '@/components/admin/scheduled-chapters';
+import { WeekChars } from '@/components/admin/week-chars';
 import { NovelCover } from '@/components/novel-cover';
 import { Badge, ButtonLink, Skeleton } from '@/components/ui';
 import { formatNumber, formatRelative } from '@/lib/format';
@@ -29,6 +30,10 @@ export default function AdminHomePage() {
         <Suspense fallback={<Skeleton className="h-48" />}>
           <RecentActivity />
         </Suspense>
+      </div>
+      {/* 이 기기에서 최근 7일 쓴 글자수: 브라우저에서만 그려져서, 그려질 때 아래 내용이 밀리지 않게 맨 끝에 */}
+      <div className="mt-10 empty:hidden">
+        <WeekChars />
       </div>
     </>
   );

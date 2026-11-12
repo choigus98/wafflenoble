@@ -77,3 +77,23 @@ export function signedCount(value: number): string {
   if (value === 0) return '0';
   return `${value > 0 ? '+' : '−'}${Math.abs(value).toLocaleString('ko-KR')}`;
 }
+
+/** 최근 7일(한국 시간, 오래된 날 → 오늘) 날마다 이 기기에서 늘어난 글자수 (모든 회차를 더함, 지운 만큼 뺌, 기록 없는 날은 0) */
+export function weekCounts(store: TodayStore, now: Date): Array<{ date: string; count: number }> {
+  const days: Array<{ date: string; count: number }> = [];
+  for (let back = KEEP_DAYS - 1; back >= 0; back -= 1) {
+    const date = dayKey(new Date(now.getTime() - back * DAY));
+    const count = Object.values(store[date] ?? {}).reduce((sum, [base, last]) => sum + (last - base), 0);
+    days.push({ date, count });
+  }
+  return days;
+}
+
+const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
+
+/** 'YYYY-MM-DD' → 요일 한 글자와 '11월 13일 (금)' */
+export function dayLabel(date: string): { weekday: string; long: string } {
+  const [year, month, day] = date.split('-').map(Number);
+  const weekday = WEEKDAYS[new Date(Date.UTC(year, month - 1, day)).getUTCDay()];
+  return { weekday, long: `${month}월 ${day}일 (${weekday})` };
+}
