@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글).
+// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창).
 // 저장 형식: <div data-wn-block="종류" data-wn-data="JSON"></div>
 // 에디터(Tiptap 노드), 서버(저장할 때 검증), 열람 화면(렌더링)이 모두 이 파일을 같이 쓴다.
 //
@@ -78,6 +78,11 @@ const postSchema = z.object({
   script: text(LIMITS.script), // 댓글 대본
 });
 
+const systemSchema = z.object({
+  title: text(60), // [퀘스트 발생!]처럼 대괄호 안에 보임. 비우면 제목 줄 없음
+  script: text(LIMITS.script), // 능력치·안내 대본 (규칙은 parseSystemScript 위 설명)
+});
+
 // 새 종류는 끝에 덧붙이기만 한다 (이미 저장된 블록은 그대로 읽혀야 하므로 기존 종류·필드는 바꾸지 않는다)
 export const storyBlockSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('live'), data: liveSchema }),
@@ -85,6 +90,7 @@ export const storyBlockSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('donation'), data: donationSchema }),
   z.object({ kind: z.literal('kakao'), data: kakaoSchema }),
   z.object({ kind: z.literal('post'), data: postSchema }),
+  z.object({ kind: z.literal('system'), data: systemSchema }),
 ]);
 
 export type StoryBlock = z.infer<typeof storyBlockSchema>;
@@ -93,6 +99,7 @@ export type DonationData = z.infer<typeof donationSchema>;
 export type ChatData = z.infer<typeof chatSchema>;
 export type KakaoData = z.infer<typeof kakaoSchema>;
 export type PostData = z.infer<typeof postSchema>;
+export type SystemData = z.infer<typeof systemSchema>;
 
 // ─── 대본 읽기 ─────────────────────────────────────────
 
@@ -263,6 +270,44 @@ export function commentDisplayName(name: string, author: string): string {
   return name === '글쓴이' && author.trim() ? author.trim() : name;
 }
 
+// ─── 시스템 창 대본 ────────────────────────────────────
+//   힘: 15                       ← 이름: 값 → 능력치 줄 (이름 왼쪽, 값 오른쪽)
+//   「잃어버린 기억을 찾아라」       ← 「」『』[]로 감싼 줄 → 가운데 굵게
+//   --- 보상 ---                 ← 구분선 (가운데 글자는 없어도 됨)
+//   기억이 하나 사라집니다.          ← 나머지 → 안내 문장
+
+export type SystemLine =
+  | { type: 'stat'; label: string; value: string }
+  | { type: 'emphasis'; text: string }
+  | { type: 'divider'; text: string }
+  | { type: 'text'; text: string };
+
+const EMPHASIS_LINE = /^(?:「[^」]*」|『[^』]*』|\[[^\]]*\])$/;
+
+export function parseSystemScript(script: string): SystemLine[] {
+  const lines: SystemLine[] = [];
+  for (const raw of script.split(/\r?\n/)) {
+    if (lines.length >= LIMITS.lines) break;
+    const line = raw.trim();
+    if (!line) continue;
+    if (/^-{2,}/.test(line)) {
+      lines.push({ type: 'divider', text: line.replace(/^-+\s*/, '').replace(/\s*-+$/, '') });
+      continue;
+    }
+    if (EMPHASIS_LINE.test(line)) {
+      lines.push({ type: 'emphasis', text: line });
+      continue;
+    }
+    const named = splitName(line);
+    if (named && named.body.trim()) {
+      lines.push({ type: 'stat', label: named.name, value: named.body.trim() });
+      continue;
+    }
+    lines.push({ type: 'text', text: line });
+  }
+  return lines;
+}
+
 /** 제목 옆·댓글 머리에 보일 댓글 수. 직접 적은 값이 먼저, 없으면 실제 댓글 개수 */
 export function postCommentCount(data: PostData, lines: CommentLine[]): string {
   return data.commentCount.trim() || String(lines.filter((line) => line.type === 'comment').length);
@@ -270,7 +315,7 @@ export function postCommentCount(data: PostData, lines: CommentLine[]): string {
 
 // ─── 템플릿 ────────────────────────────────────────────
 
-export type TemplateKey = 'kakao-dm' | 'kakao-group' | 'live' | 'chat' | 'donation' | 'post';
+export type TemplateKey = 'kakao-dm' | 'kakao-group' | 'live' | 'chat' | 'donation' | 'post' | 'system-quest' | 'system-status';
 
 export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }> = [
   { key: 'kakao-dm', label: '카톡 1:1 대화', hint: '두 사람의 메신저 대화' },
@@ -279,9 +324,12 @@ export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }>
   { key: 'chat', label: '실시간 채팅창', hint: '시청자 닉네임과 채팅' },
   { key: 'donation', label: '후원 알림', hint: '후원자 · 금액 · 메시지' },
   { key: 'post', label: '커뮤니티 게시글', hint: '게시판 글과 댓글' },
+  { key: 'system-quest', label: '시스템 창 · 퀘스트', hint: '[퀘스트 발생!] 같은 알림' },
+  { key: 'system-status', label: '시스템 창 · 상태창', hint: '이름·레벨·능력치' },
 ];
 
 export function templateLabel(block: StoryBlock): string {
+  if (block.kind === 'system') return '시스템 창';
   const key: TemplateKey = block.kind === 'kakao' ? (block.data.mode === 'dm' ? 'kakao-dm' : 'kakao-group') : block.kind;
   return TEMPLATES.find((template) => template.key === key)?.label ?? '템플릿';
 }
@@ -374,6 +422,24 @@ export function createTemplate(key: TemplateKey): StoryBlock {
           commentCount: '',
           body: '본문을 적어 주세요.\n줄을 바꾸면 그대로 보여요.',
           script: ['익명1: 첫 댓글 [3분 전]', 'ㄴ 글쓴이: 답글은 앞에 ㄴ을 붙여요 [1분 전]', '--- 삭제된 댓글입니다 ---'].join('\n'),
+        },
+      };
+    case 'system-quest':
+      return {
+        kind: 'system',
+        data: {
+          title: '퀘스트 발생!',
+          script: ['「잃어버린 기억을 찾아라」', '제한 시간: 24시간', '보상: ???', '--- 실패 시 ---', '기억이 하나 사라집니다.'].join('\n'),
+        },
+      };
+    case 'system-status':
+      return {
+        kind: 'system',
+        data: {
+          title: '상태창',
+          script: ['이름: 주인공', '레벨: 12', '직업: 견습 마법사', '--- 능력치 ---', '힘: 8', '민첩: 14', '지능: 31', '행운: ???', '--- 칭호 ---', '「가게의 단골」'].join(
+            '\n',
+          ),
         },
       };
   }

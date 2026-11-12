@@ -8,6 +8,7 @@ import {
   kakaoTitle,
   parseComments,
   parseScript,
+  parseSystemScript,
   postCommentCount,
   scriptSpeakers,
   type ChatData,
@@ -16,6 +17,7 @@ import {
   type LiveData,
   type PostData,
   type StoryBlock,
+  type SystemData,
 } from '@/lib/story-blocks';
 import { cn } from '@/lib/utils';
 
@@ -51,6 +53,8 @@ export function StoryBlockView({ block }: { block: StoryBlock }) {
       return <KakaoCard data={block.data} />;
     case 'post':
       return <PostCard data={block.data} />;
+    case 'system':
+      return <SystemCard data={block.data} />;
   }
 }
 
@@ -343,6 +347,53 @@ function PostCard({ data }: { data: PostData }) {
           )}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/** 게임 판타지의 '시스템 창'. 사이트 테마를 따라 밝게(하늘색 창)·어둡게(남색 홀로그램 창) */
+function SystemCard({ data }: { data: SystemData }) {
+  const lines = parseSystemScript(data.script);
+  return (
+    <div className="wn-block mx-auto w-full max-w-[460px] rounded-xl border-[1.5px] border-(--wn-sys-border) bg-(--wn-sys-bg) px-5 py-4 text-(--wn-sys-fg) shadow-[0_0_24px_var(--wn-sys-glow)]">
+      {data.title.trim() ? (
+        <div className="border-b border-(--wn-sys-line) pb-3 text-center text-[16px] font-bold tracking-[0.06em] text-(--wn-sys-title)">
+          [ {data.title.trim()} ]
+        </div>
+      ) : null}
+      <div className={cn('space-y-1.5', data.title.trim() && 'pt-3')}>
+        {lines.map((line, index) => {
+          switch (line.type) {
+            case 'stat':
+              return (
+                <div key={index} className="flex items-baseline justify-between gap-4">
+                  <span className="min-w-0 text-[14px] text-(--wn-sys-muted)">{line.label}</span>
+                  <span className="min-w-0 text-right font-semibold tabular-nums">{line.value}</span>
+                </div>
+              );
+            case 'emphasis':
+              return (
+                <div key={index} className="py-1 text-center font-bold text-(--wn-sys-title)">
+                  {line.text}
+                </div>
+              );
+            case 'divider':
+              return (
+                <div key={index} role="separator" className="flex items-center gap-3 pt-2 pb-1 text-xs font-semibold tracking-wide text-(--wn-sys-muted)">
+                  <span aria-hidden="true" className="h-px flex-1 bg-(--wn-sys-line)" />
+                  {line.text ? <span>{line.text}</span> : null}
+                  <span aria-hidden="true" className="h-px flex-1 bg-(--wn-sys-line)" />
+                </div>
+              );
+            case 'text':
+              return (
+                <div key={index} className="text-center leading-relaxed">
+                  {line.text}
+                </div>
+              );
+          }
+        })}
+      </div>
     </div>
   );
 }

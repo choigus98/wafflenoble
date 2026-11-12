@@ -23,6 +23,7 @@ import {
   type KakaoData,
   type PostData,
   type StoryBlock,
+  type SystemData,
 } from '@/lib/story-blocks';
 import { scrollBehavior } from '@/lib/motion';
 import { cn } from '@/lib/utils';
@@ -31,7 +32,7 @@ import { cn } from '@/lib/utils';
 const COMMIT_DELAY_MS = 300;
 
 type CardBlock = Extract<StoryBlock, { kind: 'live' | 'donation' }>;
-type ConversationBlock = Extract<StoryBlock, { kind: 'kakao' | 'chat' | 'post' }>;
+type ConversationBlock = Extract<StoryBlock, { kind: 'kakao' | 'chat' | 'post' | 'system' }>;
 
 const TEXTAREA =
   'w-full resize-y rounded-2xl border border-line bg-surface px-4 py-3 text-base leading-relaxed text-fg field-sizing-content placeholder:text-muted/60 focus:border-accent focus:ring-3 focus:ring-accent/20 focus:outline-none';
@@ -40,6 +41,7 @@ const SCRIPT_PLACEHOLDER: Record<ConversationBlock['kind'], string> = {
   kakao: '양띵: 수진아 뭐 해? [오후 8:14]\n나: 방송 준비하고 있어요!',
   chat: '밥알: 연화님 ㅎㅇ\n감자도리: 오늘 뭐함?',
   post: '익명1: 와 이거 진짜임? [20:31]\nㄴ 글쓴이: ㅇㅇ 방금 봄',
+  system: '「잃어버린 기억을 찾아라」\n제한 시간: 24시간\n--- 보상 ---\n???',
 };
 
 function useDraft<T extends StoryBlock>(block: T, onChange: (block: StoryBlock) => void) {
@@ -171,15 +173,17 @@ export function ConversationEditor({
     }
   }, []);
 
-  const lines = draft.kind === 'post' ? [] : parseScript(draft.data.script);
+  const lines = draft.kind === 'kakao' || draft.kind === 'chat' ? parseScript(draft.data.script) : [];
   const comments = draft.kind === 'post' ? parseComments(draft.data.script) : [];
-  const speakers = draft.kind === 'post' ? commentSpeakers(comments) : scriptSpeakers(lines);
+  // 시스템 창은 말하는 사람이 없어서 등장인물 칩을 안 보여 준다
+  const speakers = draft.kind === 'post' ? commentSpeakers(comments) : draft.kind === 'system' ? [] : scriptSpeakers(lines);
 
-  function setData(patch: Partial<KakaoData> | Partial<ChatData> | Partial<PostData>) {
+  function setData(patch: Partial<KakaoData> | Partial<ChatData> | Partial<PostData> | Partial<SystemData>) {
     update({ ...draft, data: { ...draft.data, ...patch } } as ConversationBlock);
   }
 
   function rename(from: string, to: string) {
+    if (draft.kind === 'system') return;
     if (draft.kind === 'post') {
       const script = renameSpeaker(draft.data.script, from, to, { replies: true });
       setData({ script, author: draft.data.author === from ? to : draft.data.author });
@@ -258,6 +262,15 @@ export function ConversationEditor({
               />
             ) : null}
           </>
+        ) : draft.kind === 'system' ? (
+          <MiniInput
+            label="제목"
+            value={draft.data.title}
+            maxLength={60}
+            placeholder="비우면 제목 줄 없음"
+            onChange={(title) => setData({ title })}
+            inputClassName="w-52"
+          />
         ) : draft.kind === 'chat' ? (
           <>
             <MiniInput label="제목" value={draft.data.title} maxLength={60} onChange={(title) => setData({ title })} inputClassName="w-44" />
@@ -423,6 +436,12 @@ const SCRIPT_HELP: Record<ConversationBlock['kind'], Array<[string, string]>> = 
     ['닉네임: 채팅', '한 줄에 하나'],
     ['이름 없이 쓰기', '같은 사람이 이어서'],
     ['--- 안내 ---', '가운데 안내 문구'],
+  ],
+  system: [
+    ['힘: 15', '이름 · 값 한 줄'],
+    ['「…」 또는 […]', '가운데 굵게'],
+    ['--- 보상 ---', '구분선'],
+    ['그냥 쓰기', '안내 문장'],
   ],
   post: [
     ['닉네임: 댓글', '한 줄에 하나'],

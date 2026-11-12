@@ -10,6 +10,7 @@ import {
   kakaoTitle,
   parseComments,
   parseScript,
+  parseSystemScript,
   postCommentCount,
   renameSpeaker,
   scriptSpeakers,
@@ -32,7 +33,7 @@ function postData(patch: Partial<PostData> = {}): PostData {
   if (block.kind !== 'post') throw new Error('게시글 템플릿이 아니에요');
   return { ...block.data, ...patch };
 }
-const KEYS: TemplateKey[] = ['kakao-dm', 'kakao-group', 'live', 'chat', 'donation', 'post'];
+const KEYS: TemplateKey[] = ['kakao-dm', 'kakao-group', 'live', 'chat', 'donation', 'post', 'system-quest', 'system-status'];
 
 function withTrickyText(block: StoryBlock): StoryBlock {
   switch (block.kind) {
@@ -48,6 +49,8 @@ function withTrickyText(block: StoryBlock): StoryBlock {
         ...block,
         data: { ...block.data, body: `${TRICKY}\n\n둘째 문단`, script: `${block.data.script}\nㄴ 양띵: ${TRICKY}` },
       };
+    case 'system':
+      return { ...block, data: { ...block.data, title: `${TRICKY}`, script: `${block.data.script}\n스킬: ${TRICKY}` } };
   }
 }
 
@@ -228,5 +231,42 @@ describe('카톡·채팅창 표시 규칙', () => {
   it('닉네임 색은 직접 고른 색이 먼저, 없으면 등장 순서대로', () => {
     expect(chatColorKey('b', ['a', 'b'], {})).toBe('purple');
     expect(chatColorKey('b', ['a', 'b'], { b: 'teal' })).toBe('teal');
+  });
+});
+
+describe('시스템 창 대본', () => {
+  it('능력치·강조·구분선·안내 문장으로 나눈다', () => {
+    const script = [
+      '「잃어버린 기억을 찾아라」',
+      '[스킬 \'화염구\'를 얻었습니다]',
+      '제한 시간: 23:59:59',
+      '힘 : 15',
+      '--- 보상 ---',
+      '---',
+      '12:30에 문이 닫힙니다.',
+      '기억이 하나 사라집니다.',
+      '이름만:',
+    ].join('\n');
+    expect(parseSystemScript(script)).toEqual([
+      { type: 'emphasis', text: '「잃어버린 기억을 찾아라」' },
+      { type: 'emphasis', text: "[스킬 '화염구'를 얻었습니다]" },
+      // 값 안의 콜론은 그대로
+      { type: 'stat', label: '제한 시간', value: '23:59:59' },
+      { type: 'stat', label: '힘', value: '15' },
+      { type: 'divider', text: '보상' },
+      { type: 'divider', text: '' },
+      // 숫자로 시작하는 줄은 능력치가 아니라 문장
+      { type: 'text', text: '12:30에 문이 닫힙니다.' },
+      { type: 'text', text: '기억이 하나 사라집니다.' },
+      // 값이 없는 '이름:'은 문장으로
+      { type: 'text', text: '이름만:' },
+    ]);
+  });
+
+  it('메뉴의 두 가지 시스템 창은 같은 종류이고 이름은 시스템 창', () => {
+    const quest = createTemplate('system-quest');
+    const status = createTemplate('system-status');
+    expect(quest.kind).toBe('system');
+    expect(status.kind).toBe('system');
   });
 });

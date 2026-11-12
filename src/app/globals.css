@@ -58,6 +58,13 @@
   --wn-post-comments: #f6f7f9;
   --wn-post-badge-bg: #e7eefc;
   --wn-post-badge-fg: #2f5bc2;
+  --wn-sys-bg: #eef5ff;
+  --wn-sys-border: #5b8ef0;
+  --wn-sys-title: #1d4fb8;
+  --wn-sys-fg: #13233f;
+  --wn-sys-muted: #4a5d7e;
+  --wn-sys-line: rgb(29 79 184 / 0.2);
+  --wn-sys-glow: rgb(59 130 246 / 0.16);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -118,6 +125,13 @@
     --wn-post-comments: #15161c;
     --wn-post-badge-bg: #25324f;
     --wn-post-badge-fg: #a8c1ff;
+    --wn-sys-bg: #0b1730;
+    --wn-sys-border: #3aa0ff;
+    --wn-sys-title: #7cc4ff;
+    --wn-sys-fg: #e6f0ff;
+    --wn-sys-muted: #9db3d6;
+    --wn-sys-line: rgb(124 196 255 / 0.25);
+    --wn-sys-glow: rgb(58 160 255 / 0.32);
   }
 }
 
@@ -177,6 +191,13 @@
   --wn-post-comments: #15161c;
   --wn-post-badge-bg: #25324f;
   --wn-post-badge-fg: #a8c1ff;
+  --wn-sys-bg: #0b1730;
+  --wn-sys-border: #3aa0ff;
+  --wn-sys-title: #7cc4ff;
+  --wn-sys-fg: #e6f0ff;
+  --wn-sys-muted: #9db3d6;
+  --wn-sys-line: rgb(124 196 255 / 0.25);
+  --wn-sys-glow: rgb(58 160 255 / 0.32);
 }
 
 @theme inline {
@@ -258,7 +279,7 @@ body {
   font-weight: 700;
 }
 
-/* ─── 이야기 속 화면 템플릿 (방송창·채팅·후원·카톡·게시글) ─────────────────
+/* ─── 이야기 속 화면 템플릿 (방송창·채팅·후원·카톡·게시글·시스템 창) ─────────────────
    색은 위의 --wn-* 토큰으로 사이트 테마(밝게/어둡게)를 따라가고,
    읽기 설정(글자 크기·글꼴)과 상관없이 같은 크기로 그린다 */
 .wn-block {

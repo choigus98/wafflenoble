@@ -56,7 +56,7 @@ function StoryBlockItem({ node, editor, getPos, selected, deleteNode, extension 
   const block = parseStoryBlock(node.attrs.kind, node.attrs.data);
   const uid = node.attrs.uid as string | null;
   const isNew = node.attrs.isNew === true;
-  const isConversation = block?.kind === 'kakao' || block?.kind === 'chat' || block?.kind === 'post';
+  const isConversation = block?.kind === 'kakao' || block?.kind === 'chat' || block?.kind === 'post' || block?.kind === 'system';
   const editLabel = block?.kind === 'post' ? '글 고치기' : '대본 고치기';
   const editName = block?.kind === 'post' ? '고치기' : '대본 고치기'; // 읽어 주는 이름: '커뮤니티 게시글 고치기'
   const editing = uid !== null && editingUid === uid;
