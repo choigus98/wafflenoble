@@ -28,7 +28,7 @@ async function ChapterView({ params }: Pick<PageProps<'/novels/[novelId]/[chapte
   const data = await getChapterView(novelId, chapterId);
   if (!data) notFound();
 
-  const { viewer, novel, chapter, prev, next, likes, readCount } = data;
+  const { viewer, novel, chapter, prev, next, nextScheduledAt, likes, readCount } = data;
   const isReader = viewer.kind === 'reader';
 
   return (
@@ -84,6 +84,12 @@ async function ChapterView({ params }: Pick<PageProps<'/novels/[novelId]/[chapte
             <ButtonLink href={`/novels/${novel.id}/${next.id}`} className="justify-end truncate">
               {next.position}화 →
             </ButtonLink>
+          ) : nextScheduledAt ? (
+            <span className="text-right text-xs leading-snug text-muted">
+              다음 화
+              <br />
+              <span className="font-semibold text-fg">{formatSchedule(nextScheduledAt)}</span>
+            </span>
           ) : (
             <span className="text-right text-xs text-muted">마지막 화예요</span>
           )}

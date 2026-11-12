@@ -43,6 +43,15 @@ export async function listNovels() {
   return { viewer, novels: rows };
 }
 
+/** 이 작품에서 다음에 공개될 예약 회차의 공개 시각. 제목·내용은 알려 주지 않는다 */
+async function nextScheduledAt(novelId: number): Promise<Date | null> {
+  const [row] = await db
+    .select({ at: sql<Date | null>`min(${chapters.publishedAt})`.mapWith(chapters.publishedAt) })
+    .from(chapters)
+    .where(and(eq(chapters.novelId, novelId), isScheduledChapter));
+  return row?.at ?? null;
+}
+
 export async function getNovelDetail(novelId: number) {
   const viewer = await requireViewer();
   const isAdmin = viewer.kind === 'admin';
@@ -54,21 +63,24 @@ export async function getNovelDetail(novelId: number) {
   const readByMe = readerId ? chapterReadBy(readerId) : sql<boolean>`false`;
   const isNew = readerId ? chapterIsNewFor(readerId) : sql<boolean>`false`;
 
-  const list = await db
-    .select({
-      id: chapters.id,
-      position: chapters.position,
-      title: chapters.title,
-      status: chapters.status,
-      publishedAt: chapters.publishedAt,
-      scheduled: isScheduledChapter,
-      likeCount: chapterLikeCount,
-      readByMe,
-      isNew,
-    })
-    .from(chapters)
-    .where(and(eq(chapters.novelId, novelId), isAdmin ? undefined : isVisibleChapter))
-    .orderBy(asc(chapters.position), asc(chapters.id));
+  const [list, nextAt] = await Promise.all([
+    db
+      .select({
+        id: chapters.id,
+        position: chapters.position,
+        title: chapters.title,
+        status: chapters.status,
+        publishedAt: chapters.publishedAt,
+        scheduled: isScheduledChapter,
+        likeCount: chapterLikeCount,
+        readByMe,
+        isNew,
+      })
+      .from(chapters)
+      .where(and(eq(chapters.novelId, novelId), isAdmin ? undefined : isVisibleChapter))
+      .orderBy(asc(chapters.position), asc(chapters.id)),
+    nextScheduledAt(novelId),
+  ]);
 
   // 이어 읽기: 이 길드원이 이 작품에서 가장 최근에 연 회차
   let continueChapter: { id: number; position: number } | null = null;
@@ -89,7 +101,7 @@ export async function getNovelDetail(novelId: number) {
     continueChapter = row ?? null;
   }
 
-  return { viewer, novel, chapters: list, continueChapter };
+  return { viewer, novel, chapters: list, continueChapter, nextScheduledAt: nextAt };
 }
 
 export async function getChapterView(novelId: number, chapterId: number) {
@@ -123,7 +135,7 @@ export async function getChapterView(novelId: number, chapterId: number) {
     : and(eq(chapters.novelId, novelId), isVisibleChapter);
   const navColumns = { id: chapters.id, position: chapters.position, title: chapters.title };
 
-  const [[prev], [next], likes, [reads], [myView]] = await Promise.all([
+  const [[prev], [next], likes, [reads], [myView], nextAt] = await Promise.all([
     db
       .select(navColumns)
       .from(chapters)
@@ -161,6 +173,7 @@ export async function getChapterView(novelId: number, chapterId: number) {
           .where(and(eq(chapterViews.chapterId, chapter.id), eq(chapterViews.readerId, readerId)))
           .limit(1)
       : Promise.resolve([]),
+    nextScheduledAt(novelId),
   ]);
 
   // 열람 기록은 화면이 뜬 뒤에 저장되므로, 처음 여는 길드원은 본인을 미리 세어 준다
@@ -172,6 +185,8 @@ export async function getChapterView(novelId: number, chapterId: number) {
     chapter,
     prev: prev ?? null,
     next: next ?? null,
+    // 다음 회차가 아직 없을 때 '다음 화는 언제' 안내용
+    nextScheduledAt: nextAt,
     likes,
     readCount: (reads?.readers ?? 0) + (countsSelf ? 1 : 0),
   };

@@ -22,7 +22,7 @@ async function NovelDetail({ params }: Pick<PageProps<'/novels/[novelId]'>, 'par
   const data = await getNovelDetail(novelId);
   if (!data) notFound();
 
-  const { viewer, novel, chapters, continueChapter } = data;
+  const { viewer, novel, chapters, continueChapter, nextScheduledAt } = data;
   const first = chapters.find((chapter) => chapter.status === 'published' && !chapter.scheduled) ?? chapters[0];
 
   return (
@@ -67,6 +67,19 @@ async function NovelDetail({ params }: Pick<PageProps<'/novels/[novelId]'>, 'par
             </ButtonLink>
           )}
         </div>
+      ) : null}
+
+      {nextScheduledAt ? (
+        // 예약된 회차가 있으면 공개 시각만 알려 준다 (제목은 비밀)
+        <p className="mt-4 flex items-center gap-2.5 rounded-2xl bg-surface-2 px-4 py-3 text-sm">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-4 shrink-0 text-accent">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 7v5l3 2" />
+          </svg>
+          <span>
+            다음 화는 <strong className="font-semibold">{formatSchedule(nextScheduledAt)}</strong>에 올라와요
+          </span>
+        </p>
       ) : null}
 
       <section className="mt-10">
