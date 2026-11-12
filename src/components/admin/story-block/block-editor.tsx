@@ -756,7 +756,7 @@ function SpeakerChips({
                     type="button"
                     onClick={() => onSetRight('나')}
                     title="왼쪽으로 되돌리기"
-                    className="rounded-full px-1.5 text-xs text-fg transition hover:bg-surface-2"
+                    className="h-6 rounded-full px-1.5 text-xs text-fg transition hover:bg-surface-2"
                   >
                     오른쪽 ✓
                   </button>
@@ -765,7 +765,8 @@ function SpeakerChips({
                 <button
                   type="button"
                   onClick={() => onSetRight(name)}
-                  className="rounded-full px-1.5 text-xs text-muted transition hover:bg-surface-2 hover:text-fg"
+                  // 옆 ✎ 단추와 붙어 있어서 누르는 높이를 24px로 (WCAG 2.5.8)
+                  className="h-6 rounded-full px-1.5 text-xs text-muted transition hover:bg-surface-2 hover:text-fg"
                 >
                   오른쪽으로
                 </button>
