@@ -30,7 +30,8 @@ export const viewport: Viewport = {
 };
 
 // 저장된 읽기 설정을 그리기 전에 반영해서 글자 크기·테마가 깜빡이지 않게 한다
-const readerSettingsScript = `(function(){try{var s=JSON.parse(localStorage.getItem('wn:reader-settings')||'{}'),d=document.documentElement;['theme','size','leading','font'].forEach(function(k){if(s[k]!=null)d.dataset[k]=String(s[k]);});}catch(e){}})();`;
+// (에디터 집중 모드도 같이: CSS가 에디터가 있는 화면에서만 적용한다)
+const readerSettingsScript = `(function(){try{var s=JSON.parse(localStorage.getItem('wn:reader-settings')||'{}'),d=document.documentElement;['theme','size','leading','font'].forEach(function(k){if(s[k]!=null)d.dataset[k]=String(s[k]);});if(localStorage.getItem('wn:focus-mode')==='1')d.dataset.focus='on';}catch(e){}})();`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

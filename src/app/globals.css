@@ -322,6 +322,16 @@ body {
   opacity: 0.7;
   pointer-events: none;
 }
+/* 회차 에디터 집중 모드: 에디터가 있는 화면에서만 머리 메뉴·옆 칸·아래 줄을 숨기고 본문 칸을 가운데로 */
+html[data-focus="on"]:has([data-focus-grid]) [data-focus-hide] {
+  display: none !important;
+}
+html[data-focus="on"] [data-focus-grid] {
+  grid-template-columns: minmax(0, 1fr) !important;
+  max-width: 50rem;
+  margin-inline: auto;
+}
+
 /* 찾기·바꾸기: 찾은 곳 칠하기 (지금 고른 곳은 더 진하게) */
 .ProseMirror .wn-find-match {
   border-radius: 2px;

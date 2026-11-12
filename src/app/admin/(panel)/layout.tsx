@@ -12,7 +12,7 @@ export const metadata: Metadata = { title: '관리자' };
 export default function AdminPanelLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="border-b border-line bg-surface">
+      <header data-focus-hide="" className="border-b border-line bg-surface">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-1 px-4 pt-3 sm:h-16 sm:flex-nowrap sm:pt-0">
           <Link href="/admin" className="flex items-center gap-2 rounded-lg focus-visible:outline-2 focus-visible:outline-accent">
             <Logo />

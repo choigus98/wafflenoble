@@ -98,6 +98,8 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
   // 찾기·바꾸기 창. 열 때마다 번호를 올려서, 열린 상태에서 다시 열면(Cmd+F) 고른 글자로 새로 찾는다
   const [findSession, setFindSession] = useState(0);
   const [findOpen, setFindOpen] = useState(false);
+  // 집중 모드: 이 기기에 기억해 두고, 화면 맨 처음(layout의 스크립트)에 <html data-focus>로 반영된다
+  const [focusMode, setFocusMode] = useState(() => document.documentElement.dataset.focus === 'on');
   const [saveState, setSaveState] = useState<SaveState>('saved');
   const [message, setMessage] = useState<{ tone: 'info' | 'error'; text: string } | null>(null);
   const [savedAt, setSavedAt] = useState(chapter.updatedAt);
@@ -133,6 +135,16 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
   // Tiptap 콜백과 타이머가 항상 최신 함수를 부르도록 ref로 잡아 둔다
   const saveRef = useRef<() => Promise<boolean>>(async () => true);
   const changeRef = useRef<() => void>(() => {});
+  function toggleFocusMode() {
+    const next = !focusMode;
+    setFocusMode(next);
+    if (next) document.documentElement.dataset.focus = 'on';
+    else delete document.documentElement.dataset.focus;
+    try {
+      localStorage.setItem('wn:focus-mode', next ? '1' : '0');
+    } catch {}
+  }
+
   // setState 함수만 쓰므로 에디터 확장에 그대로 넘겨도 늘 같은 동작
   const openFind = () => {
     setFindOpen(true);
@@ -495,7 +507,11 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
 
       <div className="sticky top-0 z-20 -mx-1 mt-5 bg-bg/90 px-1 py-2 backdrop-blur-md">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          {editor ? <Toolbar editor={editor} onFind={openFind} /> : <div className="h-10" />}
+          {editor ? (
+            <Toolbar editor={editor} onFind={openFind} focusMode={focusMode} onToggleFocus={toggleFocusMode} />
+          ) : (
+            <div className="h-10" />
+          )}
           <div className="flex flex-wrap items-center justify-end gap-2">
             {editingTemplate ? (
               // 편집 중에는 발행이 막힌다는 걸 알려 주고, 여기서 바로 편집을 마칠 수 있게
@@ -619,7 +635,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
         />
       </div>
 
-      <div className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-6">
+      <div data-focus-hide="" className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-6">
         <a
           href={`/novels/${chapter.novelId}/${chapter.id}`}
           target="_blank"
@@ -718,7 +734,17 @@ function SchedulePopover({
   );
 }
 
-function Toolbar({ editor, onFind }: { editor: Editor; onFind: () => void }) {
+function Toolbar({
+  editor,
+  onFind,
+  focusMode,
+  onToggleFocus,
+}: {
+  editor: Editor;
+  onFind: () => void;
+  focusMode: boolean;
+  onToggleFocus: () => void;
+}) {
   const active = useEditorState({
     editor,
     selector: ({ editor: current }) => ({
@@ -768,6 +794,25 @@ function Toolbar({ editor, onFind }: { editor: Editor; onFind: () => void }) {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true" className="size-4">
           <circle cx="11" cy="11" r="6.5" />
           <path d="M16 16l4.5 4.5" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        onClick={onToggleFocus}
+        aria-pressed={focusMode}
+        title={focusMode ? '집중 모드 끝내기' : '집중 모드 (메뉴·옆 칸 숨기기)'}
+        aria-label="집중 모드"
+        className={cn(
+          'grid h-8 min-w-8 place-items-center rounded-lg px-2 transition',
+          focusMode ? 'bg-accent-soft text-accent' : 'text-fg hover:bg-surface-2',
+        )}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-4">
+          {focusMode ? (
+            <path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7" />
+          ) : (
+            <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+          )}
         </svg>
       </button>
     </div>

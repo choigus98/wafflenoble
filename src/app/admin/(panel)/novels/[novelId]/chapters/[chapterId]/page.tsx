@@ -26,7 +26,8 @@ async function ChapterAdmin({ params }: Pick<PageProps<'/admin/novels/[novelId]/
   const now = new Date();
 
   return (
-    <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_16rem]">
+    // data-focus-*: 에디터 집중 모드에서 옆 칸을 숨기고 본문 칸만 가운데로 (globals.css)
+    <div data-focus-grid="" className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_16rem]">
       <ChapterEditorLoader
         key={chapter.id}
         novelTitle={novelTitle}
@@ -45,7 +46,7 @@ async function ChapterAdmin({ params }: Pick<PageProps<'/admin/novels/[novelId]/
       />
 
       {/* 누가 읽었는지는 이 관리자 화면에서만 보인다 */}
-      <aside className="space-y-6 lg:pt-12">
+      <aside data-focus-hide="" className="space-y-6 lg:pt-12">
         <section className="space-y-2.5">
           <h2 className="text-sm font-bold">
             읽은 사람 <span className="text-muted">{viewers.length}명</span>
