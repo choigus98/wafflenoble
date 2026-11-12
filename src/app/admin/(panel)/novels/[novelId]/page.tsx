@@ -26,7 +26,7 @@ async function NovelAdmin({ params }: Pick<PageProps<'/admin/novels/[novelId]'>,
   const data = await adminGetNovel(novelId);
   if (!data) notFound();
 
-  const { novel, chapters } = data;
+  const { novel, chapters, totalReaders } = data;
   const now = new Date();
 
   return (
@@ -81,11 +81,13 @@ async function NovelAdmin({ params }: Pick<PageProps<'/admin/novels/[novelId]'>,
                       </span>
                     </span>
                   </span>
-                  <span className="shrink-0 text-right text-xs leading-relaxed text-muted tabular-nums">
-                    {chapter.readCount}명 읽음
-                    <br />
-                    <span className="text-like">♥ {chapter.likeCount}</span>
-                  </span>
+                  <ReadShare
+                    readCount={chapter.readCount}
+                    likeCount={chapter.likeCount}
+                    totalReaders={totalReaders}
+                    // 길드원에게 보이는 회차만 비율을 낸다 (임시저장·예약은 아직 읽을 수 없으니)
+                    visible={chapter.status === 'published' && !chapter.scheduled}
+                  />
                 </Link>
                 {/* 순서 바꾸기: 옆 회차와 'N화' 번호를 맞바꾼다 (링크는 그대로) */}
                 {chapters.length > 1 ? (
@@ -125,6 +127,44 @@ async function NovelAdmin({ params }: Pick<PageProps<'/admin/novels/[novelId]'>,
         </Card>
       </section>
     </div>
+  );
+}
+
+/** 회차 목록 오른쪽: 길드원 중 몇 명이 읽었는지(막대) + 좋아요 수 */
+function ReadShare({
+  readCount,
+  likeCount,
+  totalReaders,
+  visible,
+}: {
+  readCount: number;
+  likeCount: number;
+  totalReaders: number;
+  visible: boolean;
+}) {
+  const showShare = visible && totalReaders > 0;
+  const percent = showShare ? Math.min(100, Math.round((readCount / totalReaders) * 100)) : 0;
+  return (
+    <span className="flex shrink-0 flex-col items-end gap-1 text-right text-xs text-muted tabular-nums">
+      {showShare ? (
+        <>
+          <span>
+            <span aria-hidden="true">
+              <span className="font-semibold text-fg">{readCount}</span>/{totalReaders}명 읽음
+            </span>
+            <span className="sr-only">
+              길드원 {totalReaders}명 중 {readCount}명 읽음
+            </span>
+          </span>
+          <span aria-hidden="true" className="block h-1 w-16 overflow-hidden rounded-full bg-surface-2">
+            <span className="block h-full rounded-full bg-accent" style={{ width: `${percent}%` }} />
+          </span>
+        </>
+      ) : (
+        <span>{readCount}명 읽음</span>
+      )}
+      <span className="text-like">♥ {likeCount}</span>
+    </span>
   );
 }
 

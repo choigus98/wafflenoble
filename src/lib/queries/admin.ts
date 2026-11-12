@@ -39,23 +39,27 @@ export async function adminGetNovel(novelId: number) {
   await requireAdmin();
   const novel = await db.query.novels.findFirst({ where: eq(novels.id, novelId) });
   if (!novel) return null;
-  const list = await db
-    .select({
-      id: chapters.id,
-      position: chapters.position,
-      title: chapters.title,
-      status: chapters.status,
-      charCount: chapters.charCount,
-      publishedAt: chapters.publishedAt,
-      scheduled: isScheduledChapter,
-      updatedAt: chapters.updatedAt,
-      readCount: chapterReaderCount,
-      likeCount: chapterLikeCount,
-    })
-    .from(chapters)
-    .where(eq(chapters.novelId, novelId))
-    .orderBy(asc(chapters.position), asc(chapters.id));
-  return { novel, chapters: list };
+  const [list, [members]] = await Promise.all([
+    db
+      .select({
+        id: chapters.id,
+        position: chapters.position,
+        title: chapters.title,
+        status: chapters.status,
+        charCount: chapters.charCount,
+        publishedAt: chapters.publishedAt,
+        scheduled: isScheduledChapter,
+        updatedAt: chapters.updatedAt,
+        readCount: chapterReaderCount,
+        likeCount: chapterLikeCount,
+      })
+      .from(chapters)
+      .where(eq(chapters.novelId, novelId))
+      .orderBy(asc(chapters.position), asc(chapters.id)),
+    // 회차별 '길드원 N명 중 M명 읽음'의 N
+    db.select({ total: count() }).from(readers),
+  ]);
+  return { novel, chapters: list, totalReaders: members?.total ?? 0 };
 }
 
 export async function adminGetChapter(novelId: number, chapterId: number) {
