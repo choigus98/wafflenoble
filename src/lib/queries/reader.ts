@@ -219,7 +219,8 @@ export async function getChapterView(novelId: number, chapterId: number) {
         publishedAt: chapters.publishedAt,
         visibleNow: isVisibleChapter,
       },
-      novel: { id: novels.id, title: novels.title, isPublished: novels.isPublished },
+      // characters: 회차 끝 '이 회차 등장인물'
+      novel: { id: novels.id, title: novels.title, isPublished: novels.isPublished, characters: novels.characters },
     })
     .from(chapters)
     .innerJoin(novels, eq(novels.id, chapters.novelId))
@@ -268,7 +269,7 @@ export async function getChapterView(novelId: number, chapterId: number) {
 
   return {
     viewer,
-    novel: { id: row.novel.id, title: row.novel.title, isPublished: row.novel.isPublished },
+    novel: { id: row.novel.id, title: row.novel.title, isPublished: row.novel.isPublished, characters: row.novel.characters },
     chapter,
     prev,
     next,

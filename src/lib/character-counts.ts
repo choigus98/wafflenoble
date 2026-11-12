@@ -1,6 +1,7 @@
 import type { Node as PMNode } from '@tiptap/pm/model';
 import { storyBlockToText } from '@/lib/chapter-text';
 import { findMatches } from '@/lib/find';
+import type { Character } from '@/lib/characters';
 import { parseStoryBlock } from '@/lib/story-blocks';
 
 // 회차 에디터 '등장인물 횟수': 작품 정보의 등장인물 이름이 이 회차에 몇 번 나오는지.
@@ -77,4 +78,24 @@ export function characterCounts(doc: PMNode, rawNames: string[]): CharacterCount
     appeared: all.filter((item) => item.body + item.templates > 0).sort((a, b) => b.body + b.templates - (a.body + a.templates)),
     missing: all.filter((item) => item.body + item.templates === 0).map((item) => item.name),
   };
+}
+
+/**
+ * 열람 화면 '이 회차 등장인물': 글(본문 · 템플릿을 푼 것)에 한 번이라도 나온 인물만, 작품 정보에 적은 순서대로.
+ * 에디터와 같은 규칙 (영문 대소문자 무시, 긴 이름 안에 든 짧은 이름 자리는 긴 이름 몫, 같은 이름은 처음 것만)
+ */
+export function charactersInTexts(texts: string[], characters: Character[]): Character[] {
+  const names = characterNames(characters.map((character) => character.name));
+  const counts = new Map(names.map((name) => [name, 0]));
+  for (const text of texts) {
+    for (const [name, count] of claim(names, (name) => textMatches(text, name))) counts.set(name, (counts.get(name) ?? 0) + count);
+  }
+  const seen = new Set<string>();
+  return characters.flatMap((character) => {
+    const name = character.name.replace(/\s+/g, ' ').trim();
+    const key = fold(name);
+    if (!name || seen.has(key)) return [];
+    seen.add(key);
+    return (counts.get(name) ?? 0) > 0 ? [{ name, description: character.description }] : [];
+  });
 }

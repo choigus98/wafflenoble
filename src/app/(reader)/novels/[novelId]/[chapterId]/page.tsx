@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import { ChapterBody } from '@/components/reader/chapter-body';
+import { ChapterCharacters } from '@/components/reader/chapter-characters';
 import { ChapterToc } from '@/components/reader/chapter-toc';
 import { ChapterKeyNav } from '@/components/reader/chapter-key-nav';
 import { LikeButton } from '@/components/reader/like-button';
@@ -11,6 +12,9 @@ import { ReadingProgress } from '@/components/reader/reading-progress';
 import { ViewTracker } from '@/components/reader/view-tracker';
 import { Badge, ButtonLink, Skeleton } from '@/components/ui';
 import { formatDate, formatNumber, formatSchedule } from '@/lib/format';
+import { charactersInTexts } from '@/lib/character-counts';
+import { parseCharacters } from '@/lib/characters';
+import { chapterTexts } from '@/lib/content';
 import { formatReadingTime, readingMinutes } from '@/lib/reading-time';
 import { getChapterView } from '@/lib/queries/reader';
 import { parseId } from '@/lib/utils';
@@ -34,6 +38,9 @@ async function ChapterView({ params }: Pick<PageProps<'/novels/[novelId]/[chapte
   const { viewer, novel, chapter, prev, next, toc, nextScheduledAt, likes, readCount } = data;
   const isReader = viewer.kind === 'reader';
   const minutes = readingMinutes(chapter.charCount);
+  // 회차 끝 '이 회차 등장인물': 작품 정보의 등장인물 중 이 회차 본문·템플릿에 나온 인물만
+  const characters = parseCharacters(novel.characters);
+  const inChapter = characters.length > 0 && chapter.contentHtml ? charactersInTexts(chapterTexts(chapter.contentHtml), characters) : [];
 
   return (
     // data-reading: 이 화면에서는 읽기 설정 '본문 폭'을 따른다 (globals.css)
@@ -109,6 +116,8 @@ async function ChapterView({ params }: Pick<PageProps<'/novels/[novelId]/[chapte
       ) : (
         <p className="py-16 text-center text-muted">아직 본문이 없어요.</p>
       )}
+
+      {inChapter.length > 0 ? <ChapterCharacters characters={inChapter} /> : null}
 
       {chapter.authorNote ? (
         <aside aria-labelledby="author-note-title" className="mb-10 rounded-2xl bg-surface-2 px-5 py-4">

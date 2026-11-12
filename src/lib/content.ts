@@ -1,6 +1,7 @@
 import 'server-only';
 import sanitizeHtml from 'sanitize-html';
-import { normalizeStoryBlocks } from '@/lib/story-blocks';
+import { storyBlockToText } from '@/lib/chapter-text';
+import { normalizeStoryBlocks, splitStoryContent } from '@/lib/story-blocks';
 
 // 에디터에서 만들 수 있는 것만 허용 (문단, 줄바꿈, 굵게, 기울임, 취소선, 장면 전환, 인용, 템플릿 블록)
 const ALLOWED_TAGS = ['p', 'br', 'strong', 'em', 's', 'hr', 'blockquote', 'div'];
@@ -44,4 +45,19 @@ export function htmlExcerpt(html: string, max = 60): string {
     .trim();
   const chars = [...text];
   return chars.length > max ? `${chars.slice(0, max).join('')}…` : text;
+}
+
+/**
+ * 열람 화면 '이 회차 등장인물'용: 본문 글(문단마다 줄을 바꿔서, 문단 끝과 다음 문단 첫머리가 이어 붙지 않게)과
+ * 템플릿을 텍스트로 내보내기와 같은 글로 푼 것들
+ */
+export function chapterTexts(html: string): string[] {
+  return splitStoryContent(html).map((segment) =>
+    segment.type === 'block'
+      ? storyBlockToText(segment.block)
+      : sanitizeHtml(segment.html.replace(/<\/(p|blockquote)>|<br\s*\/?>|<hr\s*\/?>/g, '\n'), { allowedTags: [], allowedAttributes: {} }).replace(
+          /&(amp|lt|gt|quot|#39|nbsp);/g,
+          (entity) => ENTITIES[entity] ?? entity,
+        ),
+  );
 }

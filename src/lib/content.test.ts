@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { countCharacters, htmlExcerpt, sanitizeChapterHtml } from '@/lib/content';
+import { chapterTexts, countCharacters, htmlExcerpt, sanitizeChapterHtml } from '@/lib/content';
+import { createTemplate } from '@/lib/story-blocks';
 
 describe('본문 정제', () => {
   it('에디터에서 만들 수 있는 태그만 남긴다 (빈 태그는 <br /> 형태로 저장)', () => {
@@ -46,5 +47,18 @@ describe('본문 첫머리 (발행본 목록용)', () => {
   it('길면 자르고 말줄임표', () => {
     expect(htmlExcerpt(`<p>${'가'.repeat(80)}</p>`, 10)).toBe(`${'가'.repeat(10)}…`);
     expect(htmlExcerpt('')).toBe('');
+  });
+});
+
+describe("열람 화면 '이 회차 등장인물'용 글", () => {
+  it('본문은 문단마다 줄을 바꾸고(글자 칸 기호 풀기), 템플릿은 텍스트로 내보내기와 같은 글로', () => {
+    const memo = createTemplate('note');
+    if (memo.kind !== 'note') throw new Error('쪽지 템플릿이 아니에요');
+    const data = JSON.stringify({ ...memo.data, to: '지은에게', body: '고마워', from: '수진' }).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+    const texts = chapterTexts(`<p>지은 &amp; 수진</p><p>둘째<br />줄</p><div data-wn-block="note" data-wn-data="${data}"></div><p>끝</p>`);
+    expect(texts).toHaveLength(3);
+    expect(texts[0]).toBe('지은 & 수진\n둘째\n줄\n');
+    expect(texts[1].split('\n')).toEqual(['[쪽지 · 메모]', '지은에게', '고마워', '수진']);
+    expect(texts[2]).toBe('끝\n');
   });
 });
