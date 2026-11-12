@@ -65,6 +65,9 @@ describe('자주 틀리는 말', () => {
     // 위치: 첫 문단 안쪽은 1부터, '"안' 다음이 '됬'
     expect(matches[0].from).toBe(3);
     expect(doc.textBetween(matches[1].from, matches[1].to)).toBe('갈께');
+    // '그대로 두기'한 낱말은 모양이 똑같을 때만 빠진다 ('갈께'를 두어도 '갈께요'는 그대로 잡힘)
+    expect(spellingMatches(doc, new Set(['갈께요'])).map((match) => match.word)).toEqual(['안됬어']);
+    expect(spellingMatches(doc, new Set(['갈께'])).map((match) => match.word)).toEqual(['안됬어', '갈께요']);
   });
 
   it('알림 글의 조사: 받침에 따라 을/를 · 으로/로 (ㄹ 받침은 로)', () => {

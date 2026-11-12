@@ -7,27 +7,28 @@ import { Extension, useEditorState, type Editor } from '@tiptap/react';
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { scrollBelowBar } from '@/lib/motion';
 import { objectParticle, spellingMatches, toParticle, type SpellingMatch } from '@/lib/spelling';
+import { SPELLING_KEEP_KEY, addSpellingKeep, parseSpellingKeep, removeSpellingKeep } from '@/lib/spelling-keep';
 
 // ─── 틀린 곳 칠하기 (ProseMirror 플러그인) ─────────────────────
 // 창이 열려 있을 때만 찾고(물결 밑줄), 문서가 바뀔 때마다 다시 찾는다.
-// 켜고 끄기·지금 고른 곳은 트랜잭션 메타로 받아서 자동저장·되돌리기 기록에 남지 않는다.
+// 켜고 끄기·지금 고른 곳·'그대로 두기'한 낱말은 트랜잭션 메타로 받아서 자동저장·되돌리기 기록에 남지 않는다.
 
-type SpellState = { active: boolean; current: number; matches: SpellingMatch[]; decorations: DecorationSet };
-type SpellMeta = { active?: boolean; current?: number };
+type SpellState = { active: boolean; current: number; keep: string[]; matches: SpellingMatch[]; decorations: DecorationSet };
+type SpellMeta = { active?: boolean; current?: number; keep?: string[] };
 
 export const spellingKey = new PluginKey<SpellState>('wn-spelling');
 
-const OFF: SpellState = { active: false, current: -1, matches: [], decorations: DecorationSet.empty };
+const OFF: SpellState = { active: false, current: -1, keep: [], matches: [], decorations: DecorationSet.empty };
 
-function buildState(doc: PMNode, current: number): SpellState {
-  const matches = spellingMatches(doc);
+function buildState(doc: PMNode, current: number, keep: string[]): SpellState {
+  const matches = spellingMatches(doc, new Set(keep));
   const decorations = DecorationSet.create(
     doc,
     matches.map((match, index) =>
       Decoration.inline(match.from, match.to, { class: index === current ? 'wn-spell-issue wn-spell-current' : 'wn-spell-issue' }),
     ),
   );
-  return { active: true, current, matches, decorations };
+  return { active: true, current, keep, matches, decorations };
 }
 
 export const SpellingCheck = Extension.create({
@@ -44,8 +45,9 @@ export const SpellingCheck = Extension.create({
             const active = meta?.active ?? previous.active;
             if (!active) return previous.active ? OFF : previous;
             if (!meta && !tr.docChanged) return previous;
-            // 글을 고치면 고른 곳이 어긋나므로 고른 표시는 지운다
-            return buildState(newState.doc, meta?.current ?? (tr.docChanged ? -1 : previous.current));
+            // 글을 고치거나 그대로 둘 말이 바뀌면 고른 곳이 어긋나므로 고른 표시는 지운다
+            const keep = meta?.keep ?? previous.keep;
+            return buildState(newState.doc, meta?.current ?? (tr.docChanged || meta?.keep ? -1 : previous.current), keep);
           },
         },
         props: {
@@ -58,6 +60,21 @@ export const SpellingCheck = Extension.create({
 
 // ─── 자주 틀리는 말 창 ─────────────────────────────────────────
 
+function readKeep(): string[] {
+  try {
+    return parseSpellingKeep(localStorage.getItem(SPELLING_KEEP_KEY));
+  } catch {
+    return [];
+  }
+}
+
+function writeKeep(list: string[]) {
+  try {
+    if (list.length === 0) localStorage.removeItem(SPELLING_KEEP_KEY);
+    else localStorage.setItem(SPELLING_KEEP_KEY, JSON.stringify(list));
+  } catch {}
+}
+
 export function SpellingPanel({ editor, onClose }: { editor: Editor; onClose: () => void }) {
   const { active, matches } = useEditorState({
     editor,
@@ -66,32 +83,51 @@ export function SpellingPanel({ editor, onClose }: { editor: Editor; onClose: ()
       return { active: state?.active ?? false, matches: state?.matches ?? [] };
     },
   }) ?? { active: false, matches: [] };
+  // '그대로 두기'한 낱말 (이 기기에 하나, 회차가 바뀌어도 그대로)
+  const [keep, setKeep] = useState<string[]>(readKeep);
   const [notice, setNotice] = useState('');
   const noticeTimerRef = useRef<number | null>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const emptyRef = useRef<HTMLParagraphElement>(null);
   const sectionRef = useRef<HTMLElement>(null);
+  const keepSummaryRef = useRef<HTMLElement>(null);
   // 처음 찾은 뒤 한 번: 첫 항목으로(없으면 '찾은 곳이 없어요'로) 포커스
   const initialFocusRef = useRef(true);
   // 하나를 고친 뒤 포커스를 둘 자리 (같은 순번의 다음 항목, 없으면 닫기 단추)
   const focusAfterFixRef = useRef<number | null>(null);
+  // 그대로 두던 마지막 낱말을 다시 점검하면 '그대로 두는 말' 칸이 사라지므로, 되살아난 첫 항목으로
+  const focusFirstRef = useRef(false);
 
-  // 열면 칠하기 시작, 닫으면 칠한 것 지우기
+  // 열면 칠하기 시작(그대로 둘 말은 빼고), 닫으면 칠한 것 지우기
   useEffect(() => {
     if (editor.isDestroyed) return;
-    editor.view.dispatch(editor.state.tr.setMeta(spellingKey, { active: true, current: -1 } satisfies SpellMeta));
+    editor.view.dispatch(editor.state.tr.setMeta(spellingKey, { active: true, current: -1, keep: readKeep() } satisfies SpellMeta));
     return () => {
       if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
       if (!editor.isDestroyed) editor.view.dispatch(editor.state.tr.setMeta(spellingKey, { active: false } satisfies SpellMeta));
     };
   }, [editor]);
 
+  // 그대로 둘 말이 바뀌면 이 기기에 기억하고 다시 찾는다 (처음 열 때는 위에서 같은 값으로 이미 찾음)
+  useEffect(() => {
+    writeKeep(keep);
+    if (editor.isDestroyed) return;
+    const state = spellingKey.getState(editor.state);
+    if (!state?.active || state.keep.join('\n') === keep.join('\n')) return;
+    editor.view.dispatch(editor.state.tr.setMeta(spellingKey, { keep } satisfies SpellMeta));
+  }, [editor, keep]);
+
   useEffect(() => {
     if (!active) return;
     if (initialFocusRef.current) {
       initialFocusRef.current = false;
       (listRef.current?.querySelector<HTMLButtonElement>('button[data-reveal]') ?? emptyRef.current)?.focus();
+      return;
+    }
+    if (focusFirstRef.current) {
+      focusFirstRef.current = false;
+      (listRef.current?.querySelector<HTMLButtonElement>('button[data-reveal]') ?? closeRef.current)?.focus();
       return;
     }
     const index = focusAfterFixRef.current;
@@ -131,6 +167,24 @@ export function SpellingPanel({ editor, onClose }: { editor: Editor; onClose: ()
     focusAfterFixRef.current = index;
     editor.view.dispatch(editor.state.tr.insertText(match.right, match.from, match.to));
     announce(`'${match.word}'${objectParticle(match.word)} '${match.fixedWord}'${toParticle(match.fixedWord)} 고쳤어요`);
+  }
+
+  /** 그대로 두기: 일부러 쓴 말(사투리·말투)은 이 기기에서 점검에서 뺀다. 같은 모양의 낱말은 모두 빠진다 */
+  function keepWord(index: number) {
+    const match = matches[index];
+    if (!match) return;
+    focusAfterFixRef.current = index;
+    setKeep((list) => addSpellingKeep(list, match.word));
+    announce(`'${match.word}'${objectParticle(match.word)} 그대로 둘게요. 아래 '그대로 두는 말'에서 다시 점검할 수 있어요`);
+  }
+
+  function unkeepWord(word: string) {
+    const last = keep.length === 1;
+    setKeep((list) => removeSpellingKeep(list, word));
+    announce(`'${word}'${objectParticle(word)} 다시 점검해요`);
+    // 지운 칩 자리 대신 '그대로 두는 말' 제목으로 (마지막 하나였으면 그 칸이 사라지니 되살아난 첫 항목으로)
+    if (last) focusFirstRef.current = true;
+    else keepSummaryRef.current?.focus();
   }
 
   /** 모두 고치기: 한 번에 바꿔서 되돌리기 한 번이면 전부 돌아온다 */
@@ -207,6 +261,16 @@ export function SpellingPanel({ editor, onClose }: { editor: Editor; onClose: ()
               >
                 고치기
               </button>
+              {/* 일부러 쓴 말이면 그대로 두기 (같은 모양은 모두, 이 기기에서) */}
+              <button
+                type="button"
+                onClick={() => keepWord(index)}
+                aria-label={`${match.word} 그대로 두기`}
+                title="일부러 쓴 말이면 그대로 두기 (이 기기에서 점검에서 빼요)"
+                className={`${textButton} px-2 text-muted hover:bg-surface hover:text-fg`}
+              >
+                그대로
+              </button>
             </li>
           ))}
         </ul>
@@ -215,6 +279,37 @@ export function SpellingPanel({ editor, onClose }: { editor: Editor; onClose: ()
           {active ? '찾은 곳이 없어요. ' : ''}틀림이 확실한 말(됬 → 됐, 몇일 → 며칠, 할께 → 할게 …)만 찾아요.
         </p>
       )}
+      {keep.length > 0 ? (
+        <details className="group mt-1 px-1.5 text-xs">
+          <summary
+            ref={keepSummaryRef}
+            className="flex min-h-8 cursor-pointer list-none items-center gap-1 rounded-md font-semibold text-muted hover:text-fg [&::-webkit-details-marker]:hidden"
+          >
+            그대로 두는 말 {keep.length}개 <span className="font-normal">(이 기기)</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-3.5 transition group-open:rotate-180">
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </summary>
+          <ul className="flex flex-wrap gap-1 pt-1 pb-1.5">
+            {keep.map((word) => (
+              <li key={word}>
+                <button
+                  type="button"
+                  onClick={() => unkeepWord(word)}
+                  aria-label={`${word} 다시 점검하기`}
+                  title="다시 점검하기"
+                  className="inline-flex h-7 items-center gap-1 rounded-full border border-line bg-surface px-2.5 text-xs font-semibold break-all text-fg transition hover:bg-surface-2"
+                >
+                  {word}
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true" className="size-3 text-muted">
+                    <path d="M6 6l12 12M18 6L6 18" />
+                  </svg>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
       {/* 알림 칸은 늘 두고 글자만 바꿔야 화면 낭독기가 읽어 준다 */}
       <span role="status" className="block px-1.5 text-xs font-semibold text-accent empty:hidden">
         {notice}

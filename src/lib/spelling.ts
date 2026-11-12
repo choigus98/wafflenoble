@@ -133,8 +133,13 @@ const TRIM = /^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu;
 
 export type SpellingMatch = { from: number; to: number; wrong: string; right: string; why: string; word: string; fixedWord: string };
 
-/** 문서에서 틀린 곳 (문단마다, 문서 앞에서부터). word·fixedWord는 목록에 보여 줄 낱말 하나 (고치기 전·후) */
-export function spellingMatches(doc: PMNode): SpellingMatch[] {
+const NOTHING: ReadonlySet<string> = new Set();
+
+/**
+ * 문서에서 틀린 곳 (문단마다, 문서 앞에서부터). word·fixedWord는 목록에 보여 줄 낱말 하나 (고치기 전·후).
+ * keep: '그대로 두기'한 낱말들 (word가 똑같으면 뺀다, lib/spelling-keep.ts)
+ */
+export function spellingMatches(doc: PMNode, keep: ReadonlySet<string> = NOTHING): SpellingMatch[] {
   const matches: SpellingMatch[] = [];
   doc.descendants((node, pos) => {
     if (!node.isTextblock) return true;
@@ -150,13 +155,15 @@ export function spellingMatches(doc: PMNode): SpellingMatch[] {
       while (right < text.length && !EDGE.test(text[right]) && right - issue.index < 20) right += 1;
       const before = text.slice(left, issue.index);
       const after = text.slice(issue.index + issue.length, right);
+      const word = `${before}${issue.wrong}${after}`.replace(TRIM, '') || issue.wrong;
+      if (keep.has(word)) continue;
       matches.push({
         from: start + issue.index,
         to: start + issue.index + issue.length,
         wrong: issue.wrong,
         right: issue.right,
         why: issue.why,
-        word: `${before}${issue.wrong}${after}`.replace(TRIM, '') || issue.wrong,
+        word,
         fixedWord: `${before}${issue.right}${after}`.replace(TRIM, '') || issue.right,
       });
     }
