@@ -320,10 +320,19 @@ export function ChapterListen({ next }: { next: { href: string; label: string } 
             )}
           </button>
           <p className="min-w-0 flex-1 px-1.5 leading-tight">
-            <span className="block truncate text-[13px] font-semibold">{status === 'done' ? '다 읽었어요' : status === 'playing' ? '듣는 중' : '멈춤'}</span>
-            <span className="block truncate text-xs text-muted tabular-nums">
-              {status === 'done' ? next?.label : `${place.index + 1} / ${place.total}`}
-            </span>
+            {status === 'done' ? (
+              // 다 읽은 뒤에는 다음 화 이름을 먼저. 좁은 화면(360px 미만)은 '다 읽었어요'까지 넣으면 '다 읽…'으로 잘려서 뺀다
+              // (다 읽었다는 건 낭독기 알림으로도 전함)
+              <>
+                <span className="block truncate text-[13px] font-semibold">{next?.label}</span>
+                <span className="block truncate text-xs text-muted max-[360px]:hidden">다 읽었어요</span>
+              </>
+            ) : (
+              <>
+                <span className="block truncate text-[13px] font-semibold">{status === 'playing' ? '듣는 중' : '멈춤'}</span>
+                <span className="block truncate text-xs text-muted tabular-nums">{`${place.index + 1} / ${place.total}`}</span>
+              </>
+            )}
           </p>
           {/* 다 읽은 뒤에는 빠르기 대신 '다음 화도 듣기'와 그만 듣기만 */}
           {status === 'done' ? null : (

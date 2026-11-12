@@ -2570,9 +2570,11 @@ export function StockCard({ data, field }: { data: StockData; field?: FieldRende
       {show('volume') || show('note') ? (
         <div className="mt-3 flex flex-wrap gap-x-3 gap-y-0.5 border-t border-(--wn-border) pt-2.5 text-xs text-(--wn-stock-flat)">
           {show('volume') ? (
-            // 에디터에서는 '거래량' 글자와 입력칸을 가운데 맞춤으로 (입력칸 아래 끝에 글자가 붙지 않게)
+            // 에디터에서는 '거래량' 글자와 입력칸을 가운데 맞춤으로 (입력칸 아래 끝에 글자가 붙지 않게).
+            // 좁은 화면에서 긴 거래량을 넣어도 '거래량'은 줄지 않게 (입력칸이 대신 좁아짐)
             <span className="inline-flex max-w-full items-center gap-1 break-keep">
-              거래량 {slot('volume', '거래량 (비우면 안 보여요)', 30, 'max-w-full')}
+              <span className="shrink-0">거래량</span>
+              {slot('volume', '거래량 (비우면 안 보여요)', 30, 'max-w-full')}
             </span>
           ) : null}
           {show('note') ? <span className="max-w-full break-keep">{slot('note', '맨 아래 한 줄 (비우면 안 보여요)', 40, 'max-w-full')}</span> : null}

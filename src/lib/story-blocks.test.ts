@@ -861,6 +861,9 @@ describe('주식 시세', () => {
   it('흐름 숫자: 띄어쓰기·줄바꿈으로 나누고 쉼표는 떼고, 숫자가 아닌 것은 건너뜀', () => {
     expect(parseStockPoints(' 70,100  70,800\n71,200 abc 72,400원 -3.5 ')).toEqual([70100, 70800, 71200, -3.5]);
     expect(parseStockPoints('')).toEqual([]);
+    // 띄어 쓴 쉼표는 0이 되지 않고, − (U+2212) 빼기도 음수로
+    expect(parseStockPoints('70,100 , 70,800 ,')).toEqual([70100, 70800]);
+    expect(parseStockPoints('−3 −1.5 2 − -')).toEqual([-3, -1.5, 2]);
   });
 
   it('방향: 등락 앞 기호로, 없으면 흐름의 처음·끝, 같으면 보합', () => {

@@ -936,8 +936,10 @@ export type StockDirection = 'up' | 'down' | 'flat';
 export function parseStockPoints(text: string): number[] {
   return text
     .split(/\s+/)
+    // 천 단위 쉼표를 지운 뒤 빈 칸이 된 것(띄어 쓴 쉼표 '70,100 , 70,800')은 0이 아니라 건너뛰고, 빼기 기호 −(U+2212)는 -로
+    .map((token) => token.replace(/,/g, '').replace(/^−/, '-'))
     .filter(Boolean)
-    .map((token) => Number(token.replace(/,/g, '')))
+    .map(Number)
     .filter((value) => Number.isFinite(value))
     .slice(0, 60);
 }
