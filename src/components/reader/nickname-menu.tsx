@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { startTransition, useActionState, useRef, useState, type FormEvent } from 'react';
 import { changeNickname, leaveGuild } from '@/app/(reader)/actions';
 import { useDismiss } from '@/components/use-dismiss';
@@ -67,6 +68,9 @@ export function NicknameMenu({ name }: { name: string }) {
             </form>
           ) : (
             <div className="flex flex-col">
+              <Link href="/me" onClick={() => setOpen(false)} className="rounded-xl px-3 py-2.5 text-sm hover:bg-surface-2">
+                내 기록
+              </Link>
               <button
                 type="button"
                 onClick={() => setEditing(true)}

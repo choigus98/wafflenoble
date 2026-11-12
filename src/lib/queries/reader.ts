@@ -2,7 +2,7 @@ import 'server-only';
 import { and, asc, count, desc, eq, gt, or, sql } from 'drizzle-orm';
 import { requireViewer } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
-import { chapterViews, chapters, novels } from '@/lib/db/schema';
+import { chapterLikes, chapterViews, chapters, novels } from '@/lib/db/schema';
 import { getLikeSummary } from './reactions';
 import {
   chapterIsNewFor,
@@ -85,6 +85,58 @@ function listNovelRows(isAdmin: boolean, readerId: string | null) {
     .from(novels)
     .where(isAdmin ? undefined : eq(novels.isPublished, true))
     .orderBy(sql`${novelLastVisibleAt} desc nulls last`, desc(novels.createdAt));
+}
+
+/**
+ * 길드원 '내 기록': 내가 좋아요한 회차, 최근에 읽은 회차, 읽은·좋아요 수 (지금도 보이는 회차만).
+ * 길드원 본인 것만 조회한다. 관리자는 길드원 기록이 없어서 null
+ */
+export async function getMyRecord() {
+  const viewer = await requireViewer();
+  if (viewer.kind !== 'reader') return { viewer, record: null };
+  const readerId = viewer.reader.id;
+  const visible = and(eq(novels.isPublished, true), isVisibleChapter);
+  const chapterColumns = {
+    chapterId: chapters.id,
+    position: chapters.position,
+    title: chapters.title,
+    novelId: novels.id,
+    novelTitle: novels.title,
+  };
+  const [liked, recent, [likeTotal], [readTotal]] = await Promise.all([
+    db
+      .select({ at: chapterLikes.createdAt, ...chapterColumns })
+      .from(chapterLikes)
+      .innerJoin(chapters, eq(chapters.id, chapterLikes.chapterId))
+      .innerJoin(novels, eq(novels.id, chapters.novelId))
+      .where(and(eq(chapterLikes.readerId, readerId), visible))
+      .orderBy(desc(chapterLikes.createdAt))
+      .limit(50),
+    db
+      .select({ at: chapterViews.lastViewedAt, ...chapterColumns })
+      .from(chapterViews)
+      .innerJoin(chapters, eq(chapters.id, chapterViews.chapterId))
+      .innerJoin(novels, eq(novels.id, chapters.novelId))
+      .where(and(eq(chapterViews.readerId, readerId), visible))
+      .orderBy(desc(chapterViews.lastViewedAt))
+      .limit(10),
+    db
+      .select({ total: count() })
+      .from(chapterLikes)
+      .innerJoin(chapters, eq(chapters.id, chapterLikes.chapterId))
+      .innerJoin(novels, eq(novels.id, chapters.novelId))
+      .where(and(eq(chapterLikes.readerId, readerId), visible)),
+    db
+      .select({ total: count() })
+      .from(chapterViews)
+      .innerJoin(chapters, eq(chapters.id, chapterViews.chapterId))
+      .innerJoin(novels, eq(novels.id, chapters.novelId))
+      .where(and(eq(chapterViews.readerId, readerId), visible)),
+  ]);
+  return {
+    viewer,
+    record: { nickname: viewer.reader.nickname, liked, recent, likeCount: likeTotal?.total ?? 0, readCount: readTotal?.total ?? 0 },
+  };
 }
 
 /** 이 작품에서 다음에 공개될 예약 회차의 공개 시각. 제목·내용은 알려 주지 않는다 */
