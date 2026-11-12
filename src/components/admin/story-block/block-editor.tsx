@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type KeyboardEvent, type Ref } from 'react';
-import { DonationCard, LiveCard, StoryBlockView, type FieldRenderer } from '@/components/story-block-view';
+import { DonationCard, LiveCard, NewsCard, StoryBlockView, type FieldRenderer } from '@/components/story-block-view';
 import { Button } from '@/components/ui';
 import {
   CHAT_COLORS,
@@ -31,7 +31,7 @@ import { cn } from '@/lib/utils';
 // 입력은 화면에 바로 보이고, 문서(→ 자동저장)에는 잠깐 모았다가 반영한다 (커서 튐 방지, 저장 횟수 줄이기)
 const COMMIT_DELAY_MS = 300;
 
-type CardBlock = Extract<StoryBlock, { kind: 'live' | 'donation' }>;
+type CardBlock = Extract<StoryBlock, { kind: 'live' | 'donation' | 'news' }>;
 type ConversationBlock = Extract<StoryBlock, { kind: 'kakao' | 'chat' | 'post' | 'system' }>;
 
 const TEXTAREA =
@@ -94,7 +94,7 @@ function useDraft<T extends StoryBlock>(block: T, onChange: (block: StoryBlock) 
   return { draft, update, flush, cancel };
 }
 
-// ─── 방송창 · 후원 알림: 카드 위에서 바로 고치기 ───────────────
+// ─── 방송창 · 후원 알림 · 뉴스 기사: 카드 위에서 바로 고치기 ──────
 
 const INLINE_EDIT =
   'rounded-md bg-transparent outline-none ring-1 ring-transparent transition placeholder:text-(--wn-muted) placeholder:opacity-70 hover:ring-(--wn-border) focus:ring-2 focus:ring-accent';
@@ -110,7 +110,7 @@ export function InlineCardEditor({
 }) {
   // 입력칸에서 벗어나면 바로 반영한다 (고치자마자 발행을 눌러도 마지막 글자가 빠지지 않게)
   const { draft, update, flush } = useDraft(block, onChange);
-  const firstField = draft.kind === 'live' ? 'streamer' : 'donor';
+  const firstField = draft.kind === 'live' ? 'streamer' : draft.kind === 'donation' ? 'donor' : 'title';
 
   const field: FieldRenderer = ({ name, value, label, placeholder, maxLength, className, multiline }) => {
     const set = (next: string) => update({ ...draft, data: { ...draft.data, [name]: next } } as CardBlock);
@@ -122,6 +122,7 @@ export function InlineCardEditor({
         placeholder={placeholder}
         maxLength={maxLength}
         rows={1}
+        autoFocus={autoFocus && name === firstField}
         onChange={(e) => set(e.target.value)}
         onBlur={flush}
         className={cn(className, INLINE_EDIT, 'resize-none field-sizing-content')}
@@ -142,7 +143,14 @@ export function InlineCardEditor({
     );
   };
 
-  return draft.kind === 'live' ? <LiveCard data={draft.data} field={field} /> : <DonationCard data={draft.data} field={field} />;
+  switch (draft.kind) {
+    case 'live':
+      return <LiveCard data={draft.data} field={field} />;
+    case 'donation':
+      return <DonationCard data={draft.data} field={field} />;
+    case 'news':
+      return <NewsCard data={draft.data} field={field} />;
+  }
 }
 
 // ─── 카톡 · 채팅창 · 게시글 댓글: 대본으로 쓰기 ──────────────
@@ -328,9 +336,9 @@ export function ConversationEditor({
               <textarea
                 value={draft.data.body}
                 onChange={(e) => setData({ body: e.target.value })}
-                aria-label="본문"
+                aria-label="게시글 본문"
                 maxLength={LIMITS.body}
-                placeholder="본문"
+                placeholder="게시글 본문"
                 className={cn(TEXTAREA, 'min-h-32')}
               />
               <span aria-hidden="true" className="mt-2 text-xs font-semibold text-muted">

@@ -15,6 +15,7 @@ import {
   type DonationData,
   type KakaoData,
   type LiveData,
+  type NewsData,
   type PostData,
   type StoryBlock,
   type SystemData,
@@ -55,6 +56,8 @@ export function StoryBlockView({ block }: { block: StoryBlock }) {
       return <PostCard data={block.data} />;
     case 'system':
       return <SystemCard data={block.data} />;
+    case 'news':
+      return <NewsCard data={block.data} />;
   }
 }
 
@@ -393,6 +396,53 @@ function SystemCard({ data }: { data: SystemData }) {
               );
           }
         })}
+      </div>
+    </div>
+  );
+}
+
+/** 뉴스 기사. 에디터에서는 field로 글자 자리를 입력칸으로 바꿔 카드 위에서 바로 고친다 */
+export function NewsCard({ data, field }: { data: NewsData; field?: FieldRenderer }) {
+  const editing = Boolean(field);
+  const slot = (name: keyof NewsData, label: string, maxLength: number, className: string, multiline = false) =>
+    field ? (
+      field({ name, value: data[name], label, placeholder: label, maxLength, className, multiline })
+    ) : (
+      <span className={className}>{data[name]}</span>
+    );
+  // 읽는 화면: 빈 줄로 문단을 나눈다
+  const paragraphs = data.body.split(/\n\s*\n/).map((paragraph) => paragraph.trim()).filter(Boolean);
+  const meta = [data.reporter.trim(), data.date.trim()].filter(Boolean);
+
+  return (
+    <div className={cn(CARD, 'bg-(--wn-news-bg) px-5 pt-4 pb-5')}>
+      <div className="border-b-2 border-(--wn-fg) pb-2">{slot('press', '언론사', 40, 'text-[14px] font-extrabold tracking-wide text-(--wn-news-press)')}</div>
+      <div className="mt-3">{slot('title', '기사 제목', 120, 'block w-full font-serif text-[21px] leading-snug font-bold whitespace-pre-wrap', true)}</div>
+      {editing || data.subtitle ? (
+        <div className="mt-2">{slot('subtitle', '부제 (비우면 안 보여요)', 160, 'block w-full text-[15px] leading-snug text-(--wn-muted) whitespace-pre-wrap', true)}</div>
+      ) : null}
+      {editing ? (
+        <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-(--wn-muted)">
+          {slot('reporter', '기자', 40, '')}
+          <span aria-hidden="true">·</span>
+          {slot('date', '시각', 40, 'tabular-nums')}
+        </div>
+      ) : meta.length > 0 ? (
+        <div className="mt-3 text-xs text-(--wn-muted) tabular-nums">{meta.join(' · ')}</div>
+      ) : null}
+      <div className="mt-3 border-t border-(--wn-line) pt-4 leading-relaxed">
+        {editing ? (
+          // 회차 본문 편집기('본문')와 이름이 겹치지 않게
+          slot('body', '기사 본문', 5000, 'block w-full whitespace-pre-wrap', true)
+        ) : (
+          <div className="space-y-3">
+            {paragraphs.map((paragraph, index) => (
+              <div key={index} className="whitespace-pre-wrap">
+                {paragraph}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

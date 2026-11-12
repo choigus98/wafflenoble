@@ -299,7 +299,7 @@ on conflict (chapter_id, reader_id) do update
 
 **파일**: `src/lib/story-blocks.ts` (데이터 형식·검증·저장/읽기), `src/components/story-block-view.tsx` (카드 화면, 열람·에디터 공용), `src/components/admin/story-block/story-block-node.tsx` (Tiptap 노드), `src/components/admin/story-block/block-editor.tsx` (편집 폼), `src/components/admin/story-block/template-menu.tsx` (툴바 메뉴), `src/components/reader/chapter-body.tsx` (열람 화면)
 
-- 종류: 카톡 1:1 대화, 카톡 단체방, 라이브 방송창, 실시간 채팅창, 후원 알림, 커뮤니티 게시글, 시스템 창(퀘스트·상태창)
+- 종류: 카톡 1:1 대화, 카톡 단체방, 라이브 방송창, 실시간 채팅창, 후원 알림, 커뮤니티 게시글, 시스템 창(퀘스트·상태창), 뉴스 기사
   - 새 종류는 스키마 끝에 덧붙이기만 한다 (이미 저장된 블록의 종류·필드는 바꾸지 않음)
 - 저장 형식: 본문 HTML 안에 `<div data-wn-block="종류" data-wn-data="JSON"></div>` 한 줄
   - 저장할 때 서버가 zod 스키마로 다시 검증하고, 형식이 틀린 블록은 지운다. 모르는 필드는 버린다
@@ -309,7 +309,7 @@ on conflict (chapter_id, reader_id) do update
   - 어두운 화면은 기기 화면 느낌 그대로, 밝은 화면은 흰 카드 · 카톡은 하늘색 배경에 흰 말풍선 (내 말풍선은 둘 다 분홍)
   - 글자 크기 15px 고정 (읽기 설정의 영향을 받지 않음)
 - 편집 — 쓰는 사람이 폼을 채우지 않아도 되게
-  - 방송창·후원 알림: 본문 속 카드의 글자를 눌러 그 자리에서 바로 고친다 (편집 창 없음)
+  - 방송창·후원 알림·뉴스 기사: 본문 속 카드의 글자를 눌러 그 자리에서 바로 고친다 (편집 창 없음). 뉴스 본문은 빈 줄로 문단을 나눈다
   - 카톡·채팅창: 카드를 누르면 '대본' 칸 + 미리보기가 나란히 열린다. 대본은 평소 대사 쓰듯
     - `이름: 대사` 한 줄에 하나 / `나: …`는 오른쪽 말풍선 / 이름 없이 쓴 줄은 앞사람이 이어서 / 줄 끝 `[오후 8:14]`는 시간 / `--- 10월 5일 ---`은 가운데 날짜·안내
     - 등장인물 칩: 이름을 한 번에 바꾸기(대본의 그 사람 줄 전부), 오른쪽 말풍선 정하기, 채팅창 닉네임 색 바꾸기

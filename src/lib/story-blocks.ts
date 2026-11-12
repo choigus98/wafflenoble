@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창).
+// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사).
 // 저장 형식: <div data-wn-block="종류" data-wn-data="JSON"></div>
 // 에디터(Tiptap 노드), 서버(저장할 때 검증), 열람 화면(렌더링)이 모두 이 파일을 같이 쓴다.
 //
@@ -83,6 +83,15 @@ const systemSchema = z.object({
   script: text(LIMITS.script), // 능력치·안내 대본 (규칙은 parseSystemScript 위 설명)
 });
 
+const newsSchema = z.object({
+  press: text(40), // 언론사
+  title: text(120),
+  subtitle: text(160), // 부제. 비우면 안 보임
+  reporter: text(40), // '○○○ 기자'처럼 적은 그대로
+  date: text(40),
+  body: text(LIMITS.body), // 빈 줄로 문단을 나눈다
+});
+
 // 새 종류는 끝에 덧붙이기만 한다 (이미 저장된 블록은 그대로 읽혀야 하므로 기존 종류·필드는 바꾸지 않는다)
 export const storyBlockSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('live'), data: liveSchema }),
@@ -91,6 +100,7 @@ export const storyBlockSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('kakao'), data: kakaoSchema }),
   z.object({ kind: z.literal('post'), data: postSchema }),
   z.object({ kind: z.literal('system'), data: systemSchema }),
+  z.object({ kind: z.literal('news'), data: newsSchema }),
 ]);
 
 export type StoryBlock = z.infer<typeof storyBlockSchema>;
@@ -100,6 +110,7 @@ export type ChatData = z.infer<typeof chatSchema>;
 export type KakaoData = z.infer<typeof kakaoSchema>;
 export type PostData = z.infer<typeof postSchema>;
 export type SystemData = z.infer<typeof systemSchema>;
+export type NewsData = z.infer<typeof newsSchema>;
 
 // ─── 대본 읽기 ─────────────────────────────────────────
 
@@ -315,7 +326,16 @@ export function postCommentCount(data: PostData, lines: CommentLine[]): string {
 
 // ─── 템플릿 ────────────────────────────────────────────
 
-export type TemplateKey = 'kakao-dm' | 'kakao-group' | 'live' | 'chat' | 'donation' | 'post' | 'system-quest' | 'system-status';
+export type TemplateKey =
+  | 'kakao-dm'
+  | 'kakao-group'
+  | 'live'
+  | 'chat'
+  | 'donation'
+  | 'post'
+  | 'system-quest'
+  | 'system-status'
+  | 'news';
 
 export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }> = [
   { key: 'kakao-dm', label: '카톡 1:1 대화', hint: '두 사람의 메신저 대화' },
@@ -326,6 +346,7 @@ export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }>
   { key: 'post', label: '커뮤니티 게시글', hint: '게시판 글과 댓글' },
   { key: 'system-quest', label: '시스템 창 · 퀘스트', hint: '[퀘스트 발생!] 같은 알림' },
   { key: 'system-status', label: '시스템 창 · 상태창', hint: '이름·레벨·능력치' },
+  { key: 'news', label: '뉴스 기사', hint: '언론사 · 제목 · 기자 · 본문' },
 ];
 
 export function templateLabel(block: StoryBlock): string {
@@ -430,6 +451,18 @@ export function createTemplate(key: TemplateKey): StoryBlock {
         data: {
           title: '퀘스트 발생!',
           script: ['「잃어버린 기억을 찾아라」', '제한 시간: 24시간', '보상: ???', '--- 실패 시 ---', '기억이 하나 사라집니다.'].join('\n'),
+        },
+      };
+    case 'news':
+      return {
+        kind: 'news',
+        data: {
+          press: '와플일보',
+          title: '기사 제목',
+          subtitle: '',
+          reporter: '○○○ 기자',
+          date: postStamp(),
+          body: '본문을 적어 주세요.\n\n빈 줄을 넣으면 문단이 나뉘어요.',
         },
       };
     case 'system-status':
