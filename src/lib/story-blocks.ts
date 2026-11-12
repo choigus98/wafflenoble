@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물, 이메일, 검색 결과, 휴대폰 알림, 문자 메시지).
+// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물, 이메일, 검색 결과, 휴대폰 알림, 문자 메시지, 영수증).
 // 저장 형식: <div data-wn-block="종류" data-wn-data="JSON"></div>
 // 에디터(Tiptap 노드), 서버(저장할 때 검증), 열람 화면(렌더링)이 모두 이 파일을 같이 쓴다.
 //
@@ -143,6 +143,15 @@ const smsSchema = z.object({
   script: text(LIMITS.script), // 카톡과 같은 대본 규칙 (parseScript)
 });
 
+const receiptSchema = z.object({
+  store: text(40), // 가게 이름
+  info: text(120), // 가게 정보 (주소·영업시간 등). 비우면 안 보임
+  date: text(40), // 적은 그대로
+  script: text(LIMITS.script), // 품목 대본 (규칙은 parseReceiptScript 위 설명)
+  total: text(40), // 합계. 비우면 품목 금액을 더해서 (단위가 섞이면 안 보임)
+  footer: text(120), // 맨 아래 한 줄. 비우면 안 보임
+});
+
 /** 전화 화면 모드를 바꿀 때, 아직 고치지 않은 기본 문구는 새 모드에 맞게 바꿔 준다 */
 export const CALL_DETAIL_DEFAULT = { incoming: '휴대전화', active: '00:12' } as const;
 
@@ -162,6 +171,7 @@ export const storyBlockSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('search'), data: searchSchema }),
   z.object({ kind: z.literal('push'), data: pushSchema }),
   z.object({ kind: z.literal('sms'), data: smsSchema }),
+  z.object({ kind: z.literal('receipt'), data: receiptSchema }),
 ]);
 
 export type StoryBlock = z.infer<typeof storyBlockSchema>;
@@ -179,6 +189,7 @@ export type MailData = z.infer<typeof mailSchema>;
 export type SearchData = z.infer<typeof searchSchema>;
 export type PushData = z.infer<typeof pushSchema>;
 export type SmsData = z.infer<typeof smsSchema>;
+export type ReceiptData = z.infer<typeof receiptSchema>;
 
 /** 메일 보낸 사람 '김지은 <jieun@example.com>' → 이름과 주소. 꺾쇠가 없으면 적은 그대로 이름으로 */
 export function splitMailSender(from: string): { name: string; address: string } {
@@ -472,6 +483,60 @@ export function parsePushScript(script: string): PushLine[] {
   return lines;
 }
 
+// ─── 영수증 대본 ──────────────────────────────────────
+// 품목 하나에 한 줄
+//   버터 와플 ×2: 7,000원     ← '이름: 금액', 이름 끝의 ×2·x2는 수량 (금액은 그 줄의 합)
+//   쿠폰 할인: -1,000원       ← 빼는 금액도 됨
+//   ---                      ← 구분선
+//   포장 주문                 ← 쌍점 없이 쓰면 작은 안내 글
+// 이름에 쌍점이 있어도 되게 마지막 쌍점에서 나눈다
+
+export type ReceiptLine =
+  | { type: 'item'; name: string; qty: string; price: string; amount: number | null; unit: string }
+  | { type: 'note'; text: string }
+  | { type: 'divider' };
+
+const RECEIPT_QTY = /\s*[×xX]\s*(\d{1,4})$/;
+const RECEIPT_PRICE = /^([-−]?)\s*(\d[\d,]*(?:\.\d+)?)\s*(.*)$/;
+
+export function parseReceiptScript(script: string): ReceiptLine[] {
+  const lines: ReceiptLine[] = [];
+  for (const raw of script.split(/\r?\n/)) {
+    if (lines.length >= LIMITS.lines) break;
+    const line = raw.trim();
+    if (!line) continue;
+    if (/^-{2,}$/.test(line)) {
+      lines.push({ type: 'divider' });
+      continue;
+    }
+    const colon = Math.max(line.lastIndexOf(':'), line.lastIndexOf('：'));
+    if (colon <= 0) {
+      lines.push({ type: 'note', text: line });
+      continue;
+    }
+    let name = line.slice(0, colon).trim();
+    const price = line.slice(colon + 1).trim();
+    const qtyMatch = name.match(RECEIPT_QTY);
+    const qty = qtyMatch ? qtyMatch[1] : '';
+    if (qtyMatch) name = name.slice(0, qtyMatch.index).trim();
+    const priceMatch = price.match(RECEIPT_PRICE);
+    const amount = priceMatch ? (priceMatch[1] ? -1 : 1) * Number(priceMatch[2].replace(/,/g, '')) : null;
+    lines.push({ type: 'item', name, qty, price, amount: Number.isFinite(amount) ? amount : null, unit: priceMatch?.[3].trim() ?? '' });
+  }
+  return lines;
+}
+
+/** 합계: 직접 적은 값이 먼저, 없으면 품목 금액을 더해서 (금액을 못 읽은 품목이 있거나 단위가 섞이면 빈 값) */
+export function receiptTotal(data: ReceiptData, lines: ReceiptLine[]): string {
+  if (data.total.trim()) return data.total.trim();
+  const items = lines.filter((line): line is Extract<ReceiptLine, { type: 'item' }> => line.type === 'item');
+  if (items.length === 0 || items.some((item) => item.amount === null)) return '';
+  const units = [...new Set(items.map((item) => item.unit).filter(Boolean))];
+  if (units.length > 1) return '';
+  const sum = items.reduce((total, item) => total + (item.amount ?? 0), 0);
+  return `${sum.toLocaleString('ko-KR', { maximumFractionDigits: 2 })}${units[0] ?? ''}`;
+}
+
 /** 제목 옆·댓글 머리에 보일 댓글 수. 직접 적은 값이 먼저, 없으면 실제 댓글 개수 */
 export function postCommentCount(data: PostData, lines: CommentLine[]): string {
   return data.commentCount.trim() || String(lines.filter((line) => line.type === 'comment').length);
@@ -496,7 +561,8 @@ export type TemplateKey =
   | 'mail'
   | 'search'
   | 'push'
-  | 'sms';
+  | 'sms'
+  | 'receipt';
 
 export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }> = [
   { key: 'kakao-dm', label: '카톡 1:1 대화', hint: '두 사람의 메신저 대화' },
@@ -516,6 +582,7 @@ export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }>
   { key: 'search', label: '검색 결과', hint: '검색어 · 결과 목록' },
   { key: 'push', label: '휴대폰 알림', hint: '잠금화면에 쌓인 알림' },
   { key: 'sms', label: '문자 메시지', hint: '회색·파란 말풍선 문자' },
+  { key: 'receipt', label: '영수증', hint: '가게 · 품목 · 합계' },
 ];
 
 export function templateLabel(block: StoryBlock): string {
@@ -640,6 +707,18 @@ export function createTemplate(key: TemplateKey): StoryBlock {
           reposts: '12',
           likes: '128',
           script: ['익명1: 답글은 이렇게 써요 [3분 전]', '익명2: 한 줄에 하나씩 [1분 전]'].join('\n'),
+        },
+      };
+    case 'receipt':
+      return {
+        kind: 'receipt',
+        data: {
+          store: '와플 가게',
+          info: '골목 끝 1층 · 영업 00:00~03:00',
+          date: postStamp(),
+          script: ['버터 와플 ×2: 7,000원', '아메리카노: 4,500원', '쿠폰 할인: -1,000원', '---', '포장 주문'].join('\n'),
+          total: '',
+          footer: '감사합니다. 또 오세요!',
         },
       };
     case 'sms':

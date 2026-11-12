@@ -15,7 +15,9 @@ import {
   kakaoTitle,
   parseComments,
   parseScript,
+  parseReceiptScript,
   postCommentCount,
+  receiptTotal,
   renameSpeaker,
   scriptSpeakers,
   smsContact,
@@ -25,6 +27,7 @@ import {
   type KakaoData,
   type PostData,
   type PushData,
+  type ReceiptData,
   type SearchData,
   type SmsData,
   type SnsData,
@@ -38,7 +41,7 @@ import { cn } from '@/lib/utils';
 const COMMIT_DELAY_MS = 300;
 
 type CardBlock = Extract<StoryBlock, { kind: 'live' | 'donation' | 'news' | 'call' | 'note' | 'mail' }>;
-type ConversationBlock = Extract<StoryBlock, { kind: 'kakao' | 'chat' | 'post' | 'system' | 'sns' | 'search' | 'push' | 'sms' }>;
+type ConversationBlock = Extract<StoryBlock, { kind: 'kakao' | 'chat' | 'post' | 'system' | 'sns' | 'search' | 'push' | 'sms' | 'receipt' }>;
 
 const TEXTAREA =
   'w-full resize-y rounded-2xl border border-line bg-surface px-4 py-3 text-base leading-relaxed text-fg field-sizing-content placeholder:text-muted/60 focus:border-accent focus:ring-3 focus:ring-accent/20 focus:outline-none';
@@ -52,6 +55,7 @@ const SCRIPT_PLACEHOLDER: Record<ConversationBlock['kind'], string> = {
   search: '자정에만 여는 와플 가게 후기\nwaffle.example.com/review\n골목 끝 그 가게, 가 보신 분?',
   push: '카톡 · 엄마: 어디야? [방금]\n은행: 입금 10,000원 [3분 전]',
   sms: '엄마: 어디야? [오후 11:52]\n나: 금방 가요',
+  receipt: '버터 와플 ×2: 7,000원\n아메리카노: 4,500원',
 };
 
 function useDraft<T extends StoryBlock>(block: T, onChange: (block: StoryBlock) => void) {
@@ -237,7 +241,7 @@ export function ConversationEditor({
   const speakers =
     draft.kind === 'post' || draft.kind === 'sns'
       ? commentSpeakers(comments)
-      : draft.kind === 'system' || draft.kind === 'search' || draft.kind === 'push'
+      : draft.kind === 'system' || draft.kind === 'search' || draft.kind === 'push' || draft.kind === 'receipt'
         ? []
         : scriptSpeakers(lines);
 
@@ -250,13 +254,14 @@ export function ConversationEditor({
       | Partial<SnsData>
       | Partial<SearchData>
       | Partial<PushData>
-      | Partial<SmsData>,
+      | Partial<SmsData>
+      | Partial<ReceiptData>,
   ) {
     update({ ...draft, data: { ...draft.data, ...patch } } as ConversationBlock);
   }
 
   function rename(from: string, to: string) {
-    if (draft.kind === 'system' || draft.kind === 'search' || draft.kind === 'push') return;
+    if (draft.kind === 'system' || draft.kind === 'search' || draft.kind === 'push' || draft.kind === 'receipt') return;
     if (draft.kind === 'sns') {
       setData({ script: renameSpeaker(draft.data.script, from, to, { replies: true }) });
       return;
@@ -362,6 +367,37 @@ export function ConversationEditor({
             />
             <MiniInput label="재게시" value={draft.data.reposts} maxLength={20} onChange={(reposts) => setData({ reposts })} inputClassName="w-12" />
             <MiniInput label="좋아요" value={draft.data.likes} maxLength={20} onChange={(likes) => setData({ likes })} inputClassName="w-14" />
+          </>
+        ) : draft.kind === 'receipt' ? (
+          <>
+            <MiniInput label="가게" value={draft.data.store} maxLength={40} onChange={(store) => setData({ store })} inputClassName="w-36" />
+            <MiniInput label="날짜" value={draft.data.date} maxLength={40} onChange={(date) => setData({ date })} inputClassName="w-36" />
+            <MiniInput
+              label="합계"
+              value={draft.data.total}
+              maxLength={40}
+              placeholder={receiptTotal({ ...draft.data, total: '' }, parseReceiptScript(draft.data.script)) || '비우면 품목을 더해서'}
+              onChange={(total) => setData({ total })}
+              inputClassName="w-28"
+            />
+            <MiniInput
+              label="가게 정보"
+              value={draft.data.info}
+              maxLength={120}
+              placeholder="비우면 안 보여요"
+              onChange={(info) => setData({ info })}
+              className="w-full"
+              inputClassName="flex-1"
+            />
+            <MiniInput
+              label="맨 아래"
+              value={draft.data.footer}
+              maxLength={120}
+              placeholder="비우면 안 보여요"
+              onChange={(footer) => setData({ footer })}
+              className="w-full"
+              inputClassName="flex-1"
+            />
           </>
         ) : draft.kind === 'sms' ? (
           <MiniInput
@@ -516,7 +552,7 @@ export function ConversationEditor({
             ref={scriptRef}
             value={draft.data.script}
             onChange={(e) => setData({ script: e.target.value })}
-            aria-label={draft.kind === 'post' ? '댓글 대본' : draft.kind === 'sns' ? '답글 대본' : draft.kind === 'search' ? '검색 결과 대본' : draft.kind === 'push' ? '알림 대본' : '대본'}
+            aria-label={draft.kind === 'post' ? '댓글 대본' : draft.kind === 'sns' ? '답글 대본' : draft.kind === 'search' ? '검색 결과 대본' : draft.kind === 'push' ? '알림 대본' : draft.kind === 'receipt' ? '품목 대본' : '대본'}
             spellCheck={false}
             maxLength={LIMITS.script}
             placeholder={SCRIPT_PLACEHOLDER[draft.kind]}
@@ -622,6 +658,13 @@ const SCRIPT_HELP: Record<ConversationBlock['kind'], Array<[string, string]>> = 
     ['이름 없이 쓰기', '앞 답글에 줄바꿈'],
     ['[3분 전]', '줄 끝에 시간'],
     ['--- 안내 ---', '가운데 회색 줄'],
+  ],
+  receipt: [
+    ['이름: 금액', '품목 하나'],
+    ['이름 ×2: 금액', '수량'],
+    ['할인: -1,000원', '빼는 금액'],
+    ['---', '구분선'],
+    ['그냥 쓰기', '작은 안내 글'],
   ],
   sms: [
     ['이름: 문자', '한 줄에 하나'],

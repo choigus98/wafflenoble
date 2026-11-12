@@ -10,10 +10,12 @@ import {
   kakaoTitle,
   parseComments,
   parsePushScript,
+  parseReceiptScript,
   parseScript,
   parseSearchResults,
   parseSystemScript,
   postCommentCount,
+  receiptTotal,
   renameSpeaker,
   scriptSpeakers,
   smsContact,
@@ -55,6 +57,7 @@ const KEYS: TemplateKey[] = [
   'search',
   'push',
   'sms',
+  'receipt',
 ];
 
 function withTrickyText(block: StoryBlock): StoryBlock {
@@ -89,6 +92,8 @@ function withTrickyText(block: StoryBlock): StoryBlock {
       };
     case 'search':
       return { ...block, data: { ...block.data, query: TRICKY, script: `${block.data.script}\n\n${TRICKY}\nexample.com/?q="x"&y=<1>` } };
+    case 'receipt':
+      return { ...block, data: { ...block.data, store: '가게 <b>&</b> "따옴표"', script: `${block.data.script}\n${TRICKY}: 1,000원` } };
     case 'push':
       // 날짜 칸은 40자까지라 짧은 까다로운 글자로
       return { ...block, data: { ...block.data, date: '11월 <b>12일</b> & "목"', script: `${block.data.script}\n카톡 · 양띵: ${TRICKY} [방금]` } };
@@ -436,5 +441,44 @@ describe('문자 메시지', () => {
     expect(lines.filter((line) => line.type === 'notice')).toHaveLength(1);
     expect(lines.filter((line) => line.type === 'message')).toHaveLength(4);
     expect(smsContact(block.data, lines)).toBe('엄마');
+  });
+});
+
+describe('영수증 대본', () => {
+  const data = { store: '와플 가게', info: '', date: '', total: '', footer: '', script: '' };
+
+  it("'이름: 금액', 이름 끝 ×2는 수량, 마지막 쌍점에서 나눔", () => {
+    expect(parseReceiptScript('버터 와플 ×2: 7,000원\n세트: 커피+와플: 9,000원')).toEqual([
+      { type: 'item', name: '버터 와플', qty: '2', price: '7,000원', amount: 7000, unit: '원' },
+      { type: 'item', name: '세트: 커피+와플', qty: '', price: '9,000원', amount: 9000, unit: '원' },
+    ]);
+  });
+
+  it('빼는 금액, 구분선, 쌍점 없는 안내 글, 금액을 못 읽는 품목', () => {
+    expect(parseReceiptScript('쿠폰 할인: -1,000원\n---\n포장 주문\n서비스 쿠키: 서비스')).toEqual([
+      { type: 'item', name: '쿠폰 할인', qty: '', price: '-1,000원', amount: -1000, unit: '원' },
+      { type: 'divider' },
+      { type: 'note', text: '포장 주문' },
+      { type: 'item', name: '서비스 쿠키', qty: '', price: '서비스', amount: null, unit: '' },
+    ]);
+  });
+
+  it('합계: 직접 적은 값이 먼저, 없으면 더해서 (단위는 품목을 따라감)', () => {
+    const lines = parseReceiptScript('와플 ×2: 7,000원\n커피: 4,500원\n할인: -1,000원');
+    expect(receiptTotal(data, lines)).toBe('10,500원');
+    expect(receiptTotal({ ...data, total: '만 원' }, lines)).toBe('만 원');
+    expect(receiptTotal(data, parseReceiptScript('물약: 3골드\n빵: 2골드'))).toBe('5골드');
+  });
+
+  it('금액을 못 읽는 품목이 있거나 단위가 섞이면 자동 합계 없음', () => {
+    expect(receiptTotal(data, parseReceiptScript('쿠키: 서비스\n커피: 4,500원'))).toBe('');
+    expect(receiptTotal(data, parseReceiptScript('물약: 3골드\n커피: 4,500원'))).toBe('');
+    expect(receiptTotal(data, parseReceiptScript('그냥 안내만'))).toBe('');
+  });
+
+  it('새 영수증 템플릿 예시의 합계는 10,500원', () => {
+    const block = createTemplate('receipt');
+    if (block.kind !== 'receipt') throw new Error('영수증 템플릿이 아니에요');
+    expect(receiptTotal(block.data, parseReceiptScript(block.data.script))).toBe('10,500원');
   });
 });

@@ -104,6 +104,10 @@
   --wn-sms-out-fg: #ffffff;
   --wn-sms-avatar-bg: #c7ccd6;
   --wn-sms-avatar-fg: #1f2430;
+  --wn-receipt-paper: #fffdf7;
+  --wn-receipt-ink: #1f1d1a;
+  --wn-receipt-muted: #6b6459;
+  --wn-receipt-line: rgb(0 0 0 / 0.25);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -210,6 +214,10 @@
     --wn-sms-out-fg: #ffffff;
     --wn-sms-avatar-bg: #3a3f4b;
     --wn-sms-avatar-fg: #e8eaf0;
+    --wn-receipt-paper: #2e2b26;
+    --wn-receipt-ink: #f2ede4;
+    --wn-receipt-muted: #b9b0a3;
+    --wn-receipt-line: rgb(255 255 255 / 0.25);
   }
 }
 
@@ -315,6 +323,10 @@
   --wn-sms-out-fg: #ffffff;
   --wn-sms-avatar-bg: #3a3f4b;
   --wn-sms-avatar-fg: #e8eaf0;
+  --wn-receipt-paper: #2e2b26;
+  --wn-receipt-ink: #f2ede4;
+  --wn-receipt-muted: #b9b0a3;
+  --wn-receipt-line: rgb(255 255 255 / 0.25);
 }
 
 @theme inline {

@@ -8,10 +8,12 @@ import {
   kakaoTitle,
   parseComments,
   parsePushScript,
+  parseReceiptScript,
   parseScript,
   parseSearchResults,
   parseSystemScript,
   postCommentCount,
+  receiptTotal,
   scriptSpeakers,
   smsContact,
   splitMailSender,
@@ -25,6 +27,7 @@ import {
   type NoteData,
   type PostData,
   type PushData,
+  type ReceiptData,
   type SearchData,
   type SmsData,
   type SnsData,
@@ -83,6 +86,8 @@ export function StoryBlockView({ block }: { block: StoryBlock }) {
       return <PushCard data={block.data} />;
     case 'sms':
       return <SmsCard data={block.data} />;
+    case 'receipt':
+      return <ReceiptCard data={block.data} />;
   }
 }
 
@@ -890,6 +895,85 @@ function SmsCard({ data }: { data: SmsData }) {
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+/** 영수증: 가게 · 정보 · 날짜, 품목 표(품목 · 수량 · 금액), 합계, 맨 아래 한 줄. 화면 낭독기가 표로 읽도록 진짜 table */
+function ReceiptCard({ data }: { data: ReceiptData }) {
+  const lines = parseReceiptScript(data.script);
+  const total = receiptTotal(data, lines);
+  const hasQty = lines.some((line) => line.type === 'item' && line.qty);
+  const columns = hasQty ? 3 : 2;
+  const dash = 'border-t border-dashed border-(--wn-receipt-line)';
+
+  return (
+    <div className="wn-block mx-auto w-full max-w-[340px] px-2 py-1">
+      <div className="rounded-sm bg-(--wn-receipt-paper) px-5 pt-5 pb-4 text-(--wn-receipt-ink) shadow-md">
+        {data.store.trim() ? <div className="text-center text-[17px] font-bold">{data.store}</div> : null}
+        {data.info.trim() ? <div className="mt-1 text-center text-xs whitespace-pre-wrap text-(--wn-receipt-muted)">{data.info}</div> : null}
+        {data.date.trim() ? <div className="mt-0.5 text-center text-xs text-(--wn-receipt-muted) tabular-nums">{data.date}</div> : null}
+        <div aria-hidden="true" className={cn('my-3', dash)} />
+        <table className="w-full text-[13px]">
+          <caption className="sr-only">{data.store.trim() ? `${data.store} 영수증` : '영수증'}</caption>
+          <thead>
+            <tr className="text-[11px] text-(--wn-receipt-muted)">
+              <th scope="col" className="pb-1 text-left font-medium">
+                품목
+              </th>
+              {hasQty ? (
+                <th scope="col" className="w-10 pb-1 text-center font-medium">
+                  수량
+                </th>
+              ) : null}
+              <th scope="col" className="pb-1 text-right font-medium">
+                금액
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {lines.map((line, index) =>
+              line.type === 'divider' ? (
+                <tr key={index} aria-hidden="true">
+                  <td colSpan={columns} className="py-1.5">
+                    <div className={dash} />
+                  </td>
+                </tr>
+              ) : line.type === 'note' ? (
+                <tr key={index}>
+                  <td colSpan={columns} className="py-0.5 text-xs text-(--wn-receipt-muted)">
+                    {line.text}
+                  </td>
+                </tr>
+              ) : (
+                <tr key={index}>
+                  <td className="py-0.5 pr-2 align-top break-keep">{line.name}</td>
+                  {hasQty ? <td className="py-0.5 text-center align-top tabular-nums">{line.qty}</td> : null}
+                  <td className="py-0.5 text-right align-top whitespace-nowrap tabular-nums">{line.price}</td>
+                </tr>
+              ),
+            )}
+          </tbody>
+          {total ? (
+            <tfoot>
+              <tr aria-hidden="true">
+                <td colSpan={columns} className="pt-2">
+                  <div className={dash} />
+                </td>
+              </tr>
+              <tr>
+                <th scope="row" colSpan={columns - 1} className="pt-2 text-left text-[14px] font-bold">
+                  합계
+                </th>
+                <td className="pt-2 text-right text-[15px] font-bold whitespace-nowrap tabular-nums">{total}</td>
+              </tr>
+            </tfoot>
+          ) : null}
+        </table>
+        {data.footer.trim() ? (
+          <div className={cn('mt-3 pt-3 text-center text-xs whitespace-pre-wrap text-(--wn-receipt-muted)', dash)}>{data.footer}</div>
+        ) : null}
       </div>
     </div>
   );
