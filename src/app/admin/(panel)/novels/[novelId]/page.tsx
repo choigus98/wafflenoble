@@ -5,11 +5,13 @@ import { createChapter } from '@/app/admin/actions';
 import { ChapterList } from '@/components/admin/chapter-list';
 import { ChapterMoveButtons } from '@/components/admin/chapter-move-buttons';
 import { DeleteNovelForm } from '@/components/admin/delete-novel-form';
+import { NovelStatsSection } from '@/components/admin/novel-stats';
 import { NovelForm } from '@/components/admin/novel-form';
 import { SubmitButton } from '@/components/submit-button';
 import { Badge, Card, Skeleton, buttonClass } from '@/components/ui';
 import { CHAPTER_FILTERS, countChapters, filterChapters, parseChapterFilter } from '@/lib/chapter-filter';
 import { formatDate, formatNumber, formatRelative, formatSchedule } from '@/lib/format';
+import { novelStats } from '@/lib/novel-stats';
 import { adminGetNovel } from '@/lib/queries/admin';
 import { cn, parseId } from '@/lib/utils';
 
@@ -54,6 +56,9 @@ async function NovelAdmin({ params, searchParams }: Pick<PageProps<'/admin/novel
           </Link>
         </div>
       </div>
+
+      {/* 회차가 있을 때만: 전체 글자수 · 회차 평균 · 상태별 회차 수 · 가장 긴 회차 */}
+      {allChapters.length > 0 ? <NovelStatsSection novelId={novel.id} stats={novelStats(allChapters)} /> : null}
 
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-3">
