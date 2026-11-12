@@ -65,6 +65,7 @@ const KEYS: TemplateKey[] = [
   'receipt',
   'location',
   'poll',
+  'transfer',
 ];
 
 function withTrickyText(block: StoryBlock): StoryBlock {
@@ -103,6 +104,8 @@ function withTrickyText(block: StoryBlock): StoryBlock {
       return { ...block, data: { ...block.data, place: '와플 <가게> & "1층"', note: TRICKY } };
     case 'poll':
       return { ...block, data: { ...block.data, question: TRICKY, script: `${block.data.script}\n* ${TRICKY}: 1,000표` } };
+    case 'transfer':
+      return { ...block, data: { ...block.data, to: '김<b>수진</b> & "친구"', memo: '밥값 <script>x</script> & "😀"' } };
     case 'receipt':
       return { ...block, data: { ...block.data, store: '가게 <b>&</b> "따옴표"', script: `${block.data.script}\n${TRICKY}: 1,000원` } };
     case 'push':

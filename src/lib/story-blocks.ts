@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물, 이메일, 검색 결과, 휴대폰 알림, 문자 메시지, 영수증, 위치 공유, 투표).
+// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물, 이메일, 검색 결과, 휴대폰 알림, 문자 메시지, 영수증, 위치 공유, 투표, 송금 완료).
 // 저장 형식: <div data-wn-block="종류" data-wn-data="JSON"></div>
 // 에디터(Tiptap 노드), 서버(저장할 때 검증), 열람 화면(렌더링)이 모두 이 파일을 같이 쓴다.
 //
@@ -166,6 +166,16 @@ const pollSchema = z.object({
   status: text(60), // 맨 아래 한 줄. 비우면 표 수를 더해서 'N명 참여' (표 수가 없으면 안 보임)
 });
 
+const transferSchema = z.object({
+  bank: text(30), // 위쪽 은행·앱 이름 ('와플뱅크'). 비우면 안 보임
+  status: text(30), // 완료 문구 ('송금 완료', '이체 완료')
+  amount: text(30), // 금액 (적은 그대로 '50,000원')
+  to: text(40), // 받는 분
+  from: text(60), // 보낸 계좌. 비우면 안 보임
+  memo: text(60), // 메모. 비우면 안 보임
+  date: text(40), // 일시. 비우면 안 보임
+});
+
 /** 전화 화면 모드를 바꿀 때, 아직 고치지 않은 기본 문구는 새 모드에 맞게 바꿔 준다 */
 export const CALL_DETAIL_DEFAULT = { incoming: '휴대전화', active: '00:12' } as const;
 
@@ -188,6 +198,7 @@ export const storyBlockSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('receipt'), data: receiptSchema }),
   z.object({ kind: z.literal('location'), data: locationSchema }),
   z.object({ kind: z.literal('poll'), data: pollSchema }),
+  z.object({ kind: z.literal('transfer'), data: transferSchema }),
 ]);
 
 export type StoryBlock = z.infer<typeof storyBlockSchema>;
@@ -208,6 +219,7 @@ export type SmsData = z.infer<typeof smsSchema>;
 export type ReceiptData = z.infer<typeof receiptSchema>;
 export type LocationData = z.infer<typeof locationSchema>;
 export type PollData = z.infer<typeof pollSchema>;
+export type TransferData = z.infer<typeof transferSchema>;
 
 /** 메일 보낸 사람 '김지은 <jieun@example.com>' → 이름과 주소. 꺾쇠가 없으면 적은 그대로 이름으로 */
 export function splitMailSender(from: string): { name: string; address: string } {
@@ -650,7 +662,8 @@ export type TemplateKey =
   | 'sms'
   | 'receipt'
   | 'location'
-  | 'poll';
+  | 'poll'
+  | 'transfer';
 
 export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }> = [
   { key: 'kakao-dm', label: '카톡 1:1 대화', hint: '두 사람의 메신저 대화' },
@@ -673,6 +686,7 @@ export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }>
   { key: 'receipt', label: '영수증', hint: '가게 · 품목 · 합계' },
   { key: 'location', label: '위치 공유', hint: '장소 · 주소 · 지도 그림' },
   { key: 'poll', label: '투표', hint: '질문 · 선택지 · 표 수 막대' },
+  { key: 'transfer', label: '송금 완료', hint: '은행 앱 송금 결과 · 금액 · 받는 분' },
 ];
 
 export function templateLabel(block: StoryBlock): string {
@@ -803,6 +817,19 @@ export function createTemplate(key: TemplateKey): StoryBlock {
       return {
         kind: 'location',
         data: { badge: '위치 공유', place: '골목 끝 와플 가게', address: '와플시 반죽구 시럽로 12, 1층', note: '여기서 기다릴게' },
+      };
+    case 'transfer':
+      return {
+        kind: 'transfer',
+        data: {
+          bank: '와플뱅크',
+          status: '송금 완료',
+          amount: '50,000원',
+          to: '김수진',
+          from: '와플뱅크 1002-***-123456',
+          memo: '어제 와플값',
+          date: postStamp(),
+        },
       };
     case 'poll':
       return {

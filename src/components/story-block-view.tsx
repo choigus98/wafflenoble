@@ -39,6 +39,7 @@ import {
   type SnsData,
   type StoryBlock,
   type SystemData,
+  type TransferData,
 } from '@/lib/story-blocks';
 import { cn } from '@/lib/utils';
 
@@ -98,6 +99,8 @@ export function StoryBlockView({ block }: { block: StoryBlock }) {
       return <LocationCard data={block.data} />;
     case 'poll':
       return <PollCard data={block.data} />;
+    case 'transfer':
+      return <TransferCard data={block.data} />;
   }
 }
 
@@ -1132,6 +1135,56 @@ function PollCard({ data }: { data: PollData }) {
         </ul>
       ) : null}
       {status ? <div className="mt-3 text-xs text-(--wn-muted)">{status}</div> : null}
+    </div>
+  );
+}
+
+const TRANSFER_ROWS: Array<{ name: 'to' | 'from' | 'memo' | 'date'; label: string; maxLength: number; optional: boolean }> = [
+  { name: 'to', label: '받는 분', maxLength: 40, optional: false },
+  { name: 'from', label: '보낸 계좌', maxLength: 60, optional: true },
+  { name: 'memo', label: '메모', maxLength: 60, optional: true },
+  { name: 'date', label: '일시', maxLength: 40, optional: true },
+];
+
+/**
+ * 송금 완료: 은행 앱의 송금 결과 화면 (위쪽 은행 이름 · 체크 · 완료 문구 · 큰 금액 · 받는 분·보낸 계좌·메모·일시).
+ * 아래 목록은 화면 낭독기가 '받는 분 김수진'처럼 짝지어 읽도록 dl. 에디터에서는 field로 카드 위에서 바로 고친다
+ */
+export function TransferCard({ data, field }: { data: TransferData; field?: FieldRenderer }) {
+  const editing = Boolean(field);
+  const slot = (name: keyof TransferData, label: string, maxLength: number, className: string) =>
+    field ? (
+      field({ name, value: data[name], label, placeholder: label, maxLength, className })
+    ) : (
+      <span className={className}>{data[name]}</span>
+    );
+  const rows = TRANSFER_ROWS.filter((row) => editing || data[row.name].trim());
+
+  return (
+    <div className={cn(CARD, 'bg-(--wn-transfer-bg) px-5 pt-4 pb-5')}>
+      {editing || data.bank.trim() ? (
+        <div className="text-[13px] font-bold text-(--wn-transfer-accent)">{slot('bank', '은행·앱 이름 (비우면 안 보여요)', 30, 'max-w-full')}</div>
+      ) : null}
+      <div className="mt-4 flex flex-col items-center text-center">
+        <svg viewBox="0 0 48 48" aria-hidden="true" className="size-12">
+          <circle cx="24" cy="24" r="22" fill="var(--wn-transfer-accent)" />
+          <path d="M14.5 24.5l6.5 6.5 12.5-13.5" fill="none" stroke="var(--wn-transfer-accent-fg)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <div className="mt-3 max-w-full text-[15px] font-semibold text-(--wn-muted)">{slot('status', '완료 문구', 30, 'max-w-full text-center')}</div>
+        <div className="mt-0.5 max-w-full text-[28px] leading-tight font-bold break-all tabular-nums">{slot('amount', '금액', 30, 'max-w-full text-center')}</div>
+      </div>
+      {rows.length > 0 ? (
+        <dl className="mt-5 space-y-2 border-t border-(--wn-line) pt-4 text-sm">
+          {rows.map((row) => (
+            <div key={row.name} className="flex items-baseline justify-between gap-4">
+              <dt className="shrink-0 text-(--wn-muted)">{row.label}</dt>
+              <dd className="min-w-0 text-right break-keep">
+                {slot(row.name, row.optional ? `${row.label} (비우면 안 보여요)` : row.label, row.maxLength, 'max-w-full text-right')}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
     </div>
   );
 }
