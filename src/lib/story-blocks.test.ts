@@ -9,6 +9,7 @@ import {
   isPostAuthor,
   kakaoTitle,
   parseComments,
+  parsePushScript,
   parseScript,
   parseSearchResults,
   parseSystemScript,
@@ -51,6 +52,7 @@ const KEYS: TemplateKey[] = [
   'sns',
   'mail',
   'search',
+  'push',
 ];
 
 function withTrickyText(block: StoryBlock): StoryBlock {
@@ -84,6 +86,9 @@ function withTrickyText(block: StoryBlock): StoryBlock {
       };
     case 'search':
       return { ...block, data: { ...block.data, query: TRICKY, script: `${block.data.script}\n\n${TRICKY}\nexample.com/?q="x"&y=<1>` } };
+    case 'push':
+      // 날짜 칸은 40자까지라 짧은 까다로운 글자로
+      return { ...block, data: { ...block.data, date: '11월 <b>12일</b> & "목"', script: `${block.data.script}\n카톡 · 양띵: ${TRICKY} [방금]` } };
   }
 }
 
@@ -368,5 +373,46 @@ describe('검색 결과 대본', () => {
       ['example.com/first', false],
       ['ad.example.com', true],
     ]);
+  });
+});
+
+describe('휴대폰 알림 대본', () => {
+  it("'앱 · 보낸 사람: 내용 [시각]', 보낸 사람 없이 '앱: 내용'", () => {
+    expect(parsePushScript('카톡 · 엄마: 어디야? [방금]\n은행: 입금 10,000원 [3분 전]')).toEqual([
+      { type: 'push', app: '카톡', title: '엄마', body: '어디야?', time: '방금' },
+      { type: 'push', app: '은행', title: '', body: '입금 10,000원', time: '3분 전' },
+    ]);
+  });
+
+  it('이름 없이 쓰면 앞 알림 내용에 줄바꿈, 숫자로 시작하는 줄은 이름이 아님', () => {
+    expect(parsePushScript('카톡 · 엄마: 어디야?\n8:30에 와\n조심히 [방금]')).toEqual([
+      { type: 'push', app: '카톡', title: '엄마', body: '어디야?\n8:30에 와\n조심히', time: '방금' },
+    ]);
+  });
+
+  it('--- 안내 ---는 가운데 글, 첫 줄부터 이름이 없으면 앱 이름 없는 알림', () => {
+    expect(parsePushScript('그냥 알림이에요\n--- 알림 2개 더 ---\n---')).toEqual([
+      { type: 'push', app: '', title: '', body: '그냥 알림이에요', time: '' },
+      { type: 'notice', text: '알림 2개 더' },
+    ]);
+  });
+
+  it("'와플 가게 · 주인 할머니 · 단골방'처럼 가운뎃점이 여럿이면 첫 조각이 앱", () => {
+    expect(parsePushScript('와플 가게 · 주인 할머니 · 단골방: 오늘도 열어요')[0]).toEqual({
+      type: 'push',
+      app: '와플 가게',
+      title: '주인 할머니 · 단골방',
+      body: '오늘도 열어요',
+      time: '',
+    });
+  });
+
+  it('새 휴대폰 알림 템플릿의 예시는 알림 3개 (첫 알림은 두 줄)', () => {
+    const block = createTemplate('push');
+    if (block.kind !== 'push') throw new Error('휴대폰 알림 템플릿이 아니에요');
+    const lines = parsePushScript(block.data.script);
+    expect(lines).toHaveLength(3);
+    expect(lines[0]).toMatchObject({ app: '카톡', title: '엄마', body: '어디야? 늦었는데\n조심히 와', time: '방금' });
+    expect(block.data.date).toMatch(/^\d{1,2}월 \d{1,2}일 [월화수목금토일]요일$/);
   });
 });

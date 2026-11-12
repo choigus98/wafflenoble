@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물, 이메일, 검색 결과).
+// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물, 이메일, 검색 결과, 휴대폰 알림).
 // 저장 형식: <div data-wn-block="종류" data-wn-data="JSON"></div>
 // 에디터(Tiptap 노드), 서버(저장할 때 검증), 열람 화면(렌더링)이 모두 이 파일을 같이 쓴다.
 //
@@ -131,6 +131,12 @@ const searchSchema = z.object({
   script: text(LIMITS.script), // 결과 대본 (규칙은 parseSearchResults 위 설명)
 });
 
+const pushSchema = z.object({
+  time: text(20), // 잠금화면 큰 시계 '23:58'. 비우면 안 보임
+  date: text(40), // '11월 12일 목요일'. 비우면 안 보임
+  script: text(LIMITS.script), // 알림 대본 (규칙은 parsePushScript 위 설명)
+});
+
 /** 전화 화면 모드를 바꿀 때, 아직 고치지 않은 기본 문구는 새 모드에 맞게 바꿔 준다 */
 export const CALL_DETAIL_DEFAULT = { incoming: '휴대전화', active: '00:12' } as const;
 
@@ -148,6 +154,7 @@ export const storyBlockSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('sns'), data: snsSchema }),
   z.object({ kind: z.literal('mail'), data: mailSchema }),
   z.object({ kind: z.literal('search'), data: searchSchema }),
+  z.object({ kind: z.literal('push'), data: pushSchema }),
 ]);
 
 export type StoryBlock = z.infer<typeof storyBlockSchema>;
@@ -163,6 +170,7 @@ export type NoteData = z.infer<typeof noteSchema>;
 export type SnsData = z.infer<typeof snsSchema>;
 export type MailData = z.infer<typeof mailSchema>;
 export type SearchData = z.infer<typeof searchSchema>;
+export type PushData = z.infer<typeof pushSchema>;
 
 /** 메일 보낸 사람 '김지은 <jieun@example.com>' → 이름과 주소. 꺾쇠가 없으면 적은 그대로 이름으로 */
 export function splitMailSender(from: string): { name: string; address: string } {
@@ -408,6 +416,48 @@ export function parseSearchResults(script: string): SearchResult[] {
   return results;
 }
 
+// ─── 휴대폰 알림 대본 ──────────────────────────────────
+// 알림 하나에 한 줄
+//   카톡 · 엄마: 어디야? 늦었는데 [방금]    ← '앱 · 보낸 사람: 내용', 줄 끝 [시각]
+//   은행: 입금 10,000원 [3분 전]           ← 보낸 사람 없이 '앱: 내용'
+//   조심히 와                             ← 이름 없이 쓰면 앞 알림 내용에 줄바꿈
+//   --- 알림 2개 더 ---                    ← 가운데 작은 글
+
+export type PushLine = { type: 'push'; app: string; title: string; body: string; time: string } | { type: 'notice'; text: string };
+
+// '앱 · 보낸 사람'은 30자까지. '8:30에 보자'처럼 숫자로 시작하는 줄은 이름이 아니라 내용
+const PUSH_HEAD = /^([^:：]{1,30}?)\s*[:：]\s*/;
+
+export function parsePushScript(script: string): PushLine[] {
+  const lines: PushLine[] = [];
+  for (const raw of script.split(/\r?\n/)) {
+    if (lines.length >= LIMITS.lines) break;
+    const line = raw.trim();
+    if (!line) continue;
+    if (/^-{2,}/.test(line)) {
+      const text = line.replace(/^-+\s*/, '').replace(/\s*-+$/, '');
+      if (text) lines.push({ type: 'notice', text });
+      continue;
+    }
+    const head = line.match(PUSH_HEAD);
+    if (head && !/^[\d\s]+$/.test(head[1])) {
+      const [app, ...rest] = head[1].split(/\s*·\s*/);
+      const { text, time } = splitCommentTime(line.slice(head[0].length));
+      lines.push({ type: 'push', app: app.trim(), title: rest.join(' · ').trim(), body: text, time });
+      continue;
+    }
+    const { text, time } = splitCommentTime(line);
+    const last = lines.at(-1);
+    if (last?.type === 'push') {
+      last.body = last.body ? `${last.body}\n${text}` : text;
+      if (!last.time) last.time = time;
+    } else {
+      lines.push({ type: 'push', app: '', title: '', body: text, time });
+    }
+  }
+  return lines;
+}
+
 /** 제목 옆·댓글 머리에 보일 댓글 수. 직접 적은 값이 먼저, 없으면 실제 댓글 개수 */
 export function postCommentCount(data: PostData, lines: CommentLine[]): string {
   return data.commentCount.trim() || String(lines.filter((line) => line.type === 'comment').length);
@@ -430,7 +480,8 @@ export type TemplateKey =
   | 'note'
   | 'sns'
   | 'mail'
-  | 'search';
+  | 'search'
+  | 'push';
 
 export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }> = [
   { key: 'kakao-dm', label: '카톡 1:1 대화', hint: '두 사람의 메신저 대화' },
@@ -448,6 +499,7 @@ export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }>
   { key: 'sns', label: 'SNS 게시물', hint: '프로필 · 글 · 답글' },
   { key: 'mail', label: '이메일', hint: '보낸 사람 · 제목 · 본문 · 첨부' },
   { key: 'search', label: '검색 결과', hint: '검색어 · 결과 목록' },
+  { key: 'push', label: '휴대폰 알림', hint: '잠금화면에 쌓인 알림' },
 ];
 
 export function templateLabel(block: StoryBlock): string {
@@ -463,6 +515,11 @@ export function newId(): string {
 
 function todayLabel(): string {
   return new Intl.DateTimeFormat('ko-KR', { dateStyle: 'full', timeZone: 'Asia/Seoul' }).format(new Date());
+}
+
+/** 잠금화면 날짜 '11월 12일 목요일' */
+function lockScreenDate(): string {
+  return new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric', weekday: 'long', timeZone: 'Asia/Seoul' }).format(new Date());
 }
 
 /** 게시글 시각 '2026.11.12 20:14' (글자는 직접 조립: 브라우저마다 날짜 표기가 달라서) */
@@ -567,6 +624,15 @@ export function createTemplate(key: TemplateKey): StoryBlock {
           reposts: '12',
           likes: '128',
           script: ['익명1: 답글은 이렇게 써요 [3분 전]', '익명2: 한 줄에 하나씩 [1분 전]'].join('\n'),
+        },
+      };
+    case 'push':
+      return {
+        kind: 'push',
+        data: {
+          time: '23:58',
+          date: lockScreenDate(),
+          script: ['카톡 · 엄마: 어디야? 늦었는데 [방금]', '조심히 와', '은행: 입금 10,000원 [3분 전]', '와플 가게 · 주인 할머니: 오늘도 문 열어요 [5분 전]'].join('\n'),
         },
       };
     case 'search':

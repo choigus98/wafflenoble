@@ -65,11 +65,12 @@ function StoryBlockItem({ node, editor, getPos, selected, deleteNode, extension 
     block?.kind === 'post' ||
     block?.kind === 'system' ||
     block?.kind === 'sns' ||
-    block?.kind === 'search';
+    block?.kind === 'search' ||
+    block?.kind === 'push';
   const isPostLike = block?.kind === 'post' || block?.kind === 'sns';
-  const editLabel = isPostLike ? '글 고치기' : block?.kind === 'search' ? '결과 고치기' : '대본 고치기';
-  // 읽어 주는 이름: '커뮤니티 게시글 고치기', 'SNS 게시물 고치기', '검색 결과 고치기'
-  const editName = isPostLike || block?.kind === 'search' ? '고치기' : '대본 고치기';
+  const editLabel = isPostLike ? '글 고치기' : block?.kind === 'search' ? '결과 고치기' : block?.kind === 'push' ? '알림 고치기' : '대본 고치기';
+  // 읽어 주는 이름: '커뮤니티 게시글 고치기', 'SNS 게시물 고치기', '검색 결과 고치기', '휴대폰 알림 고치기'
+  const editName = isPostLike || block?.kind === 'search' || block?.kind === 'push' ? '고치기' : '대본 고치기';
   const editing = uid !== null && editingUid === uid;
   const [menuOpen, setMenuOpen] = useState(false);
   const [canMove, setCanMove] = useState({ up: false, down: false });

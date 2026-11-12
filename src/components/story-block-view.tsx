@@ -7,6 +7,7 @@ import {
   isPostAuthor,
   kakaoTitle,
   parseComments,
+  parsePushScript,
   parseScript,
   parseSearchResults,
   parseSystemScript,
@@ -22,6 +23,7 @@ import {
   type NewsData,
   type NoteData,
   type PostData,
+  type PushData,
   type SearchData,
   type SnsData,
   type StoryBlock,
@@ -75,6 +77,8 @@ export function StoryBlockView({ block }: { block: StoryBlock }) {
       return <MailCard data={block.data} />;
     case 'search':
       return <SearchCard data={block.data} />;
+    case 'push':
+      return <PushCard data={block.data} />;
   }
 }
 
@@ -786,6 +790,51 @@ function SearchCard({ data }: { data: SearchData }) {
               ) : null}
             </div>
           ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** 휴대폰 알림: 잠금화면 날짜 · 큰 시계 아래에 알림이 쌓인다. 알림마다 앱 그림(첫 글자) · 앱 이름 · 시각 · 보낸 사람 · 내용 */
+function PushCard({ data }: { data: PushData }) {
+  const lines = parsePushScript(data.script);
+  const hasClock = data.time.trim() || data.date.trim();
+
+  return (
+    <div className="wn-block mx-auto w-full max-w-[380px] rounded-[28px] border border-(--wn-border) bg-linear-to-b from-(--wn-push-bg-from) to-(--wn-push-bg-to) px-3.5 pt-7 pb-3.5 text-(--wn-push-fg) shadow-sm">
+      {hasClock ? (
+        <div className="text-center text-(--wn-push-clock)">
+          {data.date.trim() ? <div className="text-[15px] font-medium">{data.date}</div> : null}
+          {data.time.trim() ? <div className="mt-0.5 text-[56px] leading-none font-semibold tracking-tight tabular-nums">{data.time}</div> : null}
+        </div>
+      ) : null}
+      {lines.length > 0 ? (
+        <div className={cn('space-y-2', hasClock && 'mt-6')}>
+          {lines.map((line, index) =>
+            line.type === 'notice' ? (
+              <div key={index} className="py-0.5 text-center text-xs font-medium text-(--wn-push-muted)">
+                {line.text}
+              </div>
+            ) : (
+              <div key={index} className="flex gap-3 rounded-[18px] bg-(--wn-push-card-bg) px-3.5 py-3">
+                <span
+                  aria-hidden="true"
+                  className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-(--wn-push-icon-bg) text-sm font-bold text-(--wn-push-icon-fg)"
+                >
+                  {[...(line.app || line.title || '알')][0]}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline gap-2 text-xs text-(--wn-push-muted)">
+                    <span className="min-w-0 truncate font-semibold">{line.app || '알림'}</span>
+                    {line.time ? <span className="ml-auto shrink-0">{line.time}</span> : null}
+                  </div>
+                  {line.title ? <div className="mt-0.5 truncate text-[14px] font-bold">{line.title}</div> : null}
+                  {line.body ? <div className="mt-0.5 text-[14px] leading-snug break-keep whitespace-pre-wrap">{line.body}</div> : null}
+                </div>
+              </div>
+            ),
+          )}
         </div>
       ) : null}
     </div>

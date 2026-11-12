@@ -23,6 +23,7 @@ import {
   type ChatData,
   type KakaoData,
   type PostData,
+  type PushData,
   type SearchData,
   type SnsData,
   type StoryBlock,
@@ -35,7 +36,7 @@ import { cn } from '@/lib/utils';
 const COMMIT_DELAY_MS = 300;
 
 type CardBlock = Extract<StoryBlock, { kind: 'live' | 'donation' | 'news' | 'call' | 'note' | 'mail' }>;
-type ConversationBlock = Extract<StoryBlock, { kind: 'kakao' | 'chat' | 'post' | 'system' | 'sns' | 'search' }>;
+type ConversationBlock = Extract<StoryBlock, { kind: 'kakao' | 'chat' | 'post' | 'system' | 'sns' | 'search' | 'push' }>;
 
 const TEXTAREA =
   'w-full resize-y rounded-2xl border border-line bg-surface px-4 py-3 text-base leading-relaxed text-fg field-sizing-content placeholder:text-muted/60 focus:border-accent focus:ring-3 focus:ring-accent/20 focus:outline-none';
@@ -47,6 +48,7 @@ const SCRIPT_PLACEHOLDER: Record<ConversationBlock['kind'], string> = {
   system: '「잃어버린 기억을 찾아라」\n제한 시간: 24시간\n--- 보상 ---\n???',
   sns: '익명1: 어디예요?? [3분 전]\n익명2: 나도 가 봄 [1분 전]',
   search: '자정에만 여는 와플 가게 후기\nwaffle.example.com/review\n골목 끝 그 가게, 가 보신 분?',
+  push: '카톡 · 엄마: 어디야? [방금]\n은행: 입금 10,000원 [3분 전]',
 };
 
 function useDraft<T extends StoryBlock>(block: T, onChange: (block: StoryBlock) => void) {
@@ -232,18 +234,25 @@ export function ConversationEditor({
   const speakers =
     draft.kind === 'post' || draft.kind === 'sns'
       ? commentSpeakers(comments)
-      : draft.kind === 'system' || draft.kind === 'search'
+      : draft.kind === 'system' || draft.kind === 'search' || draft.kind === 'push'
         ? []
         : scriptSpeakers(lines);
 
   function setData(
-    patch: Partial<KakaoData> | Partial<ChatData> | Partial<PostData> | Partial<SystemData> | Partial<SnsData> | Partial<SearchData>,
+    patch:
+      | Partial<KakaoData>
+      | Partial<ChatData>
+      | Partial<PostData>
+      | Partial<SystemData>
+      | Partial<SnsData>
+      | Partial<SearchData>
+      | Partial<PushData>,
   ) {
     update({ ...draft, data: { ...draft.data, ...patch } } as ConversationBlock);
   }
 
   function rename(from: string, to: string) {
-    if (draft.kind === 'system' || draft.kind === 'search') return;
+    if (draft.kind === 'system' || draft.kind === 'search' || draft.kind === 'push') return;
     if (draft.kind === 'sns') {
       setData({ script: renameSpeaker(draft.data.script, from, to, { replies: true }) });
       return;
@@ -341,6 +350,25 @@ export function ConversationEditor({
             />
             <MiniInput label="재게시" value={draft.data.reposts} maxLength={20} onChange={(reposts) => setData({ reposts })} inputClassName="w-12" />
             <MiniInput label="좋아요" value={draft.data.likes} maxLength={20} onChange={(likes) => setData({ likes })} inputClassName="w-14" />
+          </>
+        ) : draft.kind === 'push' ? (
+          <>
+            <MiniInput
+              label="시계"
+              value={draft.data.time}
+              maxLength={20}
+              placeholder="비우면 안 보여요"
+              onChange={(time) => setData({ time })}
+              inputClassName="w-24"
+            />
+            <MiniInput
+              label="날짜"
+              value={draft.data.date}
+              maxLength={40}
+              placeholder="비우면 안 보여요"
+              onChange={(date) => setData({ date })}
+              inputClassName="w-40"
+            />
           </>
         ) : draft.kind === 'search' ? (
           <>
@@ -467,7 +495,7 @@ export function ConversationEditor({
             ref={scriptRef}
             value={draft.data.script}
             onChange={(e) => setData({ script: e.target.value })}
-            aria-label={draft.kind === 'post' ? '댓글 대본' : draft.kind === 'sns' ? '답글 대본' : draft.kind === 'search' ? '검색 결과 대본' : '대본'}
+            aria-label={draft.kind === 'post' ? '댓글 대본' : draft.kind === 'sns' ? '답글 대본' : draft.kind === 'search' ? '검색 결과 대본' : draft.kind === 'push' ? '알림 대본' : '대본'}
             spellCheck={false}
             maxLength={LIMITS.script}
             placeholder={SCRIPT_PLACEHOLDER[draft.kind]}
@@ -573,6 +601,13 @@ const SCRIPT_HELP: Record<ConversationBlock['kind'], Array<[string, string]>> = 
     ['이름 없이 쓰기', '앞 답글에 줄바꿈'],
     ['[3분 전]', '줄 끝에 시간'],
     ['--- 안내 ---', '가운데 회색 줄'],
+  ],
+  push: [
+    ['앱 · 보낸 사람: 내용', '알림 하나'],
+    ['앱: 내용', '보낸 사람 없이'],
+    ['[3분 전]', '줄 끝에 시각'],
+    ['이름 없이 쓰기', '앞 알림에 줄바꿈'],
+    ['--- 안내 ---', '가운데 작은 글'],
   ],
   search: [
     ['빈 줄', '결과 나누기'],
