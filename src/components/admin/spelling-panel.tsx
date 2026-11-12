@@ -290,7 +290,8 @@ export function SpellingPanel({ editor, onClose }: { editor: Editor; onClose: ()
               <path d="M6 9l6 6 6-6" />
             </svg>
           </summary>
-          <ul className="flex flex-wrap gap-1 pt-1 pb-1.5">
+          {/* 많이 두면 목록 안에서 스크롤 (이 창은 도구 막대와 함께 화면 위에 붙어 있어서, 길어지면 아래가 화면 밖으로 나가 닿을 수 없음) */}
+          <ul className="flex max-h-[min(8rem,18vh)] flex-wrap gap-1 overflow-y-auto overscroll-contain pt-1 pb-1.5">
             {keep.map((word) => (
               <li key={word}>
                 <button

@@ -134,7 +134,8 @@ export function BulkSchedule({ novelId, drafts }: { novelId: number; drafts: Dra
                 </select>
               </label>
             </div>
-            <fieldset>
+            {/* fieldset은 기본으로 내용만큼 넓어져서(긴 제목) 창 밖으로 나가므로 최소 너비를 0으로 */}
+            <fieldset className="min-w-0">
               <legend className="text-sm font-semibold">
                 예약할 회차 <span className="font-normal text-muted">회차 번호 순서대로</span>
               </legend>
