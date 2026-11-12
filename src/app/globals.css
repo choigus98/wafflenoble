@@ -696,6 +696,15 @@ html[data-focus="on"] [data-focus-grid] {
   background: var(--find-current-bg);
   box-shadow: 0 0 0 1px var(--accent);
 }
+/* 긴 문장: 창이 열려 있는 동안 옅게, 목록에서 고른 문장은 찾기처럼 */
+.ProseMirror .wn-long-sentence {
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.ProseMirror .wn-long-current {
+  background: var(--find-current-bg);
+  box-shadow: 0 0 0 1px var(--accent);
+}
 .ProseMirror hr.ProseMirror-selectednode::after {
   color: var(--accent);
 }

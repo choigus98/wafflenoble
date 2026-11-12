@@ -15,6 +15,7 @@ import {
 import { ChangesDialog } from '@/components/admin/changes-dialog';
 import { CharGoal } from '@/components/admin/char-goal';
 import { FindBar, FindReplace } from '@/components/admin/find-replace';
+import { LongSentenceMarks, LongSentencePanel } from '@/components/admin/long-sentence-panel';
 import { RepeatPanel } from '@/components/admin/repeat-panel';
 import { ScenePanel, jumpToScene } from '@/components/admin/scene-panel';
 import { SpellingCheck, SpellingPanel } from '@/components/admin/spelling-panel';
@@ -90,7 +91,7 @@ function plainTextSlice(text: string, schema: Schema): Slice {
 
 /** 글자수 + 본문 통계(문단 · 대사 · 템플릿, lib/body-stats.ts) */
 /** 도구 막대 아래에 뜨는 창 (한 번에 하나만) */
-type EditorPanel = 'find' | 'spelling' | 'scenes' | 'repeats';
+type EditorPanel = 'find' | 'spelling' | 'scenes' | 'repeats' | 'long';
 
 function countText(editor: Editor) {
   const text = editor.state.doc.textContent;
@@ -339,6 +340,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
       StoryBlockNode.configure({ editingStore: templateStore }),
       FindReplace.configure({ onOpen: openFind }),
       SpellingCheck,
+      LongSentenceMarks,
     ],
     content: chapter.contentHtml,
     editorProps: {
@@ -739,6 +741,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
         </div>
         {panel === 'find' && editor ? <FindBar key={findSession} editor={editor} initialQuery={findQuery} onClose={() => closePanel('find')} /> : null}
         {panel === 'repeats' && editor ? <RepeatPanel editor={editor} onFind={findWord} onClose={() => closePanel('repeats')} /> : null}
+        {panel === 'long' && editor ? <LongSentencePanel editor={editor} onClose={() => closePanel('long')} /> : null}
         {panel === 'spelling' && editor ? <SpellingPanel editor={editor} onClose={() => closePanel('spelling')} /> : null}
         {panel === 'scenes' && editor ? (
           <ScenePanel
@@ -1087,6 +1090,19 @@ function Toolbar({
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-4">
           <path d="M6 19V9M12 19V5M18 19v-6" />
           <path d="M3 19h18" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        onClick={() => onTogglePanel('long')}
+        aria-expanded={panel === 'long'}
+        title="긴 문장 찾기: 80 · 100 · 150자보다 긴 문장"
+        aria-label="긴 문장 찾기"
+        className={cn('grid h-8 min-w-8 place-items-center rounded-lg px-2 transition', panel === 'long' ? 'bg-accent-soft text-accent' : 'text-fg hover:bg-surface-2')}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-4">
+          <path d="M4 6h12M4 11h16M4 16h7" />
+          <path d="M14 19h7M18 16.5l3 2.5-3 2.5" />
         </svg>
       </button>
       <button
