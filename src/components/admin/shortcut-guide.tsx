@@ -5,7 +5,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 // 회차 에디터 단축키 안내. 툴바 단추나 ⌘/ (Ctrl+/)로 열고, Esc·바깥 누르기·닫기로 닫는다.
 // 브라우저 기본 <dialog>(모달)이라 열려 있는 동안 포커스가 안에 머물고, 닫으면 원래 자리로 돌아간다.
 // 실제로 동작하는 것만 적는다: Tiptap 기본 단축키(굵게·기울임·취소선·인용·줄바꿈·되돌리기)와
-// 이 에디터가 따로 둔 것(저장·찾기·문단 옮기기), 줄 처음에 쓰면 바뀌는 입력 규칙
+// 이 에디터가 따로 둔 것(저장·찾기·문단 옮기기·복제), 줄 처음에 쓰면 바뀌는 입력 규칙
 
 type Combo = { mod?: boolean; shift?: boolean; alt?: boolean; key: string };
 type Item = { label: string; combos?: Combo[]; typed?: string };
@@ -38,7 +38,10 @@ const GROUPS: Array<{ title: string; items: Item[] }> = [
   },
   {
     title: '문단',
-    items: [{ label: '문단(고른 템플릿도) 위로 · 아래로 옮기기', combos: [{ alt: true, key: '↑' }, { alt: true, key: '↓' }] }],
+    items: [
+      { label: '문단(고른 템플릿도) 위로 · 아래로 옮기기', combos: [{ alt: true, key: '↑' }, { alt: true, key: '↓' }] },
+      { label: '문단(고른 템플릿도) 위 · 아래에 복사', combos: [{ alt: true, shift: true, key: '↑' }, { alt: true, shift: true, key: '↓' }] },
+    ],
   },
   {
     title: '쓰면 바로 바뀌는 것',

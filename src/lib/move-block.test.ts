@@ -1,7 +1,7 @@
 import { Schema, type Node as PMNode } from '@tiptap/pm/model';
 import { EditorState, NodeSelection, TextSelection, type Selection } from '@tiptap/pm/state';
 import { describe, expect, it } from 'vitest';
-import { moveBlockTr, topBlockRange } from '@/lib/move-block';
+import { duplicateBlockTr, moveBlockTr, topBlockRange } from '@/lib/move-block';
 
 const schema = new Schema({
   nodes: {
@@ -55,5 +55,31 @@ describe('문단 옮기기', () => {
     const withGap = schema.node('doc', null, [p('가'), p(''), p('나'), p('')]);
     const state = EditorState.create({ doc: withGap, selection: TextSelection.create(withGap, 1) });
     expect(names(state.apply(moveBlockTr(state, 'down')!).doc)).toEqual(['(빈)', '가', '나', '(빈)']);
+  });
+});
+
+describe('문단 복제', () => {
+  it('아래로 복사하면 커서가 아래 복사본의 같은 자리로, 위로 복사하면 위 복사본으로', () => {
+    const state = EditorState.create({ doc, selection: TextSelection.create(doc, 6) });
+    const down = state.apply(duplicateBlockTr(state, 'down')!);
+    expect(names(down.doc)).toEqual(['하나', '둘', '둘', '[템플릿]', '>인용', '넷', '(빈)']);
+    expect(down.selection.from).toBe(9); // 둘째 '둘'(7~10) 안 같은 자리
+    expect([down.selection.$head.parent.textContent, down.selection.$head.index(0)]).toEqual(['둘', 2]);
+    const up = state.apply(duplicateBlockTr(state, 'up')!);
+    expect(names(up.doc)).toEqual(['하나', '둘', '둘', '[템플릿]', '>인용', '넷', '(빈)']);
+    expect(up.selection.$head.index(0)).toBe(1);
+  });
+
+  it('고른 템플릿은 복사본이 골라지고 renew로 바꾼 속성, 여러 문단은 한꺼번에', () => {
+    const state = EditorState.create({ doc, selection: NodeSelection.create(doc, 7) });
+    const renew = (block: PMNode) => (block.type.name === 'storyBlock' ? block.type.create({ kind: 'kakao-copy' }) : block);
+    const copied = state.apply(duplicateBlockTr(state, 'down', renew)!);
+    expect(names(copied.doc)).toEqual(['하나', '둘', '[템플릿]', '[템플릿]', '>인용', '넷', '(빈)']);
+    expect(copied.selection instanceof NodeSelection && [copied.selection.from, copied.selection.node.attrs.kind]).toEqual([8, 'kakao-copy']);
+    const many = EditorState.create({ doc, selection: TextSelection.create(doc, 2, 6) });
+    const both = many.apply(duplicateBlockTr(many, 'down')!);
+    expect(names(both.doc)).toEqual(['하나', '둘', '하나', '둘', '[템플릿]', '>인용', '넷', '(빈)']);
+    expect(both.doc.textBetween(both.selection.from, both.selection.to)).toBe('나둘');
+    expect(both.selection.$from.index(0)).toBe(2);
   });
 });

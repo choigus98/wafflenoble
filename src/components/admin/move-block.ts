@@ -1,9 +1,12 @@
+import type { Node as PMNode } from '@tiptap/pm/model';
 import type { EditorView } from '@tiptap/pm/view';
 import { Extension } from '@tiptap/react';
 import { announce } from '@/lib/announce';
-import { moveBlockTr } from '@/lib/move-block';
+import { duplicateBlockTr, moveBlockTr } from '@/lib/move-block';
+import { newId } from '@/lib/story-blocks';
 
-// 회차 에디터 '문단 옮기기': Alt(⌥)+↑/↓로 커서가 있는 문단(고른 템플릿도)을 바로 위·아래 덩어리와 자리를 바꾼다 (계산은 lib/move-block.ts).
+// 회차 에디터 '문단 옮기기·복제': Alt(⌥)+↑/↓로 커서가 있는 문단(고른 템플릿도)을 바로 위·아래 덩어리와 자리를 바꾸고,
+// Alt(⌥)+Shift+↑/↓로 위·아래에 복사한다 (계산은 lib/move-block.ts). 복사한 템플릿은 편집용 번호를 새로 받고, 편집 창은 열지 않는다.
 // 맨 위·맨 아래라 더 못 옮겨도 키는 먹는다 (Mac에서 ⌥↑가 문단 처음으로 가는 기본 동작으로 새지 않게). 낭독기에는 옮겼는지 알려 준다
 
 /** 옮긴 덩어리(여러 개면 첫 덩어리 위 ~ 마지막 덩어리 아래)가 위에 붙은 도구 막대 밑이나 화면 아래로 나가면 그만큼만 바로 스크롤 */
@@ -21,6 +24,12 @@ function keepVisible(view: EditorView) {
   if (rectTop < top) window.scrollBy({ top: rectTop - top });
   // 아래로 나가면 내리되, 덩어리가 화면보다 길면 위 끝이 막대 밑으로 들어가지 않을 만큼만
   else if (rectBottom > bottom) window.scrollBy({ top: Math.min(rectBottom - bottom, rectTop - top) });
+}
+
+/** 복사할 덩어리: 템플릿은 편집용 번호(uid)를 새로, 내용은 따로 떼어 (같은 번호가 둘이면 편집 창이 엉킨다) */
+function renew(block: PMNode): PMNode {
+  if (block.type.name !== 'storyBlock') return block;
+  return block.type.create({ ...block.attrs, data: structuredClone(block.attrs.data), uid: newId(), isNew: false }, block.content, block.marks);
 }
 
 export const MoveBlock = Extension.create({
@@ -43,9 +52,23 @@ export const MoveBlock = Extension.create({
       announce(direction === 'up' ? '위로 옮겼어요' : '아래로 옮겼어요');
       return true;
     };
+    const copy = (direction: 'up' | 'down') => {
+      const tr = duplicateBlockTr(this.editor.state, direction, renew);
+      if (!tr) return true;
+      const view = this.editor.view;
+      view.dispatch(tr);
+      keepVisible(view);
+      requestAnimationFrame(() => {
+        if (!this.editor.isDestroyed) keepVisible(view);
+      });
+      announce(direction === 'up' ? '위에 복사했어요' : '아래에 복사했어요');
+      return true;
+    };
     return {
       'Alt-ArrowUp': () => run('up'),
       'Alt-ArrowDown': () => run('down'),
+      'Alt-Shift-ArrowUp': () => copy('up'),
+      'Alt-Shift-ArrowDown': () => copy('down'),
     };
   },
 });
