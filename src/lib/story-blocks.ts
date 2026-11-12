@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물, 이메일, 검색 결과, 휴대폰 알림, 문자 메시지, 영수증, 위치 공유, 투표, 송금 완료, 알람, 일정).
+// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물, 이메일, 검색 결과, 휴대폰 알림, 문자 메시지, 영수증, 위치 공유, 투표, 송금 완료, 알람, 일정, 아이템 획득).
 // 저장 형식: <div data-wn-block="종류" data-wn-data="JSON"></div>
 // 에디터(Tiptap 노드), 서버(저장할 때 검증), 열람 화면(렌더링)이 모두 이 파일을 같이 쓴다.
 //
@@ -194,6 +194,14 @@ const eventSchema = z.object({
   note: text(200), // 메모. 비우면 안 보임
 });
 
+const itemSchema = z.object({
+  title: text(40), // 위쪽 알림 문구 ('아이템을 획득했습니다!'). 비우면 안 보임
+  name: text(60), // 아이템 이름
+  grade: text(20), // 등급 ('전설'). 이름으로 색을 고른다 (itemGradeKey). 비우면 안 보임
+  category: text(40), // 분류 ('무기 · 한손검'). 비우면 안 보임
+  script: text(LIMITS.script), // 능력치·설명 대본 (시스템 창과 같은 규칙, parseSystemScript)
+});
+
 /** 전화 화면 모드를 바꿀 때, 아직 고치지 않은 기본 문구는 새 모드에 맞게 바꿔 준다 */
 export const CALL_DETAIL_DEFAULT = { incoming: '휴대전화', active: '00:12' } as const;
 
@@ -219,6 +227,7 @@ export const storyBlockSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('transfer'), data: transferSchema }),
   z.object({ kind: z.literal('alarm'), data: alarmSchema }),
   z.object({ kind: z.literal('event'), data: eventSchema }),
+  z.object({ kind: z.literal('item'), data: itemSchema }),
 ]);
 
 export type StoryBlock = z.infer<typeof storyBlockSchema>;
@@ -242,6 +251,7 @@ export type PollData = z.infer<typeof pollSchema>;
 export type TransferData = z.infer<typeof transferSchema>;
 export type AlarmData = z.infer<typeof alarmSchema>;
 export type EventData = z.infer<typeof eventSchema>;
+export type ItemData = z.infer<typeof itemSchema>;
 
 /** 메일 보낸 사람 '김지은 <jieun@example.com>' → 이름과 주소. 꺾쇠가 없으면 적은 그대로 이름으로 */
 export function splitMailSender(from: string): { name: string; address: string } {
@@ -696,6 +706,25 @@ export function eventDateParts(text: string): { month: string; day: string; week
   return { month: String(month), day: String(day), weekday: match[3] ?? '' };
 }
 
+// ─── 아이템 등급 색 ──────────────────────────────────────
+// 등급 이름에 아래 말이 들어 있으면 그 색 ('SSS급 전설' → 전설). 모르는 이름이면 일반 색, 글자는 적은 그대로 보인다
+
+export type ItemGrade = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'mythic';
+
+const ITEM_GRADE_WORDS: Array<[ItemGrade, string[]]> = [
+  ['mythic', ['신화', '태초', '초월', 'mythic']],
+  ['legendary', ['전설', '레전드', 'legend']],
+  ['epic', ['영웅', '에픽', '유니크', 'epic', 'unique']],
+  ['rare', ['희귀', '레어', 'rare']],
+  ['uncommon', ['고급', '언커먼', '매직', 'uncommon', 'magic']],
+  ['common', ['일반', '노멀', '커먼', 'common', 'normal']],
+];
+
+export function itemGradeKey(grade: string): ItemGrade {
+  const text = grade.toLowerCase();
+  return ITEM_GRADE_WORDS.find(([, words]) => words.some((word) => text.includes(word)))?.[0] ?? 'common';
+}
+
 /** 제목 옆·댓글 머리에 보일 댓글 수. 직접 적은 값이 먼저, 없으면 실제 댓글 개수 */
 export function postCommentCount(data: PostData, lines: CommentLine[]): string {
   return data.commentCount.trim() || String(lines.filter((line) => line.type === 'comment').length);
@@ -726,7 +755,8 @@ export type TemplateKey =
   | 'poll'
   | 'transfer'
   | 'alarm'
-  | 'event';
+  | 'event'
+  | 'item';
 
 export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }> = [
   { key: 'kakao-dm', label: '카톡 1:1 대화', hint: '두 사람의 메신저 대화' },
@@ -752,6 +782,7 @@ export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }>
   { key: 'transfer', label: '송금 완료', hint: '은행 앱 송금 결과 · 금액 · 받는 분' },
   { key: 'alarm', label: '알람', hint: '큰 시각 · 알람 이름 · 반복 요일' },
   { key: 'event', label: '일정', hint: '캘린더 일정 · 날짜 · 시간 · 장소' },
+  { key: 'item', label: '아이템 획득', hint: '이름 · 등급 색 · 능력치' },
 ];
 
 export function templateLabel(block: StoryBlock): string {
@@ -882,6 +913,17 @@ export function createTemplate(key: TemplateKey): StoryBlock {
       return {
         kind: 'location',
         data: { badge: '위치 공유', place: '골목 끝 와플 가게', address: '와플시 반죽구 시럽로 12, 1층', note: '여기서 기다릴게' },
+      };
+    case 'item':
+      return {
+        kind: 'item',
+        data: {
+          title: '아이템을 획득했습니다!',
+          name: '전설의 와플 뒤집개',
+          grade: '전설',
+          category: '무기 · 주방 도구',
+          script: ['공격력: +12', '버터 친화력: +30%', '「굽는 와플마다 행운 +1」', '---', '오래된 와플 가게에서 대대로 내려온 뒤집개.', '손잡이에 누군가의 이름이 새겨져 있다.'].join('\n'),
+        },
       };
     case 'event':
       return {

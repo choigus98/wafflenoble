@@ -1,10 +1,11 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import {
   CHAT_COLORS,
   WEEKDAYS,
   alarmDays,
   chatColorKey,
   eventDateParts,
+  itemGradeKey,
   commentDisplayName,
   isMine,
   isPostAuthor,
@@ -29,6 +30,7 @@ import {
   type ChatData,
   type DonationData,
   type EventData,
+  type ItemData,
   type KakaoData,
   type LiveData,
   type LocationData,
@@ -111,6 +113,8 @@ export function StoryBlockView({ block }: { block: StoryBlock }) {
       return <AlarmCard data={block.data} />;
     case 'event':
       return <EventCard data={block.data} />;
+    case 'item':
+      return <ItemCard data={block.data} />;
   }
 }
 
@@ -436,9 +440,14 @@ function SystemCard({ data }: { data: SystemData }) {
             case 'divider':
               return (
                 <div key={index} role="separator" className="flex items-center gap-3 pt-2 pb-1 text-xs font-semibold tracking-wide text-(--wn-sys-muted)">
+                  {/* 가운데 글자가 없으면 끊기지 않은 한 줄로 */}
                   <span aria-hidden="true" className="h-px flex-1 bg-(--wn-sys-line)" />
-                  {line.text ? <span>{line.text}</span> : null}
-                  <span aria-hidden="true" className="h-px flex-1 bg-(--wn-sys-line)" />
+                  {line.text ? (
+                    <>
+                      <span>{line.text}</span>
+                      <span aria-hidden="true" className="h-px flex-1 bg-(--wn-sys-line)" />
+                    </>
+                  ) : null}
                 </div>
               );
             case 'text':
@@ -1328,6 +1337,91 @@ export function EventCard({ data, field }: { data: EventData; field?: FieldRende
           ) : null}
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * 아이템 획득: 게임·판타지 소설의 아이템 창. 등급 이름으로 테두리·이름·강조 줄 색을 고른다 (itemGradeKey).
+ * 능력치·설명은 시스템 창과 같은 대본 규칙 ('공격력: +12' · 「강조」 · '---' 구분선 · 그냥 쓰면 설명 글)
+ */
+function ItemCard({ data }: { data: ItemData }) {
+  const lines = parseSystemScript(data.script);
+  const grade = itemGradeKey(data.grade);
+  const meta = data.grade.trim() || data.category.trim();
+
+  return (
+    <div
+      style={{ '--item-grade': `var(--wn-item-${grade})` } as CSSProperties}
+      className="wn-block mx-auto w-full max-w-[420px] rounded-2xl border-[1.5px] border-(--item-grade) bg-(--wn-item-bg) px-5 py-4 text-(--wn-item-fg) shadow-[0_0_22px_color-mix(in_srgb,var(--item-grade)_22%,transparent)]"
+    >
+      {data.title.trim() ? (
+        <div className="mb-3 flex items-center gap-1.5 text-xs font-semibold tracking-wide text-(--wn-item-muted)">
+          <span aria-hidden="true">✦</span>
+          {data.title}
+        </div>
+      ) : null}
+      <div className="flex items-center gap-3.5">
+        <span aria-hidden="true" className="grid size-12 shrink-0 place-items-center rounded-xl bg-[color-mix(in_srgb,var(--item-grade)_14%,transparent)] text-(--item-grade)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" className="size-6">
+            <path d="M12 2.5l7.5 7.5-7.5 11.5L4.5 10z" />
+            <path d="M4.5 10h15M12 2.5L9 10l3 11.5L15 10z" />
+          </svg>
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-[18px] leading-snug font-bold break-keep text-(--item-grade)">{data.name}</div>
+          {meta ? (
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-(--wn-item-muted)">
+              {data.grade.trim() ? (
+                <span className="rounded-md border border-(--item-grade) px-1.5 py-px font-bold text-(--item-grade)">
+                  <span className="sr-only">등급 </span>
+                  {data.grade.trim()}
+                </span>
+              ) : null}
+              {data.category.trim() ? <span className="break-keep">{data.category.trim()}</span> : null}
+            </div>
+          ) : null}
+        </div>
+      </div>
+      {lines.length > 0 ? (
+        <div className="mt-3.5 space-y-1.5 border-t border-(--wn-item-line) pt-3.5 text-sm">
+          {lines.map((line, index) => {
+            switch (line.type) {
+              case 'stat':
+                return (
+                  <div key={index} className="flex items-baseline justify-between gap-4">
+                    <span className="min-w-0 text-(--wn-item-muted)">{line.label}</span>
+                    <span className="min-w-0 text-right font-semibold tabular-nums">{line.value}</span>
+                  </div>
+                );
+              case 'emphasis':
+                return (
+                  <div key={index} className="py-0.5 font-bold text-(--item-grade)">
+                    {line.text}
+                  </div>
+                );
+              case 'divider':
+                return (
+                  <div key={index} role="separator" className="flex items-center gap-3 pt-1.5 pb-0.5 text-xs font-semibold text-(--wn-item-muted)">
+                    <span aria-hidden="true" className="h-px flex-1 bg-(--wn-item-line)" />
+                    {line.text ? (
+                      <>
+                        <span>{line.text}</span>
+                        <span aria-hidden="true" className="h-px flex-1 bg-(--wn-item-line)" />
+                      </>
+                    ) : null}
+                  </div>
+                );
+              case 'text':
+                return (
+                  <div key={index} className="leading-relaxed break-keep text-(--wn-item-muted)">
+                    {line.text}
+                  </div>
+                );
+            }
+          })}
+        </div>
+      ) : null}
     </div>
   );
 }

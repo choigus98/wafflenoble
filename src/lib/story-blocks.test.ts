@@ -4,6 +4,7 @@ import {
   alarmDays,
   chatColorKey,
   eventDateParts,
+  itemGradeKey,
   commentDisplayName,
   commentSpeakers,
   createTemplate,
@@ -70,6 +71,7 @@ const KEYS: TemplateKey[] = [
   'transfer',
   'alarm',
   'event',
+  'item',
 ];
 
 function withTrickyText(block: StoryBlock): StoryBlock {
@@ -114,6 +116,8 @@ function withTrickyText(block: StoryBlock): StoryBlock {
       return { ...block, data: { ...block.data, label: '<b>일어나</b> & "지각" 😀', days: '월 <수> & 금' } };
     case 'event':
       return { ...block, data: { ...block.data, title: TRICKY, note: `${TRICKY}\n둘째 줄` } };
+    case 'item':
+      return { ...block, data: { ...block.data, name: '<b>전설</b>의 "뒤집개" & 😀', script: `${block.data.script}\n${TRICKY}: +1` } };
     case 'receipt':
       return { ...block, data: { ...block.data, store: '가게 <b>&</b> "따옴표"', script: `${block.data.script}\n${TRICKY}: 1,000원` } };
     case 'push':
@@ -600,5 +604,22 @@ describe('일정 날짜 타일', () => {
     expect(eventDateParts('내일')).toBeNull();
     expect(eventDateParts('13월 40일')).toBeNull();
     expect(eventDateParts('')).toBeNull();
+  });
+});
+
+describe('아이템 등급 색', () => {
+  it('등급 이름에 든 말로 고른다 (영문·다른 이름도)', () => {
+    expect(itemGradeKey('전설')).toBe('legendary');
+    expect(itemGradeKey('SSS급 전설')).toBe('legendary');
+    expect(itemGradeKey('Legendary')).toBe('legendary');
+    expect(itemGradeKey('유니크')).toBe('epic');
+    expect(itemGradeKey('레어')).toBe('rare');
+    expect(itemGradeKey('매직')).toBe('uncommon');
+    expect(itemGradeKey('신화')).toBe('mythic');
+  });
+
+  it('모르는 이름이거나 비면 일반 색', () => {
+    expect(itemGradeKey('')).toBe('common');
+    expect(itemGradeKey('S+')).toBe('common');
   });
 });

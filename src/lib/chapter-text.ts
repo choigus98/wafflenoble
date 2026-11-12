@@ -109,6 +109,10 @@ export function storyBlockToText(block: StoryBlock): string {
           data.date.trim() && `일시: ${data.date.trim()}`,
         );
       }
+      case 'item': {
+        const { data } = block;
+        return lines(data.title, data.name, [data.grade.trim() && `[${data.grade.trim()}]`, data.category.trim()].filter(Boolean).join(' '), data.script);
+      }
       case 'event': {
         const { data } = block;
         return lines(

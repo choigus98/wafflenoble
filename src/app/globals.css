@@ -135,6 +135,17 @@
   --wn-event-bg: #ffffff;
   --wn-event-accent: #7c3aed; /* 흰 바탕 대비 5.7:1 */
   --wn-event-tile-bg: #f3effd;
+  --wn-item-bg: #fbf8f1;
+  --wn-item-fg: #1d1a14;
+  --wn-item-muted: #5f574a;
+  --wn-item-line: rgb(0 0 0 / 0.1);
+  /* 등급 색: 이름 글자로도 쓰여서 바탕 대비 4.5:1 이상 */
+  --wn-item-common: #5b5f66;
+  --wn-item-uncommon: #2f7d32;
+  --wn-item-rare: #1f5fcf;
+  --wn-item-epic: #8b35d6;
+  --wn-item-legendary: #b45309;
+  --wn-item-mythic: #c0262c;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -272,6 +283,16 @@
     --wn-event-bg: #17191e;
     --wn-event-accent: #b79cff;
     --wn-event-tile-bg: rgb(183 156 255 / 0.14);
+    --wn-item-bg: #14131a;
+    --wn-item-fg: #f1eee6;
+    --wn-item-muted: rgb(255 255 255 / 0.66);
+    --wn-item-line: rgb(255 255 255 / 0.12);
+    --wn-item-common: #b9bcc4;
+    --wn-item-uncommon: #6fd27a;
+    --wn-item-rare: #7ab0ff;
+    --wn-item-epic: #c79bff;
+    --wn-item-legendary: #ffb547;
+    --wn-item-mythic: #ff7b7b;
   }
 }
 
@@ -408,6 +429,16 @@
   --wn-event-bg: #17191e;
   --wn-event-accent: #b79cff;
   --wn-event-tile-bg: rgb(183 156 255 / 0.14);
+  --wn-item-bg: #14131a;
+  --wn-item-fg: #f1eee6;
+  --wn-item-muted: rgb(255 255 255 / 0.66);
+  --wn-item-line: rgb(255 255 255 / 0.12);
+  --wn-item-common: #b9bcc4;
+  --wn-item-uncommon: #6fd27a;
+  --wn-item-rare: #7ab0ff;
+  --wn-item-epic: #c79bff;
+  --wn-item-legendary: #ffb547;
+  --wn-item-mythic: #ff7b7b;
 }
 
 @theme inline {
