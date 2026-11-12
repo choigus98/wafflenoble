@@ -69,6 +69,7 @@ import {
   type TicketData,
   type MatchData,
   type ProfileData,
+  type TaxiData,
   type StoryBlock,
   type SystemData,
   type TodoData,
@@ -163,6 +164,8 @@ export function StoryBlockView({ block }: { block: StoryBlock }) {
       return <MatchCard data={block.data} />;
     case 'profile':
       return <ProfileCard data={block.data} />;
+    case 'taxi':
+      return <TaxiCard data={block.data} />;
   }
 }
 
@@ -2327,6 +2330,94 @@ export function ProfileCard({ data, field }: { data: ProfileData; field?: FieldR
           </div>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+/**
+ * 택시 호출(배차 완료 화면): 노란 띠(그림 · 띠 글) · 도착 안내(크게) · 한 줄 · 번호판(영업용처럼 노란 판) · 차종·색 · 기사 · 출발 → 도착.
+ * 비운 칸은 안 보인다(에디터에서는 빈칸 안내로 보임). 노란 띠·번호판 안 빈칸 안내 글씨도 그 위에서 읽히게 진한 색으로
+ */
+export function TaxiCard({ data, field }: { data: TaxiData; field?: FieldRenderer }) {
+  const editing = Boolean(field);
+  const slot = (name: keyof TaxiData, label: string, maxLength: number, className: string) =>
+    field ? (
+      field({ name, value: data[name], label, placeholder: label, maxLength, className, wrap: true })
+    ) : (
+      <span className={className}>{data[name]}</span>
+    );
+  const show = (name: keyof TaxiData) => editing || data[name].trim() !== '';
+  const hasFrom = show('from');
+  const hasTo = show('to');
+  // 띠 아래에 보일 게 하나도 없으면(다 비움) 아래 칸을 아예 안 그린다 (빈 여백만 남지 않게)
+  const hasBody = (['eta', 'note', 'plate', 'car', 'driver', 'from', 'to'] as const).some(show);
+  const onYellow = { '--wn-muted': 'var(--wn-taxi-band-fg)' } as CSSProperties;
+  const onPlate = { '--wn-muted': 'var(--wn-taxi-plate-fg)' } as CSSProperties;
+
+  return (
+    <div className="wn-block mx-auto w-full max-w-[400px] overflow-hidden rounded-[18px] border border-(--wn-border) bg-(--wn-taxi-bg) text-(--wn-fg) shadow-sm">
+      <div style={onYellow} className="flex items-center gap-2 bg-(--wn-taxi-band) px-5 py-2.5 text-sm font-bold text-(--wn-taxi-band-fg)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-[18px] shrink-0">
+          <path d="M9.5 3.5h5M5 11l1.6-4.2A2 2 0 0 1 8.5 5.5h7a2 2 0 0 1 1.9 1.3L19 11" />
+          <rect x="3" y="11" width="18" height="6" rx="2" />
+          <path d="M6.5 17v2.5M17.5 17v2.5M7 14h.01M17 14h.01" />
+        </svg>
+        {editing ? null : <span className="sr-only">택시 </span>}
+        {show('status') ? slot('status', '띠 글 (비우면 안 보여요)', 20, 'max-w-full break-keep') : null}
+      </div>
+      {hasBody ? (
+        <div className="px-5 pt-4 pb-5">
+          {show('eta') ? <div className="text-[26px] leading-tight font-bold break-keep">{slot('eta', '도착 안내', 30, 'max-w-full')}</div> : null}
+          {show('note') ? <div className="mt-1 text-sm break-keep text-(--wn-taxi-muted)">{slot('note', '한 줄 (비우면 안 보여요)', 60, 'max-w-full')}</div> : null}
+          {show('plate') || show('car') || show('driver') ? (
+            <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+              {show('plate') ? (
+                <span
+                  style={onPlate}
+                  className="max-w-full rounded-md border-2 border-(--wn-taxi-plate-fg) bg-(--wn-taxi-plate) px-2.5 py-0.5 text-lg font-extrabold tracking-wide break-keep text-(--wn-taxi-plate-fg)"
+                >
+                  {editing ? null : <span className="sr-only">차량 번호 </span>}
+                  {slot('plate', '차량 번호 (비우면 안 보여요)', 20, 'max-w-full')}
+                </span>
+              ) : null}
+              {show('car') || show('driver') ? (
+                <span className="min-w-0 text-sm">
+                  {show('car') ? <span className="block font-semibold break-keep">{slot('car', '차종·색 (비우면 안 보여요)', 30, 'max-w-full')}</span> : null}
+                  {show('driver') ? <span className="block break-keep text-(--wn-taxi-muted)">{slot('driver', '기사 (비우면 안 보여요)', 30, 'max-w-full')}</span> : null}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+          {hasFrom || hasTo ? (
+            <ol className="mt-4 border-t border-(--wn-border) pt-4 text-sm">
+              {hasFrom ? (
+                <li className="flex gap-3">
+                  {/* 출발 동그라미 → 도착 네모를 점선으로 잇는다 (도착이 있을 때만) */}
+                  <span aria-hidden="true" className="flex w-2.5 shrink-0 flex-col items-center pt-[5px]">
+                    <span className="size-2.5 rounded-full bg-(--wn-taxi-from)" />
+                    {hasTo ? <span className="mt-1 w-0 flex-1 border-l-2 border-dotted border-(--wn-taxi-muted)" /> : null}
+                  </span>
+                  <span className={cn('min-w-0 flex-1', hasTo && 'pb-3')}>
+                    <span className="block text-xs text-(--wn-taxi-muted)">출발</span>
+                    <span className="block font-semibold break-keep">{slot('from', '출발 (비우면 안 보여요)', 40, 'max-w-full')}</span>
+                  </span>
+                </li>
+              ) : null}
+              {hasTo ? (
+                <li className="flex gap-3">
+                  <span aria-hidden="true" className="flex w-2.5 shrink-0 flex-col items-center pt-[5px]">
+                    <span className="size-2.5 rounded-[3px] bg-(--wn-taxi-to)" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-xs text-(--wn-taxi-muted)">도착</span>
+                    <span className="block font-semibold break-keep">{slot('to', '도착 (비우면 안 보여요)', 40, 'max-w-full')}</span>
+                  </span>
+                </li>
+              ) : null}
+            </ol>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

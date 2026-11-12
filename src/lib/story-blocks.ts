@@ -252,6 +252,17 @@ const profileSchema = z.object({
   music: text(40), // 프로필 음악 ('골목 끝의 단맛 - 시럽밴드'). 비우면 안 보임
 });
 
+const taxiSchema = z.object({
+  status: text(20), // 노란 띠 글 ('배차 완료'). 비우면 띠에 그림만
+  eta: text(30), // 크게 쓰는 도착 안내 ('3분 후 도착')
+  note: text(60), // 한 줄 ('기사님이 출발지로 오고 있어요'). 비우면 안 보임
+  plate: text(20), // 차량 번호 ('서울 32사 1234'). 비우면 안 보임
+  car: text(30), // 차종·색 ('흰색 쏘나타'). 비우면 안 보임
+  driver: text(30), // 기사 ('김민수 기사님'). 비우면 안 보임
+  from: text(40), // 출발 ('달빛 와플 가게'). 비우면 안 보임
+  to: text(40), // 도착 ('연남동 골목 입구'). 비우면 안 보임
+});
+
 const weatherSchema = z.object({
   place: text(40), // 장소 ('와플시 반죽구')
   temp: text(10), // 지금 기온 ('12°')
@@ -327,6 +338,7 @@ export const storyBlockSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('ticket'), data: ticketSchema }),
   z.object({ kind: z.literal('match'), data: matchSchema }),
   z.object({ kind: z.literal('profile'), data: profileSchema }),
+  z.object({ kind: z.literal('taxi'), data: taxiSchema }),
 ]);
 
 export type StoryBlock = z.infer<typeof storyBlockSchema>;
@@ -361,6 +373,7 @@ export type ParcelData = z.infer<typeof parcelSchema>;
 export type TicketData = z.infer<typeof ticketSchema>;
 export type MatchData = z.infer<typeof matchSchema>;
 export type ProfileData = z.infer<typeof profileSchema>;
+export type TaxiData = z.infer<typeof taxiSchema>;
 
 /** 메일 보낸 사람 '김지은 <jieun@example.com>' → 이름과 주소. 꺾쇠가 없으면 적은 그대로 이름으로 */
 export function splitMailSender(from: string): { name: string; address: string } {
@@ -1178,7 +1191,8 @@ export type TemplateKey =
   | 'ticket-plane'
   | 'ticket-train'
   | 'match'
-  | 'profile';
+  | 'profile'
+  | 'taxi';
 
 export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }> = [
   { key: 'kakao-dm', label: '카톡 1:1 대화', hint: '두 사람의 메신저 대화' },
@@ -1216,6 +1230,7 @@ export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }>
   { key: 'ticket-train', label: '승차권 · 기차', hint: 'KTX · 출발/도착 · 시각 · 호차 · 좌석' },
   { key: 'match', label: '게임 결과', hint: '승리/패배 · 점수 · MVP · 경기 기록' },
   { key: 'profile', label: '메신저 프로필', hint: '프로필 사진 · 이름 · 상태 메시지 · 배경 · 프로필 음악' },
+  { key: 'taxi', label: '택시 호출', hint: '배차 완료 · 몇 분 후 도착 · 차량 번호 · 차종 · 기사 · 출발 → 도착' },
 ];
 
 export function templateLabel(block: StoryBlock): string {
@@ -1352,6 +1367,20 @@ export function createTemplate(key: TemplateKey): StoryBlock {
       return {
         kind: 'location',
         data: { badge: '위치 공유', place: '골목 끝 와플 가게', address: '와플시 반죽구 시럽로 12, 1층', note: '여기서 기다릴게' },
+      };
+    case 'taxi':
+      return {
+        kind: 'taxi',
+        data: {
+          status: '배차 완료',
+          eta: '3분 후 도착',
+          note: '기사님이 출발지로 오고 있어요',
+          plate: '서울 32사 1234',
+          car: '흰색 쏘나타',
+          driver: '김민수 기사님',
+          from: '달빛 와플 가게',
+          to: '연남동 골목 입구',
+        },
       };
     case 'profile':
       return {
