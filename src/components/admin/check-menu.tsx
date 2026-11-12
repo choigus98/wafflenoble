@@ -134,6 +134,9 @@ export function CheckMenu({ openTool, onPolish, onTool }: { openTool: CheckTool 
                 type="button"
                 role={item.key === 'polish' ? 'menuitem' : 'menuitemcheckbox'}
                 aria-checked={item.key === 'polish' ? undefined : checked}
+                // 낭독기에는 이름만 이름으로, 설명은 설명으로 (붙여 읽으면 '자주 틀리는 말됬 → 됐'처럼 들려서)
+                aria-label={item.label}
+                aria-describedby={`${menuId}-${item.key}`}
                 onClick={() => choose(item.key)}
                 className={cn('flex w-full items-start gap-2 rounded-lg px-2.5 py-2 text-left transition', checked ? 'bg-accent-soft' : 'hover:bg-surface-2')}
               >
@@ -146,7 +149,9 @@ export function CheckMenu({ openTool, onPolish, onTool }: { openTool: CheckTool 
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm font-semibold text-fg">{item.label}</span>
-                  <span className="block text-xs text-muted">{item.hint}</span>
+                  <span id={`${menuId}-${item.key}`} className="block text-xs text-muted">
+                    {item.hint}
+                  </span>
                 </span>
               </button>
             );

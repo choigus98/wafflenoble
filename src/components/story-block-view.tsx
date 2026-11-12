@@ -1877,7 +1877,8 @@ function WeatherCard({ data }: { data: WeatherData }) {
   return (
     <div
       style={style}
-      className="wn-block mx-auto w-full max-w-[420px] rounded-[22px] bg-(--weather-from) bg-linear-to-br from-(--weather-from) to-(--weather-to) px-5 pt-4 pb-4 text-(--wn-weather-fg) shadow-sm"
+      // @container: 큰 기온 글씨를 카드 너비에 맞춰 줄인다 (좁은 화면에서 '-12.5°C'가 두 줄로 쪼개지지 않게, 넓으면 52px 그대로)
+      className="wn-block @container mx-auto w-full max-w-[420px] rounded-[22px] bg-(--weather-from) bg-linear-to-br from-(--weather-from) to-(--weather-to) px-5 pt-4 pb-4 text-(--wn-weather-fg) shadow-sm"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -1889,7 +1890,7 @@ function WeatherCard({ data }: { data: WeatherData }) {
               {data.place}
             </div>
           ) : null}
-          {data.temp.trim() ? <div className="mt-1 text-[52px] leading-none font-light tabular-nums">{data.temp}</div> : null}
+          {data.temp.trim() ? <div className="mt-1 text-[min(52px,15cqi)] leading-none font-light whitespace-nowrap tabular-nums">{data.temp}</div> : null}
           {data.condition.trim() ? <div className="mt-1.5 text-[15px] font-semibold break-keep">{data.condition}</div> : null}
           {data.range.trim() ? <div className="mt-0.5 text-[13px] break-keep text-(--wn-weather-muted)">{data.range}</div> : null}
         </div>
