@@ -1,6 +1,6 @@
 import { Schema } from '@tiptap/pm/model';
 import { describe, expect, it } from 'vitest';
-import { speechProgress, speechUnitFrom } from '@/lib/speech';
+import { listenText, speechProgress, speechUnitFrom, templateSpeech } from '@/lib/speech';
 import { createTemplate } from '@/lib/story-blocks';
 
 const schema = new Schema({
@@ -43,5 +43,23 @@ describe('소리 내어 읽기', () => {
   it('몇 번째인지와 모두 몇 개인지 (읽을 것만 셈)', () => {
     expect(speechProgress(doc, 0)).toEqual({ index: 1, total: 4 });
     expect(speechProgress(doc, 11)).toEqual({ index: 3, total: 4 });
+  });
+});
+
+describe("회차 화면 '소리 내어 듣기' 글", () => {
+  it('줄 안 띄어쓰기는 한 칸, 빈 줄은 빼고 줄바꿈은 남김, 읽을 게 없으면 null', () => {
+    expect(listenText('  지은은\t 문을   열었다.  ')).toBe('지은은 문을 열었다.');
+    expect(listenText('첫 줄\n\n   \n  둘째   줄 ')).toBe('첫 줄\n둘째 줄');
+    expect(listenText(' \n \t ')).toBeNull();
+  });
+
+  it('템플릿은 머리 괄호를 떼고 이름 뒤에 마침표 (에디터 소리 내어 읽기와 같은 글)', () => {
+    expect(templateSpeech(createTemplate('taxi')).split('\n')).toEqual([
+      '택시 호출.',
+      '배차 완료 · 3분 후 도착',
+      '기사님이 출발지로 오고 있어요',
+      '서울 32사 1234 · 흰색 쏘나타 · 김민수 기사님',
+      '달빛 와플 가게 → 연남동 골목 입구',
+    ]);
   });
 });

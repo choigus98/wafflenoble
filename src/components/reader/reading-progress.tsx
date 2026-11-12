@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { scrollBehavior } from '@/lib/motion';
+import { LISTEN_START_EVENT } from '@/lib/speech-engine';
 import { RESUME_MAX, RESUME_MIN, positionKey as storageKey, readSavedRatio as readSaved } from '@/lib/reading-position';
 
 // 회차 읽기 진행 막대 + 읽던 위치 기억 (이 기기의 localStorage에만, 회차마다)
@@ -70,6 +71,13 @@ export function ReadingProgress({ chapterId }: { chapterId: number }) {
       cancelAnimationFrame(initial);
     };
   }, [chapterId]);
+
+  // 소리 내어 듣기를 시작하면 권유는 접는다 (아래 듣기 막대를 덮지 않게)
+  useEffect(() => {
+    const hide = () => setOffer(null);
+    window.addEventListener(LISTEN_START_EVENT, hide);
+    return () => window.removeEventListener(LISTEN_START_EVENT, hide);
+  }, []);
 
   // 권유는 잠시 뒤 저절로 사라진다
   useEffect(() => {

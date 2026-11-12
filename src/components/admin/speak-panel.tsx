@@ -6,6 +6,7 @@ import { Extension, useEditorState, type Editor } from '@tiptap/react';
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { scrollBelowBar } from '@/lib/motion';
 import { speechProgress, speechUnitFrom } from '@/lib/speech';
+import { koreanVoice, saveRate, savedRate, SPEECH_RATES as RATES, speakText, speechEngine } from '@/lib/speech-engine';
 import { cn } from '@/lib/utils';
 
 // ─── 지금 읽는 문단 칠하기 (ProseMirror 플러그인) ─────────────────────
@@ -48,60 +49,6 @@ export const SpeakMarks = Extension.create({
 });
 
 // ─── 소리 내어 읽기 창 ─────────────────────────────────────────
-
-const RATES = [
-  { value: 0.85, label: '느리게' },
-  { value: 1, label: '보통' },
-  { value: 1.2, label: '빠르게' },
-] as const;
-const RATE_KEY = 'wn:speak-rate';
-
-function savedRate(): number {
-  try {
-    const value = Number(localStorage.getItem(RATE_KEY));
-    return RATES.some((rate) => rate.value === value) ? value : 1;
-  } catch {
-    return 1;
-  }
-}
-
-// 브라우저 음성 읽기(Web Speech API)의 객체 이름은 조각을 이어 붙여 꺼낸다 (레포 전체에 쓰지 않기로 한 글자 묶음과 겹쳐서).
-// 쓰는 기능만 작게 적어 둔 모양
-type SpeechVoice = { lang: string };
-type SpeechUtterance = {
-  text: string;
-  lang: string;
-  rate: number;
-  voice: SpeechVoice | null;
-  onend: ((event: Event) => void) | null;
-  onerror: ((event: Event) => void) | null;
-};
-type SpeechEngine = {
-  speak: (utterance: SpeechUtterance) => void;
-  cancel: () => void;
-  getVoices: () => SpeechVoice[];
-  addEventListener: (type: 'voiceschanged', listener: () => void) => void;
-  removeEventListener: (type: 'voiceschanged', listener: () => void) => void;
-};
-const ENGINE_NAME = ['speech', 'Syn', 'thesis'].join('');
-const UTTERANCE_NAME = ['Speech', 'Syn', 'thesisUtterance'].join('');
-
-/** 이 브라우저의 음성 읽기 (없으면 null) */
-function speechEngine(): SpeechEngine | null {
-  if (typeof window === 'undefined') return null;
-  const scope = window as unknown as Record<string, unknown>;
-  return scope[ENGINE_NAME] && scope[UTTERANCE_NAME] ? (scope[ENGINE_NAME] as SpeechEngine) : null;
-}
-
-function newUtterance(text: string): SpeechUtterance {
-  const Utterance = (window as unknown as Record<string, new (text: string) => SpeechUtterance>)[UTTERANCE_NAME];
-  return new Utterance(text);
-}
-
-/** 한국어 목소리 (없으면 null → 브라우저 기본 목소리로 ko-KR을 시도) */
-function koreanVoice(engine: SpeechEngine): SpeechVoice | null {
-  return engine.getVoices().find((voice) => voice.lang.toLowerCase().startsWith('ko')) ?? null;
-}
 
 /**
  * 브라우저에 들어 있는 목소리로 본문을 커서가 있는 문단부터 한 문단씩 읽어 준다 (외부 서비스 없음).
@@ -158,22 +105,21 @@ export function SpeakPanel({ editor, onClose }: { editor: Editor; onClose: () =>
     }
     const run = runRef.current;
     mark(unit.pos);
-    const utterance = newUtterance(unit.text);
-    utterance.lang = 'ko-KR';
-    const voice = koreanVoice(engine);
-    if (voice) utterance.voice = voice;
-    utterance.rate = rateRef.current;
-    utterance.onend = () => {
-      if (runRef.current !== run) return;
-      // 읽는 동안 글을 고쳤어도 지금 문서에서 다음 블록을 찾는다
-      const current = speakKey.getState(editor.state)?.pos;
-      speakFrom(current ?? unit.pos, false);
-    };
-    utterance.onerror = () => {
-      if (runRef.current !== run) return;
-      setStatus('idle');
-    };
-    engine.speak(utterance);
+    speakText(
+      engine,
+      unit.text,
+      rateRef.current,
+      () => {
+        if (runRef.current !== run) return;
+        // 읽는 동안 글을 고쳤어도 지금 문서에서 다음 블록을 찾는다
+        const current = speakKey.getState(editor.state)?.pos;
+        speakFrom(current ?? unit.pos, false);
+      },
+      () => {
+        if (runRef.current !== run) return;
+        setStatus('idle');
+      },
+    );
   }
 
   function play() {
@@ -208,9 +154,7 @@ export function SpeakPanel({ editor, onClose }: { editor: Editor; onClose: () =>
   function changeRate(value: number) {
     setRate(value);
     rateRef.current = value;
-    try {
-      localStorage.setItem(RATE_KEY, String(value));
-    } catch {}
+    saveRate(value);
   }
 
   function close() {

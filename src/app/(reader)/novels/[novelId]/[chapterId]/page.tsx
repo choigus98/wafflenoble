@@ -5,6 +5,7 @@ import { ChapterBody } from '@/components/reader/chapter-body';
 import { ChapterCharacters } from '@/components/reader/chapter-characters';
 import { ChapterToc } from '@/components/reader/chapter-toc';
 import { ChapterKeyNav } from '@/components/reader/chapter-key-nav';
+import { ChapterListen } from '@/components/reader/chapter-listen';
 import { LikeButton } from '@/components/reader/like-button';
 import { NextPreview } from '@/components/reader/next-preview';
 import { ReaderSettings } from '@/components/reader/reader-settings';
@@ -85,6 +86,8 @@ async function ChapterView({ params }: Pick<PageProps<'/novels/[novelId]/[chapte
         </div>
         {/* 목차 목록은 이 묶음의 오른쪽 끝에 맞춰 펼쳐진다 */}
         <div data-print-hide="" className="relative flex shrink-0 gap-2">
+          {/* 소리 내어 듣기: 이 브라우저에 음성 읽기가 있을 때만 단추가 보인다 */}
+          {chapter.contentHtml ? <ChapterListen key={chapter.id} /> : null}
           {toc.length > 1 ? (
             <ChapterToc
               // 다른 회차로 가면 닫힌 상태로 새로 그린다

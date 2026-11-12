@@ -1030,8 +1030,9 @@ html[data-focus="on"] [data-focus-grid] {
   background: var(--find-current-bg);
   box-shadow: 0 0 0 1px var(--accent);
 }
-/* 소리 내어 읽기: 지금 읽는 문단 (템플릿이면 카드 둘레) */
-.ProseMirror .wn-speak-current {
+/* 소리 내어 읽기(에디터)·듣기(회차 화면): 지금 읽는 덩어리 (템플릿이면 카드 둘레) */
+.ProseMirror .wn-speak-current,
+.novel-body .wn-speak-current {
   border-radius: 6px;
   background: color-mix(in srgb, var(--accent) 12%, transparent);
   box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 12%, transparent);

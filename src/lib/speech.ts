@@ -1,6 +1,6 @@
 import type { Node as PMNode } from '@tiptap/pm/model';
 import { storyBlockToText } from '@/lib/chapter-text';
-import { parseStoryBlock } from '@/lib/story-blocks';
+import { parseStoryBlock, type StoryBlock } from '@/lib/story-blocks';
 
 // 회차 에디터 '소리 내어 읽기': 브라우저 목소리로 읽을 단위(문단 하나 · 인용 하나 · 템플릿 하나).
 // - 빈 문단과 장면 전환은 건너뛴다
@@ -10,13 +10,17 @@ import { parseStoryBlock } from '@/lib/story-blocks';
 
 export type SpeechUnit = { pos: number; text: string };
 
+/** 템플릿 하나를 읽을 글로: 텍스트로 내보내기와 같은 글, 머리 '[카톡 1:1 대화]'는 괄호를 떼고 '카톡 1:1 대화.' (회차 화면 '소리 내어 듣기'도 씀) */
+export function templateSpeech(block: StoryBlock): string {
+  const [head, ...rest] = storyBlockToText(block).split('\n');
+  return [head.replace(/^\[(.*)\]$/, '$1.'), ...rest].join('\n');
+}
+
 /** 블록 하나를 읽을 글로 (읽을 게 없으면 null) */
 export function speechText(node: PMNode): string | null {
   if (node.type.name === 'storyBlock') {
     const block = parseStoryBlock(node.attrs.kind, node.attrs.data);
-    if (!block) return null;
-    const [head, ...rest] = storyBlockToText(block).split('\n');
-    return [head.replace(/^\[(.*)\]$/, '$1.'), ...rest].join('\n');
+    return block ? templateSpeech(block) : null;
   }
   if (!node.isTextblock && node.type.name !== 'blockquote') return null;
   const text = node.textBetween(0, node.content.size, ' ', ' ').replace(/\s+/g, ' ').trim();
@@ -48,4 +52,13 @@ export function speechProgress(doc: PMNode, pos: number): { index: number; total
     if (offset <= pos) index = total;
   });
   return { index, total };
+}
+
+/** 회차 화면 '소리 내어 듣기': 덩어리 글을 읽을 모양으로 (줄 안 띄어쓰기는 한 칸, 빈 줄은 빼고 줄바꿈은 쉼으로 남김). 읽을 게 없으면 null */
+export function listenText(text: string): string | null {
+  const lines = text
+    .split('\n')
+    .map((line) => line.replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+  return lines.length > 0 ? lines.join('\n') : null;
 }
