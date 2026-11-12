@@ -43,6 +43,13 @@
       "when": 1794487135315,
       "tag": "0005_novel_characters",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794491106543,
+      "tag": "0006_chapter_notes",
+      "breakpoints": true
     }
   ]
 }

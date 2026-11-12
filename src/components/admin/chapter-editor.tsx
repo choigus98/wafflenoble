@@ -17,6 +17,7 @@ import { FindBar, FindReplace } from '@/components/admin/find-replace';
 import { TemplateMenu } from '@/components/admin/story-block/template-menu';
 import { SubmitButton } from '@/components/submit-button';
 import { Badge, Button, buttonClass } from '@/components/ui';
+import { PrivateNote } from '@/components/admin/private-note';
 import { useDismiss } from '@/components/use-dismiss';
 import { formatDateTime, formatNumber, formatSchedule, formatTime } from '@/lib/format';
 import { plainTextToBlocks } from '@/lib/paste';
@@ -35,6 +36,7 @@ export type EditorChapter = {
   publishedAt: string | null;
   scheduled: boolean; // 예약 발행 대기 중 (공개 시각 전이라 길드원에게 아직 안 보임)
   revisions: RevisionItem[]; // 이전 발행본 (최근 것부터)
+  privateNote: string; // 작가 메모 (나만 보기, 따로 저장)
 };
 
 type SaveState = 'saved' | 'dirty' | 'saving' | 'error';
@@ -682,6 +684,9 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
           className="min-h-24 w-full resize-y rounded-2xl border border-line bg-surface px-4 py-3 text-base leading-relaxed field-sizing-content placeholder:text-muted/70 focus:border-accent focus:ring-3 focus:ring-accent/20 focus:outline-none"
         />
       </div>
+
+      {/* 작가 메모: 본문과 따로 저장되고 길드원에게는 절대 안 보인다 */}
+      <PrivateNote chapterId={chapter.id} initial={chapter.privateNote} />
 
       {/* 이전 발행본: 발행된 회차를 '수정 반영'할 때마다 바뀌기 전 본문이 쌓인다 (최근 10개) */}
       {revisions.length > 0 ? (

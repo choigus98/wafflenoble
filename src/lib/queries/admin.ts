@@ -3,7 +3,7 @@ import { and, asc, count, countDistinct, desc, eq, gt, sql } from 'drizzle-orm';
 import { requireAdmin } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { htmlExcerpt } from '@/lib/content';
-import { chapterLikes, chapterRevisions, chapterViews, chapters, novels, readers } from '@/lib/db/schema';
+import { chapterLikes, chapterNotes, chapterRevisions, chapterViews, chapters, novels, readers } from '@/lib/db/schema';
 import { getGuildSettings } from '@/lib/settings';
 import {
   chapterLikeCount,
@@ -99,7 +99,7 @@ export async function adminGetChapter(novelId: number, chapterId: number) {
     .limit(1);
   if (!row) return null;
 
-  const [viewers, likers, revisions] = await Promise.all([
+  const [viewers, likers, revisions, [note]] = await Promise.all([
     db
       .select({
         nickname: readers.nickname,
@@ -117,10 +117,13 @@ export async function adminGetChapter(novelId: number, chapterId: number) {
       .where(eq(chapterLikes.chapterId, chapterId))
       .orderBy(asc(chapterLikes.createdAt)),
     adminListRevisions(chapterId),
+    // 작가 메모 (관리자 화면에서만)
+    db.select({ body: chapterNotes.body }).from(chapterNotes).where(eq(chapterNotes.chapterId, chapterId)).limit(1),
   ]);
 
   return {
     chapter: row.chapter,
+    privateNote: note?.body ?? '',
     scheduled: row.scheduled,
     novelTitle: row.novelTitle,
     viewers,

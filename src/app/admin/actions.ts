@@ -15,7 +15,7 @@ import { countCharacters, sanitizeChapterHtml } from '@/lib/content';
 import { COVER_COLOR_KEYS } from '@/lib/cover';
 import { db } from '@/lib/db';
 import { isUniqueViolation } from '@/lib/db/errors';
-import { chapterRevisions, chapters, novels, readers, settings } from '@/lib/db/schema';
+import { chapterNotes, chapterRevisions, chapters, novels, readers, settings } from '@/lib/db/schema';
 import { adminListRevisions, type RevisionItem } from '@/lib/queries/admin';
 import { isVisibleChapter } from '@/lib/queries/visibility';
 import { hasStoryBlocks } from '@/lib/story-blocks';
@@ -173,6 +173,41 @@ export async function saveChapter(input: z.input<typeof chapterInputSchema>): Pr
   });
   if (!saved) return { ok: false, message: '회차를 찾을 수 없어요. 삭제됐을 수 있어요' };
   return { ok: true, savedAt: saved.updatedAt.toISOString() };
+}
+
+// ─── 작가 메모 (나만 보기) ──────────────────────────────
+
+const NOTE_MAX = 5000;
+const noteInputSchema = z.object({
+  chapterId: idSchema,
+  body: z.string().max(NOTE_MAX, `메모는 ${NOTE_MAX.toLocaleString('ko-KR')}자까지예요`),
+});
+
+export type SaveNoteResult = { ok: true } | { ok: false; message: string };
+
+/**
+ * 작가 메모 저장. 본문 자동저장·발행과 따로 저장해서, 발행된 회차라도 '수정 반영' 없이 바로 저장되고
+ * 회차의 수정 시각·발행본 기록에도 영향을 주지 않는다. 비우면 줄을 지운다
+ */
+export async function saveChapterNote(input: z.input<typeof noteInputSchema>): Promise<SaveNoteResult> {
+  await requireAdmin();
+  const parsed = noteInputSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: firstIssue(parsed.error) };
+  const { chapterId, body } = parsed.data;
+  try {
+    if (body.trim() === '') {
+      await db.delete(chapterNotes).where(eq(chapterNotes.chapterId, chapterId));
+      return { ok: true };
+    }
+    await db
+      .insert(chapterNotes)
+      .values({ chapterId, body })
+      .onConflictDoUpdate({ target: chapterNotes.chapterId, set: { body, updatedAt: new Date() } });
+    return { ok: true };
+  } catch {
+    // 회차가 그사이 삭제됐으면 외래 키 때문에 실패한다
+    return { ok: false, message: '메모를 저장하지 못했어요. 회차가 삭제됐을 수 있어요' };
+  }
 }
 
 const REVISIONS_KEPT = 10;
@@ -371,6 +406,9 @@ export async function duplicateChapter(novelId: number, chapterId: number): Prom
       charCount: source.charCount,
     })
     .returning({ id: chapters.id });
+  // 작가 메모도 같이 (복제본에서 이어 쓰기 좋게)
+  const [note] = await db.select({ body: chapterNotes.body }).from(chapterNotes).where(eq(chapterNotes.chapterId, chapterId)).limit(1);
+  if (note?.body) await db.insert(chapterNotes).values({ chapterId: created.id, body: note.body });
   redirect(`/admin/novels/${novelId}/chapters/${created.id}`);
 }
 

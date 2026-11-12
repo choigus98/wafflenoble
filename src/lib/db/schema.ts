@@ -92,6 +92,18 @@ export const chapterRevisions = pgTable(
   (t) => [index('chapter_revisions_chapter_idx').on(t.chapterId, t.createdAt)],
 );
 
+/**
+ * 작가만 보는 회차 메모 (플롯·복선·다음 화 계획). 0006 마이그레이션.
+ * 길드원 화면의 조회는 이 표를 쓰지 않는다 — 새어 나갈 길을 처음부터 두지 않으려고 회차 표와 따로 둔다. 메모가 비면 줄을 지운다
+ */
+export const chapterNotes = pgTable('chapter_notes', {
+  chapterId: integer('chapter_id')
+    .primaryKey()
+    .references(() => chapters.id, { onDelete: 'cascade' }),
+  body: text('body').notNull().default(''),
+  updatedAt: updatedAt(),
+});
+
 export const chapterLikes = pgTable(
   'chapter_likes',
   {

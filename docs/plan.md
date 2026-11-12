@@ -119,6 +119,9 @@ export const novels = pgTable('novels', {
 // 발행본 기록 (0004 마이그레이션): 길드원에게 보이는 회차를 수정 반영·되돌리기하기 직전 본문, 회차마다 최근 10개
 // chapter_revisions(id, chapter_id → chapters 삭제 시 함께 삭제, title, content_html, author_note, char_count, created_at)
 
+// 작가 메모 (0006 마이그레이션): 작가만 보는 회차 메모. 길드원 화면 조회는 이 표를 쓰지 않는다 (회차 표와 따로 둔 까닭), 비면 줄을 지움
+// chapter_notes(chapter_id PK → chapters 삭제 시 함께 삭제, body, updated_at)
+
 export const chapters = pgTable('chapters', {
   id: serial('id').primaryKey(),
   novelId: integer('novel_id').notNull().references(() => novels.id, { onDelete: 'cascade' }),
