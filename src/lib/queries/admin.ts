@@ -6,6 +6,7 @@ import { parseCharacters } from '@/lib/characters';
 import { htmlExcerpt } from '@/lib/content';
 import { chapterLikes, chapterNotes, chapterRevisions, chapterViews, chapters, novels, readers } from '@/lib/db/schema';
 import { getGuildSettings } from '@/lib/settings';
+import { weekReadsByNovel } from '@/lib/week-reads';
 import {
   chapterLikeCount,
   chapterReaderCount,
@@ -272,6 +273,28 @@ export async function adminRecentActivity(limit = 20): Promise<Activity[]> {
 }
 
 /** 최근 24시간 요약: 읽은 사람 수, 좋아요 수, 새 길드원 수 */
+/** 관리자 홈 작품 목록: 작품마다 최근 7일 동안 읽은 길드원 수와 가장 많이 읽힌 회차 (lib/week-reads.ts) */
+export async function adminWeekReads() {
+  await requireAdmin();
+  const since = sql`now() - interval '7 days'`;
+  const recent = gt(chapterViews.lastViewedAt, since);
+  const [perNovel, perChapter] = await Promise.all([
+    db
+      .select({ novelId: chapters.novelId, readers: countDistinct(chapterViews.readerId) })
+      .from(chapterViews)
+      .innerJoin(chapters, eq(chapters.id, chapterViews.chapterId))
+      .where(recent)
+      .groupBy(chapters.novelId),
+    db
+      .select({ novelId: chapters.novelId, chapterId: chapters.id, position: chapters.position, title: chapters.title, readers: count() })
+      .from(chapterViews)
+      .innerJoin(chapters, eq(chapters.id, chapterViews.chapterId))
+      .where(recent)
+      .groupBy(chapters.novelId, chapters.id, chapters.position, chapters.title),
+  ]);
+  return weekReadsByNovel(perNovel, perChapter);
+}
+
 export async function adminLast24h() {
   await requireAdmin();
   const since = sql`now() - interval '24 hours'`;

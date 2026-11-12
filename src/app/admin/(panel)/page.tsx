@@ -4,8 +4,9 @@ import { RecentActivity } from '@/components/admin/recent-activity';
 import { ScheduledChapters } from '@/components/admin/scheduled-chapters';
 import { NovelCover } from '@/components/novel-cover';
 import { Badge, ButtonLink, Skeleton } from '@/components/ui';
-import { formatRelative } from '@/lib/format';
-import { adminGetGuildSettings, adminListNovels } from '@/lib/queries/admin';
+import { formatNumber, formatRelative } from '@/lib/format';
+import type { WeekReads } from '@/lib/week-reads';
+import { adminGetGuildSettings, adminListNovels, adminWeekReads } from '@/lib/queries/admin';
 import { SERIAL_STATUS_LABEL } from '@/lib/utils';
 
 export default function AdminHomePage() {
@@ -34,7 +35,7 @@ export default function AdminHomePage() {
 }
 
 async function NovelList() {
-  const [novels, guild] = await Promise.all([adminListNovels(), adminGetGuildSettings()]);
+  const [novels, guild, week] = await Promise.all([adminListNovels(), adminGetGuildSettings(), adminWeekReads()]);
   const now = new Date();
 
   return (
@@ -74,6 +75,8 @@ async function NovelList() {
                       {formatRelative(novel.updatedAt, now)} 수정
                     </span>
                   </div>
+                  {/* 비공개 작품은 길드원이 못 읽으니 빼고, 공개 작품은 읽은 사람이 없어도 '없음'으로 */}
+                  {novel.isPublished ? <WeekLine week={week.get(novel.id)} /> : null}
                 </div>
                 <span aria-hidden="true" className="text-muted">
                   ›
@@ -84,6 +87,22 @@ async function NovelList() {
         </ul>
       )}
     </div>
+  );
+}
+
+/** 작품 목록 한 줄: '최근 7일 2명 읽음 · 많이 읽힌 회차 1화 「자정의 손님」 2명' */
+function WeekLine({ week }: { week: WeekReads | undefined }) {
+  if (!week || week.readers === 0) return <p className="text-[13px] text-muted">최근 7일 동안 읽은 길드원이 없어요</p>;
+  const top = week.top;
+  return (
+    <p className="text-[13px] break-keep text-muted">
+      최근 7일 <span className="font-semibold text-fg">{formatNumber(week.readers)}명</span> 읽음
+      {top ? (
+        <>
+          {' · '}많이 읽힌 회차 {top.position}화{top.title ? ` 「${top.title}」` : ''} {formatNumber(top.readers)}명
+        </>
+      ) : null}
+    </p>
   );
 }
 
