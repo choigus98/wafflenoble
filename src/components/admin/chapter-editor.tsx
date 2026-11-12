@@ -22,6 +22,7 @@ import { PrivateNote } from '@/components/admin/private-note';
 import { useDismiss } from '@/components/use-dismiss';
 import { formatDateTime, formatNumber, formatSchedule, formatTime } from '@/lib/format';
 import { announce } from '@/lib/announce';
+import { chapterFileName, chapterToText, type DocNode } from '@/lib/chapter-text';
 import { plainTextToBlocks } from '@/lib/paste';
 import { punctuationEdits } from '@/lib/punctuation';
 import type { RevisionItem } from '@/lib/queries/admin';
@@ -174,6 +175,24 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
     }
     setMessage({ tone: 'info', text });
     announce(text);
+  };
+
+  /** 이 회차를 .txt로 내려받기: 지금 에디터 내용 그대로라 저장 안 한 수정도 들어간다 (글로 푸는 규칙은 lib/chapter-text.ts) */
+  const exportText = () => {
+    if (!editor) return;
+    const fileName = chapterFileName(novelTitle, position, title);
+    const text = chapterToText({ novelTitle, position, title, doc: editor.getJSON() as DocNode, authorNote });
+    const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    const done = `‘${fileName}’ 파일로 내려받았어요`;
+    setMessage({ tone: 'info', text: done });
+    announce(done);
   };
 
   function clearTimer() {
@@ -763,6 +782,10 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
               복제해서 새 회차로
             </SubmitButton>
           </form>
+          {/* 다른 곳에 옮겨 적거나 따로 보관할 때: 템플릿도 글로 풀어서 .txt 한 파일로 */}
+          <button type="button" onClick={exportText} className={buttonClass('secondary', 'sm')}>
+            텍스트 파일로 저장
+          </button>
         </div>
         <form
           action={deleteChapter.bind(null, chapter.novelId, chapter.id)}
