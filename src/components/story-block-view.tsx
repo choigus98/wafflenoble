@@ -14,6 +14,7 @@ import {
   parseComments,
   parsePollScript,
   parsePushScript,
+  parseRankScript,
   parseReceiptScript,
   parseScript,
   parseSearchResults,
@@ -21,6 +22,8 @@ import {
   pollPercentLabel,
   pollStatus,
   pollTotal,
+  rankChangeSpoken,
+  rankChangeText,
   postCommentCount,
   receiptTotal,
   scriptSpeakers,
@@ -42,6 +45,8 @@ import {
   type PollData,
   type PostData,
   type PushData,
+  type RankChange,
+  type RankData,
   type ReceiptData,
   type SearchData,
   type SmsData,
@@ -119,6 +124,8 @@ export function StoryBlockView({ block }: { block: StoryBlock }) {
       return <ItemCard data={block.data} />;
     case 'music':
       return <MusicCard data={block.data} />;
+    case 'rank':
+      return <RankCard data={block.data} />;
   }
 }
 
@@ -1533,6 +1540,95 @@ export function MusicCard({ data, field }: { data: MusicData; field?: FieldRende
           <path d="M20 12.5V14a4 4 0 0 1-4 4H4" />
         </svg>
       </div>
+    </div>
+  );
+}
+
+/** 순위 오르내림 표시: ▲ 빨강 · ▼ 파랑 · NEW 배지 · - 회색 (색만으로 구분하지 않게 기호·글자도) */
+function RankChangeMark({ change }: { change: RankChange }) {
+  if (!change) return null;
+  const spoken = <span className="sr-only">, {rankChangeSpoken(change)}</span>;
+  if (change.dir === 'new')
+    return (
+      <>
+        <span aria-hidden="true" className="rounded-[5px] border border-(--wn-rank-new) px-1 text-[10px] leading-4 font-bold text-(--wn-rank-new)">
+          NEW
+        </span>
+        {spoken}
+      </>
+    );
+  return (
+    <>
+      <span
+        aria-hidden="true"
+        className={cn(
+          'text-xs font-semibold tabular-nums',
+          change.dir === 'up' ? 'text-(--wn-rank-up)' : change.dir === 'down' ? 'text-(--wn-rank-down)' : 'text-(--wn-rank-muted)',
+        )}
+      >
+        {change.dir === 'same' ? '–' : rankChangeText(change)}
+      </span>
+      {spoken}
+    </>
+  );
+}
+
+/**
+ * 실시간 순위: 방송 후원 랭킹·게임 순위·음원 차트 같은 순위표 (제목 · 표시 · 순위 줄).
+ * 순위 줄은 대본으로 한 줄씩 (parseRankScript): 1~3위 번호는 강조색, '*' 줄은 바탕을 칠해 주인공 자리를 보여 준다.
+ * 낭독기에는 '1위, 밥알, 1,250,000원, 2계단 오름'처럼 읽힌다
+ */
+function RankCard({ data }: { data: RankData }) {
+  const lines = parseRankScript(data.script);
+  const title = data.title.trim();
+  const badge = data.badge.trim();
+  // 오르내림이 하나라도 있으면 모든 줄에 그 자리를 둬서 점수 줄이 맞게
+  const changes = lines.some((line) => line.type === 'row' && line.change);
+
+  return (
+    <div className={cn(CARD, 'bg-(--wn-rank-bg) px-3.5 pt-4 pb-3')}>
+      {title || badge ? (
+        <div className="flex items-start justify-between gap-3 px-1.5">
+          <span className="min-w-0 text-[17px] leading-snug font-bold break-keep">{title}</span>
+          {badge ? (
+            <span className="mt-0.5 shrink-0 rounded-full bg-(--wn-rank-badge-bg) px-2 py-0.5 text-xs font-bold text-(--wn-rank-badge-fg)">{badge}</span>
+          ) : null}
+        </div>
+      ) : null}
+      {lines.length > 0 ? (
+        <ol aria-label="순위" className={cn('space-y-0.5', title || badge ? 'mt-3' : '')}>
+          {lines.map((line, index) =>
+            line.type === 'gap' ? (
+              <li key={index} className="py-0.5 text-center text-sm leading-none text-(--wn-rank-muted)">
+                <span aria-hidden="true">⋮</span>
+                <span className="sr-only">중간 생략</span>
+              </li>
+            ) : (
+              <li key={index} className={cn('flex items-center gap-3 rounded-xl px-1.5 py-2', line.mine && 'bg-(--wn-rank-me-bg) font-semibold')}>
+                <span className={cn('w-7 shrink-0 text-center text-[17px] font-bold tabular-nums', line.rank <= 3 ? 'text-(--wn-rank-top)' : 'text-(--wn-rank-muted)')}>
+                  {line.rank}
+                  <span className="sr-only">위,</span>
+                </span>
+                <span className="min-w-0 flex-1 break-keep">
+                  {line.name}
+                  {line.mine ? <span className="sr-only"> (강조)</span> : null}
+                </span>
+                {line.score ? (
+                  <span className="shrink-0 text-sm tabular-nums">
+                    <span className="sr-only">, </span>
+                    {line.score}
+                  </span>
+                ) : null}
+                {changes ? (
+                  <span className="flex w-9 shrink-0 justify-end">
+                    <RankChangeMark change={line.change} />
+                  </span>
+                ) : null}
+              </li>
+            ),
+          )}
+        </ol>
+      ) : null}
     </div>
   );
 }

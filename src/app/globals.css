@@ -157,6 +157,16 @@
   --wn-music-chip-bg: rgb(255 255 255 / 0.7);
   --wn-music-art-from: #ff8fb1;
   --wn-music-art-to: #7b61ff;
+  /* 실시간 순위: 1~3위 번호·오르내림 글자는 흰 바탕과 강조 줄 바탕 모두 대비 4.5:1 이상 */
+  --wn-rank-bg: #ffffff;
+  --wn-rank-muted: #5f6672;
+  --wn-rank-top: #c2410c;
+  --wn-rank-up: #c92a2a;
+  --wn-rank-down: #1864ab;
+  --wn-rank-new: #c2410c;
+  --wn-rank-me-bg: #fff1e6;
+  --wn-rank-badge-bg: rgb(201 42 42 / 0.1);
+  --wn-rank-badge-fg: #c92a2a;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -314,6 +324,15 @@
     --wn-music-chip-bg: rgb(255 255 255 / 0.07);
     --wn-music-art-from: #ff6b9b;
     --wn-music-art-to: #6a4cff;
+    --wn-rank-bg: #17191e;
+    --wn-rank-muted: rgb(255 255 255 / 0.62);
+    --wn-rank-top: #ffa94d;
+    --wn-rank-up: #ff8787;
+    --wn-rank-down: #74c0fc;
+    --wn-rank-new: #ffa94d;
+    --wn-rank-me-bg: rgb(255 169 77 / 0.14);
+    --wn-rank-badge-bg: rgb(255 135 135 / 0.16);
+    --wn-rank-badge-fg: #ff9a9a;
   }
 }
 
@@ -470,6 +489,15 @@
   --wn-music-chip-bg: rgb(255 255 255 / 0.07);
   --wn-music-art-from: #ff6b9b;
   --wn-music-art-to: #6a4cff;
+  --wn-rank-bg: #17191e;
+  --wn-rank-muted: rgb(255 255 255 / 0.62);
+  --wn-rank-top: #ffa94d;
+  --wn-rank-up: #ff8787;
+  --wn-rank-down: #74c0fc;
+  --wn-rank-new: #ffa94d;
+  --wn-rank-me-bg: rgb(255 169 77 / 0.14);
+  --wn-rank-badge-bg: rgb(255 135 135 / 0.16);
+  --wn-rank-badge-fg: #ff9a9a;
 }
 
 @theme inline {

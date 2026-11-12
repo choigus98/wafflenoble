@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물, 이메일, 검색 결과, 휴대폰 알림, 문자 메시지, 영수증, 위치 공유, 투표, 송금 완료, 알람, 일정, 아이템 획득, 음악 재생).
+// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물, 이메일, 검색 결과, 휴대폰 알림, 문자 메시지, 영수증, 위치 공유, 투표, 송금 완료, 알람, 일정, 아이템 획득, 음악 재생, 실시간 순위).
 // 저장 형식: <div data-wn-block="종류" data-wn-data="JSON"></div>
 // 에디터(Tiptap 노드), 서버(저장할 때 검증), 열람 화면(렌더링)이 모두 이 파일을 같이 쓴다.
 //
@@ -203,6 +203,12 @@ const musicSchema = z.object({
   lyric: text(200), // 가사 (여러 줄 가능). 비우면 안 보임
 });
 
+const rankSchema = z.object({
+  title: text(60), // 순위표 제목 ('실시간 후원 랭킹', '이번 주 음원 차트')
+  badge: text(40), // 제목 옆 작은 표시 ('LIVE', '11월 13일 02:00 기준'). 비우면 안 보임
+  script: text(LIMITS.script), // 순위 대본 (규칙은 parseRankScript 위 설명)
+});
+
 const itemSchema = z.object({
   title: text(40), // 위쪽 알림 문구 ('아이템을 획득했습니다!'). 비우면 안 보임
   name: text(60), // 아이템 이름
@@ -238,6 +244,7 @@ export const storyBlockSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('event'), data: eventSchema }),
   z.object({ kind: z.literal('item'), data: itemSchema }),
   z.object({ kind: z.literal('music'), data: musicSchema }),
+  z.object({ kind: z.literal('rank'), data: rankSchema }),
 ]);
 
 export type StoryBlock = z.infer<typeof storyBlockSchema>;
@@ -263,6 +270,7 @@ export type AlarmData = z.infer<typeof alarmSchema>;
 export type EventData = z.infer<typeof eventSchema>;
 export type ItemData = z.infer<typeof itemSchema>;
 export type MusicData = z.infer<typeof musicSchema>;
+export type RankData = z.infer<typeof rankSchema>;
 
 /** 메일 보낸 사람 '김지은 <jieun@example.com>' → 이름과 주소. 꺾쇠가 없으면 적은 그대로 이름으로 */
 export function splitMailSender(from: string): { name: string; address: string } {
@@ -736,6 +744,67 @@ export function itemGradeKey(grade: string): ItemGrade {
   return ITEM_GRADE_WORDS.find(([, words]) => words.some((word) => text.includes(word)))?.[0] ?? 'common';
 }
 
+// ─── 실시간 순위 대본 ──────────────────────────────────────
+// 한 줄에 한 자리. 순위는 위에서부터 1, 2, 3 … (앞에 '15.'·'15위'처럼 쓰면 그 순위부터 이어서, 같은 순위도 됨)
+//   밥알: 1,250,000원 ▲2     ← '이름: 점수', 줄 끝에 오르내림 (▲2 · ▼1 · NEW · -)
+//   * 15. 와플집 딸: 1,024   ← 앞에 *를 붙이면 강조 (주인공 자리)
+//   ---                       ← 중간 생략 (⋯)
+//   감자도리                   ← 점수 없이 이름만
+// 이름에 쌍점이 있어도 되게 마지막 쌍점에서 나눈다
+
+export type RankChange = { dir: 'up' | 'down'; amount: number } | { dir: 'new' } | { dir: 'same' } | null;
+export type RankLine = { type: 'row'; rank: number; name: string; score: string; change: RankChange; mine: boolean } | { type: 'gap' };
+
+const RANK_MINE = /^[*＊]\s*/;
+const RANK_NUMBER = /^(\d{1,4})\s*(?:[.)]|위)\s*/;
+const RANK_CHANGE = /(?:\s*(?:(▲|↑)\s*(\d+)|(▼|↓)\s*(\d+))|\s+(NEW|New|new|신규)|\s+(-|–|—))$/;
+const RANK_GAP = /^(?:-{3,}|\.{3,}|…+|⋯+)$/;
+
+export function parseRankScript(script: string): RankLine[] {
+  const lines: RankLine[] = [];
+  let next = 1;
+  for (const raw of script.split(/\r?\n/)) {
+    if (lines.length >= LIMITS.lines) break;
+    let line = raw.trim();
+    if (!line) continue;
+    if (RANK_GAP.test(line)) {
+      lines.push({ type: 'gap' });
+      continue;
+    }
+    const mine = RANK_MINE.test(line);
+    if (mine) line = line.replace(RANK_MINE, '').trim();
+    const numbered = line.match(RANK_NUMBER);
+    if (numbered && numbered[0].length < line.length) {
+      next = Number(numbered[1]);
+      line = line.slice(numbered[0].length).trim();
+    }
+    let change: RankChange = null;
+    const moved = line.match(RANK_CHANGE);
+    if (moved && moved.index !== undefined && moved.index > 0) {
+      change = moved[2] ? { dir: 'up', amount: Number(moved[2]) } : moved[4] ? { dir: 'down', amount: Number(moved[4]) } : moved[5] ? { dir: 'new' } : { dir: 'same' };
+      line = line.slice(0, moved.index).trim();
+    }
+    const colon = Math.max(line.lastIndexOf(':'), line.lastIndexOf('：'));
+    const name = (colon > 0 ? line.slice(0, colon) : line).trim();
+    if (!name) continue;
+    lines.push({ type: 'row', rank: next, name, score: colon > 0 ? line.slice(colon + 1).trim() : '', change, mine });
+    next += 1;
+  }
+  return lines;
+}
+
+/** 오르내림 글자 ('▲2', '▼1', 'NEW', '-'). 없으면 빈 글 */
+export function rankChangeText(change: RankChange): string {
+  if (!change) return '';
+  return change.dir === 'up' ? `▲${change.amount}` : change.dir === 'down' ? `▼${change.amount}` : change.dir === 'new' ? 'NEW' : '-';
+}
+
+/** 낭독기용 오르내림 ('2계단 오름', '새로 들어옴') */
+export function rankChangeSpoken(change: RankChange): string {
+  if (!change) return '';
+  return change.dir === 'up' ? `${change.amount}계단 오름` : change.dir === 'down' ? `${change.amount}계단 내림` : change.dir === 'new' ? '새로 들어옴' : '그대로';
+}
+
 // ─── 음악 재생 막대 ──────────────────────────────────────
 // '1:24'·'01:24'·'1:02:03'처럼 적은 재생 위치와 전체 길이로 막대 길이를 정한다. 시각으로 못 읽으면 막대 없이 적은 글자만
 const CLOCK = /^(?:(\d{1,2})[:：])?(\d{1,3})[:：](\d{2})$/;
@@ -790,7 +859,8 @@ export type TemplateKey =
   | 'alarm'
   | 'event'
   | 'item'
-  | 'music';
+  | 'music'
+  | 'rank';
 
 export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }> = [
   { key: 'kakao-dm', label: '카톡 1:1 대화', hint: '두 사람의 메신저 대화' },
@@ -818,6 +888,7 @@ export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }>
   { key: 'event', label: '일정', hint: '캘린더 일정 · 날짜 · 시간 · 장소' },
   { key: 'item', label: '아이템 획득', hint: '이름 · 등급 색 · 능력치' },
   { key: 'music', label: '음악 재생', hint: '노래 제목 · 가수 · 재생 막대 · 가사' },
+  { key: 'rank', label: '실시간 순위', hint: '방송 · 게임 · 음원 차트 랭킹, 오르내림' },
 ];
 
 export function templateLabel(block: StoryBlock): string {
@@ -948,6 +1019,15 @@ export function createTemplate(key: TemplateKey): StoryBlock {
       return {
         kind: 'location',
         data: { badge: '위치 공유', place: '골목 끝 와플 가게', address: '와플시 반죽구 시럽로 12, 1층', note: '여기서 기다릴게' },
+      };
+    case 'rank':
+      return {
+        kind: 'rank',
+        data: {
+          title: '실시간 후원 랭킹',
+          badge: 'LIVE',
+          script: ['밥알: 1,250,000원 ▲2', '감자도리: 980,000원 ▼1', '초코우유: 750,000원 NEW', '시럽왕: 410,000원 -', '---', '* 15. 와플집 딸: 120,000원 ▲5'].join('\n'),
+        },
       };
     case 'music':
       return {

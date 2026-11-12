@@ -9,10 +9,12 @@ import {
   CALL_DETAIL_DEFAULT,
   kakaoTitle,
   parsePollScript,
+  parseRankScript,
   parseReceiptScript,
   parseScript,
   parseStoryBlock,
   pollStatus,
+  rankChangeText,
   receiptTotal,
   smsContact,
   templateLabel,
@@ -108,6 +110,14 @@ export function storyBlockToText(block: StoryBlock): string {
           data.memo.trim() && `메모: ${data.memo.trim()}`,
           data.date.trim() && `일시: ${data.date.trim()}`,
         );
+      }
+      case 'rank': {
+        const rows = parseRankScript(block.data.script).map((line) =>
+          line.type === 'gap'
+            ? '⋯'
+            : `${line.mine ? '* ' : ''}${line.rank}. ${line.name}${line.score ? `: ${line.score}` : ''}${line.change ? ` ${rankChangeText(line.change)}` : ''}`,
+        );
+        return lines(block.data.title, block.data.badge, rows.join('\n'));
       }
       case 'music': {
         const { data } = block;

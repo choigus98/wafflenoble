@@ -13,6 +13,7 @@ import {
   isPostAuthor,
   kakaoTitle,
   musicProgress,
+  parseRankScript,
   parseComments,
   parsePollScript,
   parsePushScript,
@@ -75,6 +76,7 @@ const KEYS: TemplateKey[] = [
   'event',
   'item',
   'music',
+  'rank',
 ];
 
 function withTrickyText(block: StoryBlock): StoryBlock {
@@ -123,6 +125,8 @@ function withTrickyText(block: StoryBlock): StoryBlock {
       return { ...block, data: { ...block.data, name: '<b>전설</b>의 "뒤집개" & 😀', script: `${block.data.script}\n${TRICKY}: +1` } };
     case 'music':
       return { ...block, data: { ...block.data, title: '<b>밤</b>의 "와플" & 😀', lyric: `${TRICKY}\n둘째 줄` } };
+    case 'rank':
+      return { ...block, data: { ...block.data, title: '<b>랭킹</b> & "후원"', script: `${block.data.script}\n${TRICKY}: 1,000원 ▲1` } };
     case 'receipt':
       return { ...block, data: { ...block.data, store: '가게 <b>&</b> "따옴표"', script: `${block.data.script}\n${TRICKY}: 1,000원` } };
     case 'push':
@@ -649,5 +653,32 @@ describe('음악 재생 막대', () => {
     expect(musicProgress('1:30', 'LIVE')).toBeNull();
     expect(musicProgress('1:30', '0:00')).toBeNull();
     expect(musicProgress('곧', '3:00')).toBeNull();
+  });
+});
+
+describe('실시간 순위 대본', () => {
+  it('이름: 점수 · 오르내림 · 강조 · 순위 직접 · 중간 생략', () => {
+    expect(parseRankScript(['밥알: 1,250,000원 ▲2', '감자도리: 980,000원 ▼1', '초코우유 NEW', '시럽왕: 41 -', '---', '* 15. 와플집 딸: 120,000원 ↑5', '16위 마지막'].join('\n'))).toEqual([
+      { type: 'row', rank: 1, name: '밥알', score: '1,250,000원', change: { dir: 'up', amount: 2 }, mine: false },
+      { type: 'row', rank: 2, name: '감자도리', score: '980,000원', change: { dir: 'down', amount: 1 }, mine: false },
+      { type: 'row', rank: 3, name: '초코우유', score: '', change: { dir: 'new' }, mine: false },
+      { type: 'row', rank: 4, name: '시럽왕', score: '41', change: { dir: 'same' }, mine: false },
+      { type: 'gap' },
+      { type: 'row', rank: 15, name: '와플집 딸', score: '120,000원', change: { dir: 'up', amount: 5 }, mine: true },
+      { type: 'row', rank: 16, name: '마지막', score: '', change: null, mine: false },
+    ]);
+  });
+
+  it('같은 순위, 쌍점이 든 이름, 오르내림처럼 보여도 이름인 것', () => {
+    const rows = parseRankScript(['1. 가', '1. 나', '3. 팀: 알파: 300점', '-30도', '이름: -30', '2024', '▲3'].join('\n'));
+    expect(rows.map((row) => (row.type === 'row' ? `${row.rank}|${row.name}|${row.score}|${row.change?.dir ?? ''}` : 'gap'))).toEqual([
+      '1|가||',
+      '1|나||',
+      '3|팀: 알파|300점|',
+      '4|-30도||',
+      '5|이름|-30|',
+      '6|2024||',
+      '7|▲3||',
+    ]);
   });
 });
