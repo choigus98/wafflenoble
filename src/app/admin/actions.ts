@@ -381,6 +381,53 @@ export async function scheduleChapter(chapterId: number, publishAt: string): Pro
   return { ok: true, status: 'published', publishedAt: updated.publishedAt?.toISOString() ?? null, scheduled: true };
 }
 
+const bulkScheduleSchema = z
+  .array(z.object({ chapterId: idSchema, publishAt: z.string().max(40) }))
+  .min(1)
+  .max(100);
+
+/**
+ * 임시저장 회차 한꺼번에 예약: 고른 회차마다 공개 시각을 받아 한 번에 예약한다 (하나라도 안 되면 아무것도 안 바꿈).
+ * 이 작품의 임시저장 회차만, 시각은 하나씩 예약할 때와 같은 범위(1분 뒤~1년 안)
+ */
+export async function scheduleChapters(
+  novelId: number,
+  items: Array<{ chapterId: number; publishAt: string }>,
+): Promise<{ ok: true; count: number } | { ok: false; message: string }> {
+  await requireAdmin();
+  const parsed = bulkScheduleSchema.safeParse(items);
+  if (!idSchema.safeParse(novelId).success || !parsed.success) return { ok: false, message: '잘못된 요청이에요' };
+  const now = Date.now();
+  const plan = parsed.data.map((item) => ({ chapterId: item.chapterId, when: new Date(item.publishAt) }));
+  if (new Set(plan.map((item) => item.chapterId)).size !== plan.length) return { ok: false, message: '같은 회차가 두 번 들어 있어요' };
+  for (const { when } of plan) {
+    if (Number.isNaN(when.getTime())) return { ok: false, message: '예약 시각을 다시 골라 주세요' };
+    if (when.getTime() - now < SCHEDULE_MIN_LEAD_MS) return { ok: false, message: '예약 시각은 지금보다 1분 이상 뒤로 정해 주세요' };
+    if (when.getTime() - now > SCHEDULE_MAX_LEAD_MS) return { ok: false, message: '예약은 1년 안으로만 할 수 있어요' };
+  }
+
+  const count = await db.transaction(async (tx) => {
+    let done = 0;
+    for (const { chapterId, when } of plan) {
+      const updated = await tx
+        .update(chapters)
+        .set({ status: 'published', publishedAt: when })
+        .where(and(eq(chapters.id, chapterId), eq(chapters.novelId, novelId), eq(chapters.status, 'draft')))
+        .returning({ id: chapters.id });
+      if (updated.length === 0) {
+        // 그 사이 발행됐거나 다른 작품 회차면 전부 되돌린다
+        tx.rollback();
+      }
+      done += 1;
+    }
+    return done;
+  }).catch(() => null);
+  if (count === null) return { ok: false, message: '임시저장 회차가 아닌 것이 있어서 예약하지 못했어요. 새로 고친 뒤 다시 골라 주세요' };
+
+  refresh();
+  return { ok: true, count };
+}
+
 /**
  * 회차 복제: 제목·본문(템플릿 포함)·작가의 말을 그대로 새 임시저장 회차로 만들어 목록 맨 뒤에 둔다.
  * 좋아요·열람 기록·발행본 기록은 복사하지 않는다. 만든 뒤 새 회차 에디터로 이동

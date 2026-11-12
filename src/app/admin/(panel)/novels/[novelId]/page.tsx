@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import { createChapter } from '@/app/admin/actions';
+import { BulkSchedule } from '@/components/admin/bulk-schedule';
 import { ChapterList } from '@/components/admin/chapter-list';
 import { ChapterMoveButtons } from '@/components/admin/chapter-move-buttons';
 import { DeleteNovelForm } from '@/components/admin/delete-novel-form';
@@ -42,6 +43,8 @@ async function NovelAdmin({ params, searchParams }: Pick<PageProps<'/admin/novel
   // 순서 바꾸기는 '전체'에서만 (거른 목록에서 위·아래는 보이지 않는 회차와 자리를 바꿔 헷갈림)
   const canMove = filter === 'all' && showFilters;
   const filterLabel = CHAPTER_FILTERS.find((item) => item.key === filter)?.label ?? '전체';
+  // 임시저장이 둘 이상이면 '한꺼번에 예약' (하나면 에디터의 예약으로 충분)
+  const drafts = allChapters.filter((chapter) => chapter.status === 'draft').map((chapter) => ({ id: chapter.id, position: chapter.position, title: chapter.title }));
 
   return (
     <div className="space-y-10">
@@ -62,12 +65,18 @@ async function NovelAdmin({ params, searchParams }: Pick<PageProps<'/admin/novel
 
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="font-bold">회차 {allChapters.length > 0 ? <span className="text-muted">{allChapters.length}</span> : null}</h2>
-          <form action={createChapter.bind(null, novel.id)}>
-            <SubmitButton size="sm" pendingText="만드는 중…">
-              + 새 회차 쓰기
-            </SubmitButton>
-          </form>
+          {/* tabIndex: '한꺼번에 예약' 뒤 포커스 자리 */}
+          <h2 id="chapters-title" tabIndex={-1} className="font-bold outline-none">
+            회차 {allChapters.length > 0 ? <span className="text-muted">{allChapters.length}</span> : null}
+          </h2>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {drafts.length >= 2 ? <BulkSchedule novelId={novel.id} drafts={drafts} /> : null}
+            <form action={createChapter.bind(null, novel.id)}>
+              <SubmitButton size="sm" pendingText="만드는 중…">
+                + 새 회차 쓰기
+              </SubmitButton>
+            </form>
+          </div>
         </div>
         {allChapters.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-line px-6 py-12 text-center text-muted">
