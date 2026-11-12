@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import type { ComponentProps, ReactNode } from 'react';
+import { cloneElement, isValidElement, type ComponentProps, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
 // 서버·클라이언트 어디서나 쓰는 공통 UI. 상태가 없어서 'use client'가 필요 없다
@@ -65,13 +65,25 @@ export function Field({
   htmlFor?: string;
   children: ReactNode;
 }) {
+  // 도움말이 있으면 입력칸과 이어 둔다 → 화면 낭독기가 칸 이름 다음에 도움말까지 읽어 준다
+  const hintId = hint && htmlFor ? `${htmlFor}-hint` : undefined;
+  const control =
+    hintId && isValidElement<{ 'aria-describedby'?: string }>(children)
+      ? cloneElement(children, {
+          'aria-describedby': [children.props['aria-describedby'], hintId].filter(Boolean).join(' '),
+        })
+      : children;
   return (
     <div className="space-y-1.5">
       <label htmlFor={htmlFor} className="block text-sm font-semibold">
         {label}
       </label>
-      {children}
-      {hint ? <p className="text-[13px] text-muted">{hint}</p> : null}
+      {control}
+      {hint ? (
+        <p id={hintId} className="text-[13px] text-muted">
+          {hint}
+        </p>
+      ) : null}
     </div>
   );
 }
