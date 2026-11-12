@@ -610,6 +610,12 @@ export function pollPercent(option: PollOption, total: number): number {
   return total > 0 && option.votes !== null ? Math.round((option.votes / total) * 100) : 0;
 }
 
+/** 보이는 비율 글자. 표가 있는데 반올림하면 0%인 선택지는 '<1%' (아무도 안 고른 것처럼 보이지 않게) */
+export function pollPercentLabel(option: PollOption, total: number): string {
+  const percent = pollPercent(option, total);
+  return percent === 0 && (option.votes ?? 0) > 0 ? '<1%' : `${percent}%`;
+}
+
 /** 맨 아래 한 줄: 직접 적은 값이 먼저, 없으면 표 수를 더해서 'N명 참여' (투표 전이면 빈 값) */
 export function pollStatus(data: PollData, options: PollOption[]): string {
   if (data.status.trim()) return data.status.trim();

@@ -13,7 +13,7 @@ import {
   parseScript,
   parseSearchResults,
   parseSystemScript,
-  pollPercent,
+  pollPercentLabel,
   pollStatus,
   pollTotal,
   postCommentCount,
@@ -1070,7 +1070,9 @@ function PollCard({ data }: { data: PollData }) {
       {options.length > 0 ? (
         <ul aria-label="선택지" className="mt-3 space-y-2">
           {options.map((option, index) => {
-            const percent = pollPercent(option, total);
+            const percentLabel = pollPercentLabel(option, total);
+            // 막대는 반올림 전 비율로, 표가 조금이라도 있으면 가는 막대라도 보이게
+            const share = total > 0 && option.votes ? (option.votes / total) * 100 : 0;
             const leading = voted && top > 0 && option.votes === top;
             return (
               <li
@@ -1083,8 +1085,12 @@ function PollCard({ data }: { data: PollData }) {
                 {voted ? (
                   <span
                     aria-hidden="true"
-                    className={cn('absolute inset-y-0 left-0', option.mine ? 'bg-(--wn-poll-bar-mine)' : 'bg-(--wn-poll-bar)')}
-                    style={{ width: `${percent}%` }}
+                    className={cn(
+                      'absolute inset-y-0 left-0',
+                      share > 0 && 'min-w-[3px]',
+                      option.mine ? 'bg-(--wn-poll-bar-mine)' : 'bg-(--wn-poll-bar)',
+                    )}
+                    style={{ width: `${share}%` }}
                   />
                 ) : null}
                 <span className="relative flex items-center gap-2.5 px-3 py-2.5 text-sm">
@@ -1106,7 +1112,17 @@ function PollCard({ data }: { data: PollData }) {
                     <span className="shrink-0 text-xs text-(--wn-poll-muted) tabular-nums">
                       <span className="sr-only">, </span>
                       {/* 표 수와 % 사이는 진짜 띄어쓰기 (낭독기가 '12표55%'로 붙여 읽지 않게) */}
-                      {option.label} <span className={cn('ml-0.5', leading && 'font-bold text-(--wn-fg)')}>{percent}%</span>
+                      {option.label}{' '}
+                      <span className={cn('ml-0.5', leading && 'font-bold text-(--wn-fg)')}>
+                        {percentLabel === '<1%' ? (
+                          <>
+                            <span aria-hidden="true">&lt;1%</span>
+                            <span className="sr-only">1% 미만</span>
+                          </>
+                        ) : (
+                          percentLabel
+                        )}
+                      </span>
                     </span>
                   ) : null}
                 </span>

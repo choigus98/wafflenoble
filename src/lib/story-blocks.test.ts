@@ -16,6 +16,7 @@ import {
   parseSearchResults,
   parseSystemScript,
   pollPercent,
+  pollPercentLabel,
   pollStatus,
   pollTotal,
   postCommentCount,
@@ -530,6 +531,12 @@ describe('투표 대본', () => {
     expect(options.map((option) => pollPercent(option, 1500))).toEqual([80, 20]);
     expect(pollStatus(data, options)).toBe('1,500명 참여');
     expect(pollStatus({ ...data, status: '  투표 마감  ' }, options)).toBe('투표 마감');
+  });
+
+  it("표가 있는데 반올림하면 0%인 선택지는 '<1%', 표가 없으면 0%", () => {
+    const options = parsePollScript('가: 1,204\n나: 87\n다: 3\n라: 0');
+    const total = pollTotal(options);
+    expect(options.map((option) => pollPercentLabel(option, total))).toEqual(['93%', '7%', '<1%', '0%']);
   });
 
   it('새 투표 템플릿 예시: 22명 참여, 내 선택은 떡볶이(55%)', () => {
