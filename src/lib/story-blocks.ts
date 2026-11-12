@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물, 이메일, 검색 결과, 휴대폰 알림, 문자 메시지, 영수증, 위치 공유, 투표, 송금 완료, 알람, 일정, 아이템 획득, 음악 재생, 실시간 순위, 할 일 목록, 명함).
+// 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물, 이메일, 검색 결과, 휴대폰 알림, 문자 메시지, 영수증, 위치 공유, 투표, 송금 완료, 알람, 일정, 아이템 획득, 음악 재생, 실시간 순위, 할 일 목록, 명함, 날씨).
 // 저장 형식: <div data-wn-block="종류" data-wn-data="JSON"></div>
 // 에디터(Tiptap 노드), 서버(저장할 때 검증), 열람 화면(렌더링)이 모두 이 파일을 같이 쓴다.
 //
@@ -203,6 +203,15 @@ const musicSchema = z.object({
   lyric: text(200), // 가사 (여러 줄 가능). 비우면 안 보임
 });
 
+const weatherSchema = z.object({
+  place: text(40), // 장소 ('와플시 반죽구')
+  temp: text(10), // 지금 기온 ('12°')
+  condition: text(30), // 지금 날씨 ('구름 조금'). 말로 그림·바탕색을 고른다 (weatherKind)
+  range: text(30), // 최고·최저 ('최고 15° · 최저 6°'). 비우면 안 보임
+  note: text(80), // 한 줄 ('저녁부터 비 소식이 있어요'). 비우면 안 보임
+  script: text(LIMITS.script), // 시간별 대본 (규칙은 parseWeatherScript 위 설명)
+});
+
 const namecardSchema = z.object({
   company: text(40), // 회사·소속 ('주식회사 와플랩'). 비우면 안 보임 (로고 자리에는 첫 글자)
   name: text(30), // 이름
@@ -263,6 +272,7 @@ export const storyBlockSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('rank'), data: rankSchema }),
   z.object({ kind: z.literal('todo'), data: todoSchema }),
   z.object({ kind: z.literal('namecard'), data: namecardSchema }),
+  z.object({ kind: z.literal('weather'), data: weatherSchema }),
 ]);
 
 export type StoryBlock = z.infer<typeof storyBlockSchema>;
@@ -291,6 +301,7 @@ export type MusicData = z.infer<typeof musicSchema>;
 export type RankData = z.infer<typeof rankSchema>;
 export type TodoData = z.infer<typeof todoSchema>;
 export type NamecardData = z.infer<typeof namecardSchema>;
+export type WeatherData = z.infer<typeof weatherSchema>;
 
 /** 메일 보낸 사람 '김지은 <jieun@example.com>' → 이름과 주소. 꺾쇠가 없으면 적은 그대로 이름으로 */
 export function splitMailSender(from: string): { name: string; address: string } {
@@ -764,6 +775,50 @@ export function itemGradeKey(grade: string): ItemGrade {
   return ITEM_GRADE_WORDS.find(([, words]) => words.some((word) => text.includes(word)))?.[0] ?? 'common';
 }
 
+// ─── 날씨 ──────────────────────────────────────
+// 날씨 말로 그림·바탕색을 고른다: 천둥·번개 → 뇌우, 눈(눈부신은 빼고) → 눈, 비·소나기 → 비, 안개·미세먼지·황사 → 안개,
+// 흐림·구름 많음 → 흐림, 구름 → 구름 조금, '밤'과 맑음 → 달, 맑음·화창·해·햇살 → 해. 모르는 말이면 구름 조금
+// 시간별 대본은 한 줄에 한 칸
+//   오후 3시: 맑음 12°   ← '시간: 날씨 기온'. 기온은 줄 끝 숫자(° 있어도 없어도), 날씨 말은 생략해도 됨
+//   15:00: 비 9°        ← 시각의 쌍점(숫자 앞)은 나누지 않는다
+
+export type WeatherKind = 'sun' | 'moon' | 'partly' | 'cloud' | 'rain' | 'snow' | 'storm' | 'fog';
+
+export function weatherKind(text: string): WeatherKind {
+  const value = text.replace(/\s+/g, ' ');
+  if (/천둥|번개|뇌우/.test(value)) return 'storm';
+  if (/눈(?!부)/.test(value) || /진눈깨비/.test(value)) return 'snow';
+  if (/비|소나기|장마/.test(value)) return 'rain';
+  if (/안개|미세먼지|황사|흐릿/.test(value)) return 'fog';
+  if (/흐림|흐리|구름\s*많/.test(value)) return 'cloud';
+  if (/구름/.test(value)) return 'partly';
+  if (/밤/.test(value) && /맑/.test(value)) return 'moon';
+  if (/맑|화창|해|햇/.test(value)) return 'sun';
+  return 'partly';
+}
+
+export type WeatherHour = { time: string; condition: string; temp: string; kind: WeatherKind };
+
+const WEATHER_TEMP = /\s*(-?\d+(?:\.\d+)?\s*°?\s*C?)$/;
+
+export function parseWeatherScript(script: string): WeatherHour[] {
+  const hours: WeatherHour[] = [];
+  for (const raw of script.split(/\r?\n/)) {
+    if (hours.length >= LIMITS.lines) break;
+    const line = raw.trim();
+    if (!line) continue;
+    // 첫 쌍점 중 바로 뒤가 숫자가 아닌 것에서 나눈다 ('15:00: 비'의 15:00은 그대로)
+    const split = [...line.matchAll(/[:：]/g)].find((match) => !/\d/.test(line[match.index + 1] ?? ''));
+    const time = split ? line.slice(0, split.index).trim() : '';
+    const rest = split ? line.slice(split.index + 1).trim() : line;
+    const temp = rest.match(WEATHER_TEMP)?.[1].replace(/\s+/g, '') ?? '';
+    const condition = (temp ? rest.replace(WEATHER_TEMP, '') : rest).trim();
+    if (!time && !condition && !temp) continue;
+    hours.push({ time, condition, temp, kind: weatherKind(condition) });
+  }
+  return hours;
+}
+
 // ─── 할 일 목록 대본 ──────────────────────────────────────
 // 한 줄에 하나
 //   [x] 와플 반죽 숙성시키기   ← 끝낸 일 ([v] · [✓] · ✓ · ☑ 로 시작해도 됨)
@@ -918,7 +973,8 @@ export type TemplateKey =
   | 'music'
   | 'rank'
   | 'todo'
-  | 'namecard';
+  | 'namecard'
+  | 'weather';
 
 export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }> = [
   { key: 'kakao-dm', label: '카톡 1:1 대화', hint: '두 사람의 메신저 대화' },
@@ -949,6 +1005,7 @@ export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }>
   { key: 'rank', label: '실시간 순위', hint: '방송 · 게임 · 음원 차트 랭킹, 오르내림' },
   { key: 'todo', label: '할 일 목록', hint: '메모 앱 체크리스트 · 투두 · 끝낸 개수' },
   { key: 'namecard', label: '명함', hint: '이름 · 직함 · 회사 · 연락처 · 손글씨 메모' },
+  { key: 'weather', label: '날씨', hint: '날씨 앱 · 지금 기온 · 최고/최저 · 시간별' },
 ];
 
 export function templateLabel(block: StoryBlock): string {
@@ -1079,6 +1136,18 @@ export function createTemplate(key: TemplateKey): StoryBlock {
       return {
         kind: 'location',
         data: { badge: '위치 공유', place: '골목 끝 와플 가게', address: '와플시 반죽구 시럽로 12, 1층', note: '여기서 기다릴게' },
+      };
+    case 'weather':
+      return {
+        kind: 'weather',
+        data: {
+          place: '와플시 반죽구',
+          temp: '12°',
+          condition: '구름 조금',
+          range: '최고 15° · 최저 6°',
+          note: '저녁부터 비 소식이 있어요',
+          script: ['지금: 구름 조금 12°', '오후 4시: 흐림 11°', '오후 5시: 흐림 10°', '오후 6시: 비 9°', '오후 7시: 비 8°', '오후 8시: 밤 맑음 7°'].join('\n'),
+        },
       };
     case 'namecard':
       return {

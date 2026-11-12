@@ -15,7 +15,9 @@ import {
   musicProgress,
   parseRankScript,
   parseTodoScript,
+  parseWeatherScript,
   todoProgress,
+  weatherKind,
   parseComments,
   parsePollScript,
   parsePushScript,
@@ -81,6 +83,7 @@ const KEYS: TemplateKey[] = [
   'rank',
   'todo',
   'namecard',
+  'weather',
 ];
 
 function withTrickyText(block: StoryBlock): StoryBlock {
@@ -135,6 +138,8 @@ function withTrickyText(block: StoryBlock): StoryBlock {
       return { ...block, data: { ...block.data, title: '<b>할 일</b> & "목록"', script: `${block.data.script}\n[x] ${TRICKY}` } };
     case 'namecard':
       return { ...block, data: { ...block.data, name: '한<b>도윤</b> & 😀', email: '"doyun" <a@b.example>', memo: '<script>x</script> & "밤 9시"' } };
+    case 'weather':
+      return { ...block, data: { ...block.data, place: '와플<b>시</b> & "골목"', script: `${block.data.script}\n${TRICKY}: 비 3°` } };
     case 'receipt':
       return { ...block, data: { ...block.data, store: '가게 <b>&</b> "따옴표"', script: `${block.data.script}\n${TRICKY}: 1,000원` } };
     case 'push':
@@ -708,5 +713,37 @@ describe('할 일 목록 대본', () => {
     ]);
     expect(todoProgress(lines)).toEqual({ done: 4, total: 8 });
     expect(todoProgress([])).toEqual({ done: 0, total: 0 });
+  });
+});
+
+describe('날씨', () => {
+  it('날씨 말로 그림 고르기 (눈부신은 눈이 아님, 밤 맑음은 달, 모르면 구름 조금)', () => {
+    expect(['맑음', '화창', '구름 조금', '구름 많음', '흐림', '비', '소나기', '눈', '진눈깨비', '천둥번개', '안개', '미세먼지', '밤 맑음', '눈부신 햇살', '???'].map(weatherKind)).toEqual([
+      'sun',
+      'sun',
+      'partly',
+      'cloud',
+      'cloud',
+      'rain',
+      'rain',
+      'snow',
+      'snow',
+      'storm',
+      'fog',
+      'fog',
+      'moon',
+      'sun',
+      'partly',
+    ]);
+  });
+
+  it('시간별 대본: 시간 · 날씨 말 · 기온, 시각의 쌍점은 안 나눔', () => {
+    expect(parseWeatherScript(['지금: 구름 조금 12°', '15:00: 비 9', '오후 6시: -3°C', '밤 맑음 7°', '', '저녁:'].join('\n'))).toEqual([
+      { time: '지금', condition: '구름 조금', temp: '12°', kind: 'partly' },
+      { time: '15:00', condition: '비', temp: '9', kind: 'rain' },
+      { time: '오후 6시', condition: '', temp: '-3°C', kind: 'partly' },
+      { time: '', condition: '밤 맑음', temp: '7°', kind: 'moon' },
+      { time: '저녁', condition: '', temp: '', kind: 'partly' },
+    ]);
   });
 });

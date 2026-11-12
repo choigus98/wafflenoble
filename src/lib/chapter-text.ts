@@ -14,6 +14,7 @@ import {
   parseScript,
   parseStoryBlock,
   parseTodoScript,
+  parseWeatherScript,
   pollStatus,
   rankChangeText,
   receiptTotal,
@@ -112,6 +113,13 @@ export function storyBlockToText(block: StoryBlock): string {
           data.memo.trim() && `메모: ${data.memo.trim()}`,
           data.date.trim() && `일시: ${data.date.trim()}`,
         );
+      }
+      case 'weather': {
+        const { data } = block;
+        const hours = parseWeatherScript(data.script)
+          .map((hour) => [hour.time && `${hour.time}:`, hour.condition, hour.temp].filter(Boolean).join(' '))
+          .join('\n');
+        return lines(data.place, [data.temp, data.condition].map((value) => value.trim()).filter(Boolean).join(' '), data.range, data.note, hours);
       }
       case 'namecard': {
         const { data } = block;

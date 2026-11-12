@@ -180,6 +180,25 @@
   --wn-namecard-muted: #5b6472;
   --wn-namecard-ink: #1d4ed8;
   --wn-namecard-line: rgb(0 0 0 / 0.08);
+  /* 날씨: 바탕은 흰 글씨가 양쪽 끝 어디서나 대비 4.5:1 이상인 진한 색 (해·구름 조금은 같은 바탕) */
+  --wn-weather-sun-from: #1d4ed8;
+  --wn-weather-sun-to: #2563eb;
+  --wn-weather-moon-from: #0f172a;
+  --wn-weather-moon-to: #1e3a8a;
+  --wn-weather-cloud-from: #475569;
+  --wn-weather-cloud-to: #64748b;
+  --wn-weather-rain-from: #334155;
+  --wn-weather-rain-to: #475569;
+  --wn-weather-snow-from: #355a8f;
+  --wn-weather-snow-to: #4a6fa5;
+  --wn-weather-storm-from: #1f2937;
+  --wn-weather-storm-to: #374151;
+  --wn-weather-fog-from: #4b5563;
+  --wn-weather-fog-to: #6b7280;
+  --wn-weather-fg: #ffffff;
+  --wn-weather-muted: #f1f5ff;
+  --wn-weather-cell-bg: rgb(0 0 0 / 0.14);
+  --wn-weather-line: rgb(255 255 255 / 0.2);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -357,6 +376,24 @@
     --wn-namecard-muted: rgb(255 255 255 / 0.65);
     --wn-namecard-ink: #93c5fd;
     --wn-namecard-line: rgb(255 255 255 / 0.1);
+    --wn-weather-sun-from: #1e3a8a;
+    --wn-weather-sun-to: #1d4ed8;
+    --wn-weather-moon-from: #0b1120;
+    --wn-weather-moon-to: #172554;
+    --wn-weather-cloud-from: #334155;
+    --wn-weather-cloud-to: #475569;
+    --wn-weather-rain-from: #1e293b;
+    --wn-weather-rain-to: #334155;
+    --wn-weather-snow-from: #2c4a75;
+    --wn-weather-snow-to: #3b5f94;
+    --wn-weather-storm-from: #111827;
+    --wn-weather-storm-to: #1f2937;
+    --wn-weather-fog-from: #374151;
+    --wn-weather-fog-to: #4b5563;
+    --wn-weather-fg: #ffffff;
+    --wn-weather-muted: #e2e8f0;
+    --wn-weather-cell-bg: rgb(0 0 0 / 0.2);
+    --wn-weather-line: rgb(255 255 255 / 0.2);
   }
 }
 
@@ -533,6 +570,24 @@
   --wn-namecard-muted: rgb(255 255 255 / 0.65);
   --wn-namecard-ink: #93c5fd;
   --wn-namecard-line: rgb(255 255 255 / 0.1);
+  --wn-weather-sun-from: #1e3a8a;
+  --wn-weather-sun-to: #1d4ed8;
+  --wn-weather-moon-from: #0b1120;
+  --wn-weather-moon-to: #172554;
+  --wn-weather-cloud-from: #334155;
+  --wn-weather-cloud-to: #475569;
+  --wn-weather-rain-from: #1e293b;
+  --wn-weather-rain-to: #334155;
+  --wn-weather-snow-from: #2c4a75;
+  --wn-weather-snow-to: #3b5f94;
+  --wn-weather-storm-from: #111827;
+  --wn-weather-storm-to: #1f2937;
+  --wn-weather-fog-from: #374151;
+  --wn-weather-fog-to: #4b5563;
+  --wn-weather-fg: #ffffff;
+  --wn-weather-muted: #e2e8f0;
+  --wn-weather-cell-bg: rgb(0 0 0 / 0.2);
+  --wn-weather-line: rgb(255 255 255 / 0.2);
 }
 
 @theme inline {

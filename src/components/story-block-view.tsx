@@ -20,6 +20,7 @@ import {
   parseSearchResults,
   parseSystemScript,
   parseTodoScript,
+  parseWeatherScript,
   pollPercentLabel,
   pollStatus,
   pollTotal,
@@ -31,6 +32,7 @@ import {
   smsContact,
   splitMailSender,
   todoProgress,
+  weatherKind,
   type AlarmData,
   type CallData,
   type ChatData,
@@ -57,6 +59,8 @@ import {
   type StoryBlock,
   type SystemData,
   type TodoData,
+  type WeatherData,
+  type WeatherKind,
   type TransferData,
 } from '@/lib/story-blocks';
 import { cn } from '@/lib/utils';
@@ -134,6 +138,8 @@ export function StoryBlockView({ block }: { block: StoryBlock }) {
       return <TodoCard data={block.data} />;
     case 'namecard':
       return <NamecardCard data={block.data} />;
+    case 'weather':
+      return <WeatherCard data={block.data} />;
   }
 }
 
@@ -1790,6 +1796,118 @@ export function NamecardCard({ data, field }: { data: NamecardData; field?: Fiel
           </div>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+/** 날씨 그림 (글로 된 날씨 말이 따로 있어서 낭독기에서는 숨김) */
+function WeatherIcon({ kind, className }: { kind: WeatherKind; className: string }) {
+  const svg = { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round', className } as const;
+  const cloud = (y: number) => `M7 ${y}h10a4 4 0 0 0 .5-8 5.5 5.5 0 0 0-10.6 1.8A3.1 3.1 0 0 0 7 ${y}z`;
+  switch (kind) {
+    case 'sun':
+      return (
+        <svg {...svg} aria-hidden="true">
+          <circle cx="12" cy="12" r="4.5" />
+          <path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4" />
+        </svg>
+      );
+    case 'moon':
+      return (
+        <svg {...svg} aria-hidden="true">
+          <path d="M20 14.5A8 8 0 0 1 9.5 4a7 7 0 1 0 10.5 10.5z" />
+        </svg>
+      );
+    case 'partly':
+      return (
+        <svg {...svg} aria-hidden="true">
+          <path d="M8 2.5v1.3M2.5 8h1.3M4.1 4.1l.9.9M11.9 4.1l-.9.9" />
+          <path d="M5.2 10.6A3.6 3.6 0 1 1 11.4 7" />
+          <path d="M8 20h8.5a3.8 3.8 0 0 0 .4-7.6 4.8 4.8 0 0 0-9.2 1.5A3 3 0 0 0 8 20z" />
+        </svg>
+      );
+    case 'cloud':
+      return (
+        <svg {...svg} aria-hidden="true">
+          <path d={cloud(18)} />
+        </svg>
+      );
+    case 'rain':
+      return (
+        <svg {...svg} aria-hidden="true">
+          <path d={cloud(14)} />
+          <path d="M9 17.5l-1 2.5M13 17.5l-1 2.5M17 17.5l-1 2.5" />
+        </svg>
+      );
+    case 'snow':
+      return (
+        <svg {...svg} aria-hidden="true">
+          <path d={cloud(14)} />
+          <path d="M8.5 18h.01M12 19.5h.01M15.5 18h.01M10 21.5h.01M14 21.5h.01" strokeWidth={2.6} />
+        </svg>
+      );
+    case 'storm':
+      return (
+        <svg {...svg} aria-hidden="true">
+          <path d={cloud(14)} />
+          <path d="M12.5 15l-2 3.2h3L11.5 21.5" />
+        </svg>
+      );
+    case 'fog':
+      return (
+        <svg {...svg} aria-hidden="true">
+          <path d={cloud(12)} />
+          <path d="M4 15.5h16M6 19h12" />
+        </svg>
+      );
+  }
+}
+
+/**
+ * 날씨: 날씨 앱 카드 (장소 · 큰 기온 · 날씨 · 최고/최저 · 한 줄 · 시간별 칸).
+ * 날씨 말로 그림과 바탕색을 고른다 (weatherKind). 바탕은 흰 글씨가 어느 쪽 끝에서도 대비 4.5:1 이상인 진한 색들.
+ * 시간별 칸은 대본으로 한 줄씩 (parseWeatherScript), 좁으면 다음 줄로 넘어간다 (가로 스크롤 없음)
+ */
+function WeatherCard({ data }: { data: WeatherData }) {
+  const kind = weatherKind(data.condition);
+  const palette = kind === 'partly' ? 'sun' : kind;
+  const hours = parseWeatherScript(data.script);
+  const style = { '--weather-from': `var(--wn-weather-${palette}-from)`, '--weather-to': `var(--wn-weather-${palette}-to)` } as CSSProperties;
+
+  return (
+    <div
+      style={style}
+      className="wn-block mx-auto w-full max-w-[420px] rounded-[22px] bg-(--weather-from) bg-linear-to-br from-(--weather-from) to-(--weather-to) px-5 pt-4 pb-4 text-(--wn-weather-fg) shadow-sm"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          {data.place.trim() ? (
+            <div className="flex items-center gap-1 text-sm font-semibold break-keep">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="size-3.5 shrink-0">
+                <path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z" />
+              </svg>
+              {data.place}
+            </div>
+          ) : null}
+          {data.temp.trim() ? <div className="mt-1 text-[52px] leading-none font-light tabular-nums">{data.temp}</div> : null}
+          {data.condition.trim() ? <div className="mt-1.5 text-[15px] font-semibold break-keep">{data.condition}</div> : null}
+          {data.range.trim() ? <div className="mt-0.5 text-[13px] break-keep text-(--wn-weather-muted)">{data.range}</div> : null}
+        </div>
+        <WeatherIcon kind={kind} className="size-16 shrink-0" />
+      </div>
+      {data.note.trim() ? <div className="mt-3 rounded-xl bg-(--wn-weather-cell-bg) px-3 py-2 text-[13px] break-keep">{data.note}</div> : null}
+      {hours.length > 0 ? (
+        <ul aria-label="시간별 날씨" className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(3.4rem,1fr))] gap-1.5 border-t border-(--wn-weather-line) pt-3">
+          {hours.map((hour, index) => (
+            <li key={index} className="flex min-w-0 flex-col items-center gap-1 rounded-xl bg-(--wn-weather-cell-bg) px-1 py-2 text-center">
+              <span className="text-[11px] leading-tight font-medium break-keep">{hour.time || '\u00a0'}</span>
+              <WeatherIcon kind={hour.kind} className="size-5" />
+              {hour.condition ? <span className="sr-only">{hour.condition}</span> : null}
+              <span className="text-sm font-semibold tabular-nums">{hour.temp}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </div>
   );
 }
