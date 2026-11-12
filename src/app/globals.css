@@ -621,6 +621,18 @@ html[data-focus="on"] [data-focus-grid] {
   background: var(--find-current-bg);
   box-shadow: 0 0 0 1px var(--accent);
 }
+/* 자주 틀리는 말: 물결 밑줄, 목록에서 고른 곳은 찾기처럼 칠함 */
+.ProseMirror .wn-spell-issue {
+  text-decoration: underline wavy var(--danger);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 4px;
+  text-decoration-skip-ink: none;
+}
+.ProseMirror .wn-spell-current {
+  border-radius: 2px;
+  background: var(--find-current-bg);
+  box-shadow: 0 0 0 1px var(--accent);
+}
 .ProseMirror hr.ProseMirror-selectednode::after {
   color: var(--accent);
 }

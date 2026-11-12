@@ -15,6 +15,7 @@ import {
 import { ChangesDialog } from '@/components/admin/changes-dialog';
 import { CharGoal } from '@/components/admin/char-goal';
 import { FindBar, FindReplace } from '@/components/admin/find-replace';
+import { SpellingCheck, SpellingPanel } from '@/components/admin/spelling-panel';
 import { ShortcutGuide } from '@/components/admin/shortcut-guide';
 import { TemplateMenu } from '@/components/admin/story-block/template-menu';
 import { SubmitButton } from '@/components/submit-button';
@@ -113,6 +114,8 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
   // 찾기·바꾸기 창. 열 때마다 번호를 올려서, 열린 상태에서 다시 열면(Cmd+F) 고른 글자로 새로 찾는다
   const [findSession, setFindSession] = useState(0);
   const [findOpen, setFindOpen] = useState(false);
+  // 자주 틀리는 말 창 (찾기 창과 같은 자리라 한 번에 하나만)
+  const [spellOpen, setSpellOpen] = useState(false);
   // 집중 모드: 이 기기에 기억해 두고, 화면 맨 처음(layout의 스크립트)에 <html data-focus>로 반영된다
   const [focusMode, setFocusMode] = useState(() => document.documentElement.dataset.focus === 'on');
   const [saveState, setSaveState] = useState<SaveState>('saved');
@@ -166,8 +169,13 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
 
   // setState 함수만 쓰므로 에디터 확장에 그대로 넘겨도 늘 같은 동작
   const openFind = () => {
+    setSpellOpen(false);
     setFindOpen(true);
     setFindSession((value) => value + 1);
+  };
+  const toggleSpelling = () => {
+    setFindOpen(false);
+    setSpellOpen((open) => !open);
   };
 
   /** 문장 부호 다듬기: 본문 전체를 한 번에 (되돌리기 한 번이면 전부 원래대로). 템플릿 안은 그대로 (lib/punctuation.ts) */
@@ -319,6 +327,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
       Placeholder.configure({ placeholder: '여기에 본문을 써 주세요' }),
       StoryBlockNode.configure({ editingStore: templateStore }),
       FindReplace.configure({ onOpen: openFind }),
+      SpellingCheck,
     ],
     content: chapter.contentHtml,
     editorProps: {
@@ -608,7 +617,15 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
       <div className="sticky top-0 z-20 -mx-1 mt-5 bg-bg/90 px-1 py-2 backdrop-blur-md">
         <div className="flex flex-wrap items-center justify-between gap-2">
           {editor ? (
-            <Toolbar editor={editor} onFind={openFind} onPolish={polishPunctuation} focusMode={focusMode} onToggleFocus={toggleFocusMode} />
+            <Toolbar
+              editor={editor}
+              onFind={openFind}
+              onPolish={polishPunctuation}
+              spellOpen={spellOpen}
+              onSpelling={toggleSpelling}
+              focusMode={focusMode}
+              onToggleFocus={toggleFocusMode}
+            />
           ) : (
             <div className="h-10" />
           )}
@@ -710,6 +727,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
           </div>
         </div>
         {findOpen && editor ? <FindBar key={findSession} editor={editor} onClose={() => setFindOpen(false)} /> : null}
+        {spellOpen && editor ? <SpellingPanel editor={editor} onClose={() => setSpellOpen(false)} /> : null}
       </div>
 
       <EditorContent editor={editor} className="mt-2 rounded-2xl border border-line bg-surface" />
@@ -917,12 +935,16 @@ function Toolbar({
   editor,
   onFind,
   onPolish,
+  spellOpen,
+  onSpelling,
   focusMode,
   onToggleFocus,
 }: {
   editor: Editor;
   onFind: () => void;
   onPolish: () => void;
+  spellOpen: boolean;
+  onSpelling: () => void;
   focusMode: boolean;
   onToggleFocus: () => void;
 }) {
@@ -1017,6 +1039,19 @@ function Toolbar({
         className="grid h-8 min-w-8 place-items-center rounded-lg px-2 text-[13px] font-semibold text-fg transition hover:bg-surface-2"
       >
         <span aria-hidden="true">“…”</span>
+      </button>
+      <button
+        type="button"
+        onClick={onSpelling}
+        aria-expanded={spellOpen}
+        title="자주 틀리는 말 찾기: 됬 → 됐, 몇일 → 며칠, 할께 → 할게 … (템플릿 안은 그대로)"
+        aria-label="자주 틀리는 말 찾기"
+        className={cn('grid h-8 min-w-8 place-items-center rounded-lg px-2 transition', spellOpen ? 'bg-accent-soft text-accent' : 'text-fg hover:bg-surface-2')}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-4">
+          <path d="M5 9.5l3.5 3.5L16 5.5" />
+          <path d="M3 19c1.5-1.6 3-1.6 4.5 0s3 1.6 4.5 0 3-1.6 4.5 0 3 1.6 4.5 0" />
+        </svg>
       </button>
       <button
         type="button"
