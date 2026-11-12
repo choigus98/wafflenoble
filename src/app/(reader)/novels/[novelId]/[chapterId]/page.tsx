@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
+import { ChapterBody } from '@/components/reader/chapter-body';
 import { LikeButton } from '@/components/reader/like-button';
 import { ReaderSettings } from '@/components/reader/reader-settings';
 import { ViewTracker } from '@/components/reader/view-tracker';
@@ -48,7 +49,7 @@ async function ChapterView({ params }: Pick<PageProps<'/novels/[novelId]/[chapte
       </header>
 
       {chapter.contentHtml ? (
-        <div className="novel-body py-9" dangerouslySetInnerHTML={{ __html: chapter.contentHtml }} />
+        <ChapterBody html={chapter.contentHtml} />
       ) : (
         <p className="py-16 text-center text-muted">아직 본문이 없어요.</p>
       )}

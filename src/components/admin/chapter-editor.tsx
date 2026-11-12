@@ -6,6 +6,8 @@ import StarterKit from '@tiptap/starter-kit';
 import Link from 'next/link';
 import { useEffect, useRef, useState, useTransition, type ReactNode } from 'react';
 import { deleteChapter, saveChapter, setChapterStatus } from '@/app/admin/actions';
+import { StoryBlockNode } from '@/components/admin/story-block/story-block-node';
+import { TemplateMenu } from '@/components/admin/story-block/template-menu';
 import { SubmitButton } from '@/components/submit-button';
 import { Badge, Button, buttonClass } from '@/components/ui';
 import { formatNumber, formatTime } from '@/lib/format';
@@ -166,6 +168,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
         underline: false,
       }),
       Placeholder.configure({ placeholder: '여기에 본문을 써 주세요' }),
+      StoryBlockNode,
     ],
     content: chapter.contentHtml,
     editorProps: {
@@ -441,6 +444,8 @@ function Toolbar({ editor }: { editor: Editor }) {
 
   return (
     <div role="toolbar" aria-label="서식" className="flex items-center gap-0.5 rounded-xl border border-line bg-surface p-1">
+      <TemplateMenu editor={editor} />
+      <span aria-hidden="true" className="mx-0.5 h-5 w-px bg-line" />
       {items.map((item) => (
         <button
           key={item.key}

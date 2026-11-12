@@ -12,6 +12,7 @@ import { countCharacters, sanitizeChapterHtml } from '@/lib/content';
 import { db } from '@/lib/db';
 import { isUniqueViolation } from '@/lib/db/errors';
 import { chapters, novels, readers, settings } from '@/lib/db/schema';
+import { hasStoryBlocks } from '@/lib/story-blocks';
 import { NICKNAME_MAX, NICKNAME_MIN, normalizeNickname } from '@/lib/utils';
 import type { ActionState } from '@/lib/action-state';
 
@@ -119,8 +120,8 @@ export async function saveChapter(input: z.input<typeof chapterInputSchema>): Pr
   const { id, title, position, contentHtml } = parsed.data;
   const clean = sanitizeChapterHtml(contentHtml);
   const charCount = countCharacters(clean);
-  // 에디터는 빈 문서도 <p></p>로 내보내므로, 글자도 장면 전환도 없으면 빈 본문으로 저장
-  const stored = charCount === 0 && !clean.includes('<hr') ? '' : clean;
+  // 에디터는 빈 문서도 <p></p>로 내보내므로, 글자도 장면 전환도 템플릿도 없으면 빈 본문으로 저장
+  const stored = charCount === 0 && !clean.includes('<hr') && !hasStoryBlocks(clean) ? '' : clean;
   const [saved] = await db
     .update(chapters)
     .set({ title, position, contentHtml: stored, charCount })

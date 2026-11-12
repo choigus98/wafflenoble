@@ -127,6 +127,19 @@ body {
   font-weight: 700;
 }
 
+/* ─── 이야기 속 화면 템플릿 (방송창·채팅·후원·카톡) ─────────────────
+   기기 화면처럼 항상 어둡게, 읽기 설정(글자 크기·글꼴)과 상관없이 같은 크기로 그린다 */
+.wn-block {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  letter-spacing: normal;
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  color-scheme: dark;
+}
+
 /* 에디터 */
 .ProseMirror:focus {
   outline: none;
