@@ -1,11 +1,14 @@
+import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import { NovelCover } from '@/components/novel-cover';
 import { ChapterReadStatus } from '@/components/reader/chapter-read-status';
+import { TocOrderToggle } from '@/components/reader/toc-order-toggle';
 import { Badge, ButtonLink, Skeleton } from '@/components/ui';
 import { formatDate, formatSchedule } from '@/lib/format';
 import { getNovelDetail } from '@/lib/queries/reader';
+import { TOC_ORDER_COOKIE, orderChapters, parseTocOrder } from '@/lib/toc-order';
 import { SERIAL_STATUS_LABEL, cn, parseId } from '@/lib/utils';
 
 export default function NovelPage({ params }: PageProps<'/novels/[novelId]'>) {
@@ -24,6 +27,9 @@ async function NovelDetail({ params }: Pick<PageProps<'/novels/[novelId]'>, 'par
   if (!data) notFound();
 
   const { viewer, novel, chapters, continueChapter, nextScheduledAt } = data;
+  // 목차 정렬은 이 기기 쿠키로 기억 (서버가 처음부터 그 순서로 그림)
+  const order = parseTocOrder((await cookies()).get(TOC_ORDER_COOKIE)?.value);
+  const listed = orderChapters(chapters, order);
   const first = chapters.find((chapter) => chapter.status === 'published' && !chapter.scheduled) ?? chapters[0];
 
   return (
@@ -88,14 +94,17 @@ async function NovelDetail({ params }: Pick<PageProps<'/novels/[novelId]'>, 'par
       ) : null}
 
       <section className="mt-10">
-        <h2 className="mb-2 text-sm font-semibold text-muted">회차</h2>
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold text-muted">회차</h2>
+          {chapters.length > 1 ? <TocOrderToggle order={order} /> : null}
+        </div>
         {chapters.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-line px-6 py-12 text-center text-muted">
             아직 올라온 회차가 없어요.
           </p>
         ) : (
           <ol className="divide-y divide-line border-y border-line">
-            {chapters.map((chapter) => (
+            {listed.map((chapter) => (
               <li key={chapter.id}>
                 <Link
                   href={`/novels/${novel.id}/${chapter.id}`}
