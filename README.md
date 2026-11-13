@@ -38,9 +38,11 @@ pnpm dev
 ## 배포 (Vercel + Neon)
 
 1. Vercel에서 이 GitHub 레포를 import
-2. Storage → Neon 연결 (`DATABASE_URL` 자동 등록)
+2. Storage → Neon 연결 (`DATABASE_URL` 자동 등록, 리전은 싱가포르 `ap-southeast-1`)
 3. 환경변수 `ADMIN_PASSWORD`, `SESSION_SECRET`(`openssl rand -base64 32`) 등록
-4. Settings → Build and Deployment → Build Command를 `pnpm db:migrate && pnpm build`로 변경
-5. Settings → Functions → 리전을 Neon DB 리전과 가까운 곳으로 (예: `sin1`)
+4. Deployments → Redeploy
+5. 관리자 화면 → 설정에서 길드 열람 비밀번호 정하기 (정하기 전에는 길드 입장이 닫혀 있음)
+
+빌드 명령(`pnpm db:migrate && pnpm build` — 마이그레이션이 실패하면 빌드도 멈춰서 이전 배포가 그대로)과 함수 리전(`sin1`, Neon과 같은 싱가포르)은 `vercel.json`에 있어요.
 
 main에 push하면 바로 프로덕션에 배포돼요.
