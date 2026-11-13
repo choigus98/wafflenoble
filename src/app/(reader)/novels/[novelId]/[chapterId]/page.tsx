@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Suspense } from 'react';
+import { Fragment, Suspense } from 'react';
 import { ChapterBody } from '@/components/reader/chapter-body';
 import { ChapterCharacters } from '@/components/reader/chapter-characters';
 import { ChapterToc } from '@/components/reader/chapter-toc';
@@ -22,6 +22,7 @@ import { charactersInTexts } from '@/lib/character-counts';
 import { parseCharacters } from '@/lib/characters';
 import { chapterTexts } from '@/lib/content';
 import { formatReadingTime, readingMinutes } from '@/lib/reading-time';
+import { keyNavHint } from '@/lib/key-nav';
 import { getChapterView } from '@/lib/queries/reader';
 import { parseId } from '@/lib/utils';
 
@@ -47,6 +48,8 @@ async function ChapterView({ params }: Pick<PageProps<'/novels/[novelId]/[chapte
   // 회차 끝 '이 회차 등장인물': 작품 정보의 등장인물 중 이 회차 본문·템플릿에 나온 인물만
   const characters = parseCharacters(novel.characters);
   const inChapter = characters.length > 0 && chapter.contentHtml ? charactersInTexts(chapterTexts(chapter.contentHtml), characters) : [];
+  // 회차 끝 줄의 '← → 키로도 이전 · 다음 화로 넘어가요' (갈 수 있는 쪽만)
+  const keyHint = keyNavHint(Boolean(prev), Boolean(next));
 
   return (
     // data-reading: 이 화면에서는 읽기 설정 '본문 폭'을 따른다 (globals.css)
@@ -160,7 +163,7 @@ async function ChapterView({ params }: Pick<PageProps<'/novels/[novelId]/[chapte
           ) : null}
           <nav className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
             {prev ? (
-              <ButtonLink href={`/novels/${novel.id}/${prev.id}`} variant="secondary" className="justify-start truncate">
+              <ButtonLink href={`/novels/${novel.id}/${prev.id}`} variant="secondary" aria-keyshortcuts="ArrowLeft" className="justify-start truncate">
                 ← {prev.position}화
               </ButtonLink>
             ) : (
@@ -170,7 +173,7 @@ async function ChapterView({ params }: Pick<PageProps<'/novels/[novelId]/[chapte
               목록
             </ButtonLink>
             {next ? (
-              <ButtonLink href={`/novels/${novel.id}/${next.id}`} className="justify-end truncate">
+              <ButtonLink href={`/novels/${novel.id}/${next.id}`} aria-keyshortcuts="ArrowRight" className="justify-end truncate">
                 {next.position}화 →
               </ButtonLink>
             ) : nextScheduledAt ? (
@@ -183,6 +186,18 @@ async function ChapterView({ params }: Pick<PageProps<'/novels/[novelId]/[chapte
               <span className="text-right text-xs text-muted">마지막 화예요</span>
             )}
           </nav>
+          {/* ←/→로 넘기는 안내는 키보드가 있는 기기(마우스 · 트랙패드)에서만 작게 (ChapterKeyNav) */}
+          {keyHint ? (
+            <p className="hidden text-center text-xs text-muted pointer-fine:block">
+              {/* 키 사이는 진짜 띄어쓰기 (낭독기가 '←→키로도'처럼 붙여 읽지 않게) */}
+              {keyHint.keys.map((key) => (
+                <Fragment key={key}>
+                  <kbd className="inline-block min-w-5 rounded-md border border-line bg-surface px-1 text-center font-sans text-[11px] leading-[18px] text-fg">{key}</kbd>{' '}
+                </Fragment>
+              ))}
+              {keyHint.text}
+            </p>
+          ) : null}
         </div>
       </footer>
 
