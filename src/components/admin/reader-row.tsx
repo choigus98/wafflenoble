@@ -36,7 +36,8 @@ export function ReaderRow({ reader }: { reader: ReaderSummary }) {
 
   return (
     <li className="flex flex-wrap items-center gap-x-4 gap-y-2 py-4">
-      <div className="min-w-0 flex-1 space-y-1">
+      {/* 아주 좁은 화면(320px)에서는 이름 칸이 9rem보다 좁아지지 않게 '이름 수정 · 삭제'가 아래 줄로 */}
+      <div className="min-w-[9rem] flex-1 space-y-1">
         {editing ? (
           <form onSubmit={handleRename} className="flex gap-2">
             <Input name="name" defaultValue={reader.nickname} maxLength={NICKNAME_MAX} required autoFocus aria-label="새 이름" className="h-9" />
@@ -48,8 +49,9 @@ export function ReaderRow({ reader }: { reader: ReaderSummary }) {
             </Button>
           </form>
         ) : (
-          <div className="flex min-w-0 items-center gap-2">
-            <p className="truncate font-semibold">{reader.nickname}</p>
+          // 이름 옆 자리가 모자라면 배지가 이름 아래 줄로 (긴 이름이 '…'만 남지 않게)
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
+            <p className="max-w-full min-w-0 truncate font-semibold">{reader.nickname}</p>
             {reader.awayDays !== null ? (
               <span className="shrink-0 rounded-full bg-surface-2 px-2 py-px text-[11px] font-semibold text-muted">{reader.awayDays}일째 안 들어옴</span>
             ) : null}
