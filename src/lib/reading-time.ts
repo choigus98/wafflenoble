@@ -16,3 +16,25 @@ export function formatReadingTime(minutes: number): string {
   const rest = minutes % 60;
   return rest === 0 ? `약 ${hours}시간` : `약 ${hours}시간 ${rest}분`;
 }
+
+// ─── 남은 읽는 시간 ──────────────────────────────────────
+// 읽어 내려갈 때 '약 3분 남음': 화면 위쪽 머리 바로 아래의 '읽는 줄'보다 아래에 남은 글자수를 같은 속도로 나눈다.
+// 줄 아래 덩어리(문단 등)는 다, 줄에 걸친 덩어리는 줄 아래쪽 비율만큼 센다. 템플릿처럼 글자수에 안 드는 덩어리는 chars 0
+
+export type ReadUnit = { top: number; bottom: number; chars: number };
+
+/** 읽는 줄(line)보다 아래에 남은 글자수 (top · bottom · line은 같은 기준의 세로 위치) */
+export function remainingChars(units: readonly ReadUnit[], line: number): number {
+  let total = 0;
+  for (const unit of units) {
+    if (unit.chars <= 0 || unit.bottom <= line) continue;
+    total += unit.top >= line ? unit.chars : unit.chars * ((unit.bottom - line) / Math.max(1, unit.bottom - unit.top));
+  }
+  return Math.round(total);
+}
+
+/** '약 3분 남음' · '약 1시간 5분 남음' (남은 글자가 없으면 null) */
+export function remainingLabel(chars: number): string | null {
+  const minutes = readingMinutes(chars);
+  return minutes === null ? null : `${formatReadingTime(minutes)} 남음`;
+}

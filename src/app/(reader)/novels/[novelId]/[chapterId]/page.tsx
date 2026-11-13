@@ -13,6 +13,7 @@ import { BackToTop } from '@/components/reader/back-to-top';
 import { ChapterBookmark } from '@/components/reader/chapter-bookmark';
 import { QuoteCopy } from '@/components/reader/quote-copy';
 import { ReadingProgress } from '@/components/reader/reading-progress';
+import { RemainingTime } from '@/components/reader/remaining-time';
 import { ViewTracker } from '@/components/reader/view-tracker';
 import { Badge, ButtonLink, Skeleton } from '@/components/ui';
 import { formatDate, formatNumber, formatSchedule } from '@/lib/format';
@@ -186,6 +187,8 @@ async function ChapterView({ params }: Pick<PageProps<'/novels/[novelId]/[chapte
 
       {isReader && chapter.visibleNow ? <ViewTracker chapterId={chapter.id} /> : null}
       <ReadingProgress chapterId={chapter.id} />
+      {/* 읽어 내려가면 오른쪽 위에 '약 3분 남음' (3분 넘는 회차만) */}
+      <RemainingTime charCount={chapter.charCount} />
       <BackToTop targetId="chapter-title" />
       {chapter.contentHtml ? <ChapterBookmark novelId={novel.id} chapterId={chapter.id} position={chapter.position} title={chapter.title} /> : null}
       {/* 본문 글을 고르면 '출처와 함께 복사' (링크는 길드원이 들어올 수 있는 회차일 때만) */}
