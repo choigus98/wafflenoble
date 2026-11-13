@@ -13,6 +13,8 @@ type ReaderSummary = {
   nickname: string;
   firstSeen: string;
   lastSeen: string;
+  // 2주 넘게 안 들어왔으면 마지막으로 들어온 뒤 지난 날 수 (아니면 null)
+  awayDays: number | null;
   readChapters: number;
   likes: number;
   // 가장 최근에 연 회차 (작품이 여러 개일 수 있어서 작품 이름도 같이)
@@ -46,7 +48,12 @@ export function ReaderRow({ reader }: { reader: ReaderSummary }) {
             </Button>
           </form>
         ) : (
-          <p className="truncate font-semibold">{reader.nickname}</p>
+          <div className="flex min-w-0 items-center gap-2">
+            <p className="truncate font-semibold">{reader.nickname}</p>
+            {reader.awayDays !== null ? (
+              <span className="shrink-0 rounded-full bg-surface-2 px-2 py-px text-[11px] font-semibold text-muted">{reader.awayDays}일째 안 들어옴</span>
+            ) : null}
+          </div>
         )}
         <p className="text-[13px] text-muted">
           처음 {reader.firstSeen} · 마지막 {reader.lastSeen} · 읽은 회차 {reader.readChapters} ·{' '}
