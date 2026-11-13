@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { RecentActivity } from '@/components/admin/recent-activity';
+import { RecentChapters } from '@/components/admin/recent-chapters';
 import { ScheduledChapters } from '@/components/admin/scheduled-chapters';
 import { WeekChars } from '@/components/admin/week-chars';
 import { NovelCover } from '@/components/novel-cover';
@@ -19,6 +20,12 @@ export default function AdminHomePage() {
       </div>
       <Suspense fallback={<ListSkeleton />}>
         <NovelList />
+      </Suspense>
+      {/* 최근 고친 회차 3개: 바로 이어 쓰러 가기 (회차가 없으면 칸째 안 그린다) */}
+      <Suspense fallback={null}>
+        <div className="mt-10 empty:hidden">
+          <RecentChapters />
+        </div>
       </Suspense>
       {/* 예약이 없으면 칸째 안 그린다 (기다리는 동안에도 자리를 잡지 않음) */}
       <Suspense fallback={null}>
@@ -67,7 +74,7 @@ async function NovelList() {
         <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
           {novels.map((novel) => (
             <li key={novel.id}>
-              <Link href={`/admin/novels/${novel.id}`} className="flex items-center gap-4 px-4 py-4 transition hover:bg-surface-2/60 sm:px-5">
+              <Link href={`/admin/novels/${novel.id}`} className="flex items-center gap-4 px-4 py-4 transition hover:bg-surface-2/60 sm:px-5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent">
                 <NovelCover id={novel.id} title={novel.title} color={novel.coverColor} size="sm" className="w-12 shrink-0 [&_p]:hidden" />
                 <div className="min-w-0 flex-1 space-y-1.5">
                   <p className="truncate font-semibold">{novel.title}</p>

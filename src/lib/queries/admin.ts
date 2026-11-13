@@ -89,6 +89,27 @@ export async function adminListScheduledChapters(limit = 50) {
   return rows.flatMap((row) => (row.publishedAt ? [{ ...row, publishedAt: row.publishedAt }] : []));
 }
 
+/** 관리자 홈 '최근 고친 회차': 모든 작품에서 최근에 고친(저장·발행·예약한) 회차부터 — 바로 이어 쓰러 가는 줄 */
+export async function adminRecentEditedChapters(limit = 3) {
+  await requireAdmin();
+  return db
+    .select({
+      chapterId: chapters.id,
+      novelId: chapters.novelId,
+      novelTitle: novels.title,
+      position: chapters.position,
+      title: chapters.title,
+      status: chapters.status,
+      scheduled: isScheduledChapter,
+      charCount: chapters.charCount,
+      updatedAt: chapters.updatedAt,
+    })
+    .from(chapters)
+    .innerJoin(novels, eq(novels.id, chapters.novelId))
+    .orderBy(desc(chapters.updatedAt), desc(chapters.id))
+    .limit(limit);
+}
+
 /** 작품 전체 텍스트 내보내기: 회차를 순서대로 (published면 길드원에게 보이는 회차만 — 임시저장·예약 대기는 뺀다) */
 export async function adminExportNovelText(novelId: number, scope: 'all' | 'published') {
   await requireAdmin();

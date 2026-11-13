@@ -41,7 +41,7 @@ export async function ScheduledChapters() {
           <li key={item.chapterId}>
             <Link
               href={`/admin/novels/${item.novelId}/chapters/${item.chapterId}`}
-              className="flex items-center gap-3 px-4 py-3.5 transition hover:bg-surface-2/60 sm:px-5"
+              className="flex items-center gap-3 px-4 py-3.5 transition hover:bg-surface-2/60 sm:px-5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
             >
               <span className="min-w-0 flex-1 space-y-1">
                 <span className="block truncate font-medium">
