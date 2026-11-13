@@ -30,6 +30,7 @@ import { SpellingCheck, SpellingPanel } from '@/components/admin/spelling-panel'
 import { ShortcutGuide } from '@/components/admin/shortcut-guide';
 import { TemplateMenu } from '@/components/admin/story-block/template-menu';
 import { TodayChars } from '@/components/admin/today-chars';
+import { WritingTimer } from '@/components/admin/writing-timer';
 import { SubmitButton } from '@/components/submit-button';
 import { Badge, Button, buttonClass } from '@/components/ui';
 import { PrivateNote } from '@/components/admin/private-note';
@@ -1107,6 +1108,8 @@ function Toolbar({
           )}
         </svg>
       </button>
+      {/* 글쓰기 타이머: 15 · 25 · 50분, 끝나면 그동안 쓴 글자수 (이 기기에 기억해서 다른 회차로 가도 이어짐) */}
+      <WritingTimer />
       <ShortcutGuide />
     </div>
   );
