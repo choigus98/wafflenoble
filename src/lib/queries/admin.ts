@@ -44,7 +44,7 @@ export async function adminGetNovel(novelId: number) {
   await requireAdmin();
   const novel = await db.query.novels.findFirst({ where: eq(novels.id, novelId) });
   if (!novel) return null;
-  const [list, [members]] = await Promise.all([
+  const [list, [members], [notes]] = await Promise.all([
     db
       .select({
         id: chapters.id,
@@ -63,8 +63,10 @@ export async function adminGetNovel(novelId: number) {
       .orderBy(asc(chapters.position), asc(chapters.id)),
     // 회차별 '길드원 N명 중 M명 읽음'의 N
     db.select({ total: count() }).from(readers),
+    // '작가 메모 모아 보기'의 개수 (메모가 비면 줄을 지우므로 줄 수 = 메모 수)
+    db.select({ total: count() }).from(chapterNotes).innerJoin(chapters, eq(chapters.id, chapterNotes.chapterId)).where(eq(chapters.novelId, novelId)),
   ]);
-  return { novel, chapters: list, totalReaders: members?.total ?? 0 };
+  return { novel, chapters: list, totalReaders: members?.total ?? 0, noteCount: notes?.total ?? 0 };
 }
 
 /** 관리자 홈 '예약된 회차': 모든 작품에서 아직 공개 전인 예약 회차를 공개 시각이 빠른 순으로 */
@@ -87,6 +89,28 @@ export async function adminListScheduledChapters(limit = 50) {
     .limit(limit);
   // 예약 회차는 공개 시각이 늘 있다 (타입만 좁힌다)
   return rows.flatMap((row) => (row.publishedAt ? [{ ...row, publishedAt: row.publishedAt }] : []));
+}
+
+/** '작가 메모 모아 보기': 작품의 작가 메모(나만 보기)를 회차 순서대로 — 메모가 있는 회차만 */
+export async function adminListChapterNotes(novelId: number) {
+  await requireAdmin();
+  const novel = await db.query.novels.findFirst({ where: eq(novels.id, novelId), columns: { id: true, title: true } });
+  if (!novel) return null;
+  const notes = await db
+    .select({
+      chapterId: chapters.id,
+      position: chapters.position,
+      title: chapters.title,
+      status: chapters.status,
+      scheduled: isScheduledChapter,
+      body: chapterNotes.body,
+      updatedAt: chapterNotes.updatedAt,
+    })
+    .from(chapterNotes)
+    .innerJoin(chapters, eq(chapters.id, chapterNotes.chapterId))
+    .where(eq(chapters.novelId, novelId))
+    .orderBy(asc(chapters.position), asc(chapters.id));
+  return { novel, notes: notes.filter((note) => note.body.trim() !== '') };
 }
 
 /** 관리자 홈 '최근 고친 회차': 모든 작품에서 최근에 고친(저장·발행·예약한) 회차부터 — 바로 이어 쓰러 가는 줄 */

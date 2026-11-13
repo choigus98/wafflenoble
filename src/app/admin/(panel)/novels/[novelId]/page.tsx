@@ -34,7 +34,7 @@ async function NovelAdmin({ params, searchParams }: Pick<PageProps<'/admin/novel
   const data = await adminGetNovel(novelId);
   if (!data) notFound();
 
-  const { novel, chapters: allChapters, totalReaders } = data;
+  const { novel, chapters: allChapters, totalReaders, noteCount } = data;
   const now = new Date();
   // 회차가 하나뿐이면 거르기 줄을 숨기므로, 예전 주소의 ?show=가 남아 있어도 전체를 보여 준다 (되돌아갈 버튼이 없어서)
   const showFilters = allChapters.length > 1;
@@ -162,6 +162,13 @@ async function NovelAdmin({ params, searchParams }: Pick<PageProps<'/admin/novel
             }))}
           />
         )}
+        {/* 회차마다 남긴 작가 메모(나만 보기)를 한 화면에 */}
+        {noteCount > 0 ? (
+          <Link href={`/admin/novels/${novel.id}/notes`} className="inline-flex items-center gap-1.5 text-sm font-semibold text-accent hover:underline">
+            작가 메모 모아 보기 <span className="font-normal text-muted tabular-nums">{noteCount}개</span>
+            <span aria-hidden="true">→</span>
+          </Link>
+        ) : null}
       </section>
 
       <section className="space-y-3">

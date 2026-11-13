@@ -48,6 +48,31 @@ export function PrivateNote({ chapterId, initial }: { chapterId: number; initial
     timerRef.current = window.setTimeout(flush, SAVE_DELAY_MS);
   }
 
+  // '작가 메모 모아 보기'의 '메모 고치기'(주소 끝 #private-note)로 왔으면 메모 칸으로 내려가서 포커스.
+  // 에디터는 브라우저에서만 늦게 그려져서 브라우저가 알아서 그 자리로 가지 못하고, 본문이 뒤늦게 그려지면 칸이 아래로 밀린다
+  // → 그려지는 동안(1.5초) 화면 크기가 바뀔 때마다 다시 맞추고, 직접 스크롤 · 입력하면 바로 그만
+  useEffect(() => {
+    if (window.location.hash !== '#private-note') return;
+    const field = document.getElementById('private-note');
+    if (!field) return;
+    const place = () => field.scrollIntoView({ block: 'center' });
+    place();
+    field.focus({ preventScroll: true });
+    const observer = new ResizeObserver(place);
+    observer.observe(document.body);
+    const stopEvents = ['wheel', 'touchstart', 'keydown', 'pointerdown'] as const;
+    const stop = () => {
+      observer.disconnect();
+      for (const name of stopEvents) window.removeEventListener(name, stop);
+    };
+    for (const name of stopEvents) window.addEventListener(name, stop, { passive: true });
+    const timer = window.setTimeout(stop, 1500);
+    return () => {
+      window.clearTimeout(timer);
+      stop();
+    };
+  }, []);
+
   // 화면을 떠날 때 아직 안 보낸 메모가 있으면 보낸다
   useEffect(() => {
     return () => {
