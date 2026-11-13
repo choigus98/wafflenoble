@@ -428,6 +428,55 @@ export async function scheduleChapters(
   return { ok: true, count };
 }
 
+const renameSchema = z
+  .array(z.object({ chapterId: idSchema, title: z.string().trim().max(100, '회차 제목은 100자까지예요') }))
+  .min(1, '고친 제목이 없어요')
+  .max(1000, '한 번에 고칠 수 있는 회차가 너무 많아요');
+
+/**
+ * 회차 제목 한꺼번에 고치기: 바뀐 제목만 받아 한 번에 저장한다 (이 작품 회차가 아닌 게 섞이면 아무것도 안 바뀜).
+ * 길드원에게 보이는 회차의 제목이 바뀌면, 에디터의 '수정 반영'처럼 바뀌기 전 모습을 발행본 기록에 남긴다
+ */
+export async function renameChapters(
+  novelId: number,
+  items: Array<{ chapterId: number; title: string }>,
+): Promise<{ ok: true; count: number } | { ok: false; message: string }> {
+  await requireAdmin();
+  if (!idSchema.safeParse(novelId).success) return { ok: false, message: '잘못된 요청이에요' };
+  const parsed = renameSchema.safeParse(items);
+  if (!parsed.success) return { ok: false, message: firstIssue(parsed.error) };
+  if (new Set(parsed.data.map((item) => item.chapterId)).size !== parsed.data.length) return { ok: false, message: '같은 회차가 두 번 들어 있어요' };
+
+  const count = await db
+    .transaction(async (tx) => {
+      let done = 0;
+      for (const { chapterId, title } of parsed.data) {
+        const [current] = await tx
+          .select({
+            title: chapters.title,
+            contentHtml: chapters.contentHtml,
+            authorNote: chapters.authorNote,
+            charCount: chapters.charCount,
+            live: isVisibleChapter,
+          })
+          .from(chapters)
+          .where(and(eq(chapters.id, chapterId), eq(chapters.novelId, novelId)))
+          .for('update');
+        // 다른 작품 회차이거나 그 사이 지워졌으면 전부 되돌린다
+        if (!current) tx.rollback();
+        if (current.title === title) continue;
+        if (current.live) await keepRevision(tx, chapterId, current);
+        await tx.update(chapters).set({ title }).where(eq(chapters.id, chapterId));
+        done += 1;
+      }
+      return done;
+    })
+    .catch(() => null);
+  if (count === null) return { ok: false, message: '이 작품에 없는 회차가 있어서 고치지 못했어요. 새로 고친 뒤 다시 해 주세요' };
+  if (count > 0) refresh();
+  return { ok: true, count };
+}
+
 /**
  * 회차 복제: 제목·본문(템플릿 포함)·작가의 말을 그대로 새 임시저장 회차로 만들어 목록 맨 뒤에 둔다.
  * 좋아요·열람 기록·발행본 기록은 복사하지 않는다. 만든 뒤 새 회차 에디터로 이동

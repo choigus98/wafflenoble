@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import { createChapter } from '@/app/admin/actions';
+import { BulkRename } from '@/components/admin/bulk-rename';
 import { BulkSchedule } from '@/components/admin/bulk-schedule';
 import { ChapterList } from '@/components/admin/chapter-list';
 import { ChapterMoveButtons } from '@/components/admin/chapter-move-buttons';
@@ -72,6 +73,10 @@ async function NovelAdmin({ params, searchParams }: Pick<PageProps<'/admin/novel
             회차 {allChapters.length > 0 ? <span className="text-muted">{allChapters.length}</span> : null}
           </h2>
           <div className="flex flex-wrap items-center justify-end gap-2">
+            {/* 회차가 둘 이상이면 제목을 한 창에서 한꺼번에 (하나면 에디터에서 고치면 됨) */}
+            {allChapters.length >= 2 ? (
+              <BulkRename novelId={novel.id} rows={allChapters.map((chapter) => ({ id: chapter.id, position: chapter.position, title: chapter.title }))} />
+            ) : null}
             {drafts.length >= 2 ? <BulkSchedule novelId={novel.id} drafts={drafts} /> : null}
             <form action={createChapter.bind(null, novel.id)}>
               <SubmitButton size="sm" pendingText="만드는 중…">
