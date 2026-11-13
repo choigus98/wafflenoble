@@ -4,17 +4,18 @@ import { useEffect, useId, useRef, type KeyboardEvent } from 'react';
 import { useDismiss } from '@/components/use-dismiss';
 import { cn } from '@/lib/utils';
 
-export type BlockMenuAction = 'up' | 'down' | 'duplicate' | 'delete';
+export type BlockMenuAction = 'up' | 'down' | 'duplicate' | 'reset-size' | 'delete';
 
 const ITEMS: Array<{ action: BlockMenuAction; label: string }> = [
   { action: 'up', label: '위로 옮기기' },
   { action: 'down', label: '아래로 옮기기' },
   { action: 'duplicate', label: '복제' },
+  { action: 'reset-size', label: '원래 크기로' },
   { action: 'delete', label: '삭제' },
 ];
 
 /**
- * 템플릿 도구 막대의 ⋯ 메뉴: 위로·아래로 옮기기, 복제, 삭제.
+ * 템플릿 도구 막대의 ⋯ 메뉴: 위로·아래로 옮기기, 복제, 원래 크기로(크기를 바꾼 템플릿만), 삭제.
  * 끌어서 옮기기 어려운 휴대폰과 키보드에서도 순서를 바꿀 수 있게. 열면 첫 항목에 포커스,
  * ↑/↓·Home/End로 고르고 Enter, Esc는 닫고 ⋯ 단추로 돌아간다.
  */
@@ -28,7 +29,7 @@ export function BlockMenu({
   label: string; // '카톡 1:1 대화'
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  can: { up: boolean; down: boolean }; // 맨 위·맨 아래면 그쪽으로는 못 옮김
+  can: { up: boolean; down: boolean; resetSize: boolean }; // 맨 위·맨 아래면 그쪽으로는 못 옮김, 원래 크기면 '원래 크기로' 없음
   onAction: (action: BlockMenuAction) => void;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -103,7 +104,7 @@ export function BlockMenu({
           onKeyDown={onMenuKeyDown}
           className="absolute top-9 right-0 z-30 w-36 rounded-xl border border-line bg-surface p-1 shadow-lg shadow-black/10"
         >
-          {ITEMS.map((item) => (
+          {ITEMS.filter((item) => item.action !== 'reset-size' || can.resetSize).map((item) => (
             <button
               key={item.action}
               type="button"

@@ -124,4 +124,15 @@ describe('발행본과 바뀐 곳', () => {
     expect(fromHtml[3].text.startsWith('[카톡 1:1 대화]')).toBe(true);
     expect(docUnits(editorDoc)).toEqual(fromHtml);
   });
+
+  it('크기만 바꾼 템플릿도 고친 템플릿으로 (원래 크기는 크기 표시 없음, 저장 HTML과 에디터 문서가 같은 결과)', () => {
+    const kakao = createTemplate('kakao-dm');
+    const editorDoc = (size: number): DocNode => ({ type: 'doc', content: [{ type: 'storyBlock', attrs: { kind: kakao.kind, data: kakao.data, size } }] });
+    const before = docUnits(htmlToDoc(serializeStoryBlock(kakao)));
+    const after = docUnits(editorDoc(80));
+    expect(before).toEqual(docUnits(editorDoc(100)));
+    expect(after).toEqual(docUnits(htmlToDoc(serializeStoryBlock(kakao, 80))));
+    expect(after[0].text.endsWith('\n(크기 80%)')).toBe(true);
+    expect(summarizeChanges(diffUnits(before, after)).flatMap((group) => group.changes.map((change) => change.kind))).toEqual(['changed']);
+  });
 });

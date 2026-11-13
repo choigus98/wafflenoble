@@ -3,12 +3,14 @@
 import { NodeSelection } from '@tiptap/pm/state';
 import { Node, NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from '@tiptap/react';
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { StoryBlockSize } from '@/components/story-block-size';
 import { StoryBlockView } from '@/components/story-block-view';
 import { announce } from '@/lib/announce';
-import { newId, parseStoryBlock, templateLabel, type StoryBlock } from '@/lib/story-blocks';
+import { BLOCK_SIZE, newId, normalizeBlockSize, parseStoryBlock, templateLabel, type StoryBlock } from '@/lib/story-blocks';
 import { cn } from '@/lib/utils';
 import { ConversationEditor, InlineCardEditor } from './block-editor';
 import { BlockMenu, type BlockMenuAction } from './block-menu';
+import { BlockResizeHandle } from './resize-handle';
 
 // ─── 지금 편집 중인 템플릿 (에디터마다 하나) ─────────────────────
 // 템플릿은 한 번에 하나만 편집한다. 회차 에디터가 이 값을 보고 편집 중에는 발행을 막는다.
@@ -118,6 +120,10 @@ function StoryBlockItem({ node, editor, getPos, selected, deleteNode, extension 
   const editing = uid !== null && editingUid === uid;
   const [menuOpen, setMenuOpen] = useState(false);
   const [canMove, setCanMove] = useState({ up: false, down: false });
+  // 크기: 저장된 값, 손잡이를 끄는 동안에는 끄는 크기를 먼저 보여 준다
+  const size = normalizeBlockSize(node.attrs.size);
+  const [dragSize, setDragSize] = useState<number | null>(null);
+  const shownSize = dragSize ?? size;
 
   const cardRef = useRef<HTMLDivElement>(null);
   // '완료'·Esc로 편집 창을 닫으면 포커스를 이 카드로 돌려준다 (창이 사라지면서 포커스가 화면 맨 앞으로 튕기지 않게)
@@ -166,6 +172,14 @@ function StoryBlockItem({ node, editor, getPos, selected, deleteNode, extension 
     editor.view.dispatch(editor.state.tr.setNodeAttribute(pos, 'data', next.data).setMeta('addToHistory', false));
   }
 
+  /** 크기 반영. 글과 달리 문서 되돌리기 기록에 남긴다 (Ctrl/⌘+Z 한 번이면 그 전 크기로) */
+  function commitSize(next: number) {
+    if (editor.isDestroyed) return;
+    const pos = getPos();
+    if (typeof pos !== 'number' || editor.state.doc.nodeAt(pos)?.attrs.uid !== uid) return;
+    editor.view.dispatch(editor.state.tr.setNodeAttribute(pos, 'size', normalizeBlockSize(next)));
+  }
+
   function remove() {
     if (window.confirm('이 템플릿을 지울까요?')) deleteNode();
   }
@@ -187,7 +201,7 @@ function StoryBlockItem({ node, editor, getPos, selected, deleteNode, extension 
       .chain()
       .insertContentAt(pos + current.nodeSize, {
         type: 'storyBlock',
-        attrs: { kind: current.attrs.kind, data: structuredClone(current.attrs.data), isNew: true, uid: newId() },
+        attrs: { kind: current.attrs.kind, data: structuredClone(current.attrs.data), size: current.attrs.size, isNew: true, uid: newId() },
       })
       .run();
   }
@@ -254,7 +268,15 @@ function StoryBlockItem({ node, editor, getPos, selected, deleteNode, extension 
   function onMenuAction(action: BlockMenuAction) {
     if (action === 'up' || action === 'down') move(action);
     else if (action === 'duplicate') duplicate();
-    else remove();
+    else if (action === 'reset-size') {
+      commitSize(BLOCK_SIZE.normal);
+      announce('템플릿을 원래 크기로 되돌렸어요');
+      // 누른 메뉴 항목이 사라지면서 포커스가 화면 맨 앞으로 튕기지 않게 ⋯ 단추로
+      const pos = getPos();
+      if (typeof pos === 'number') {
+        (editor.view.nodeDOM(pos) as HTMLElement | null)?.querySelector<HTMLButtonElement>('button[data-block-menu]')?.focus({ preventScroll: true });
+      }
+    } else remove();
   }
 
   if (!block) {
@@ -281,7 +303,10 @@ function StoryBlockItem({ node, editor, getPos, selected, deleteNode, extension 
         selected || menuOpen ? 'opacity-100' : 'opacity-100 sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100',
       )}
     >
-      <span className="px-2 text-xs font-semibold text-muted">{templateLabel(block)}</span>
+      <span className="px-2 text-xs font-semibold text-muted">
+        {templateLabel(block)}
+        {shownSize === BLOCK_SIZE.normal ? null : <span className="tabular-nums"> · {shownSize}%</span>}
+      </span>
       {/* 마우스로 끌어 옮기는 손잡이. 키보드·휴대폰은 ⋯ 메뉴의 '위로·아래로 옮기기'를 쓴다 */}
       <span
         data-drag-handle=""
@@ -293,11 +318,33 @@ function StoryBlockItem({ node, editor, getPos, selected, deleteNode, extension 
         ⠿
       </span>
       {extra}
-      <BlockMenu label={templateLabel(block)} open={menuOpen} onOpenChange={openMenu} can={canMove} onAction={onMenuAction} />
+      <BlockMenu
+        label={templateLabel(block)}
+        open={menuOpen}
+        onOpenChange={openMenu}
+        can={{ ...canMove, resetSize: size !== BLOCK_SIZE.normal }}
+        onAction={onMenuAction}
+      />
     </div>
   );
 
-  const frame = cn('group relative rounded-[26px] p-1.5 transition', selected ? 'ring-2 ring-accent' : 'hover:ring-2 hover:ring-line');
+  // 오른쪽 아래 모서리의 크기 손잡이 (도구 막대처럼 넓은 화면에서는 고르거나 마우스를 올렸을 때만 보임)
+  const resizeHandle = (
+    <BlockResizeHandle
+      size={size}
+      label={templateLabel(block)}
+      onPreview={setDragSize}
+      onCommit={commitSize}
+      className={
+        selected || menuOpen || dragSize !== null
+          ? 'opacity-100'
+          : 'opacity-100 sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100'
+      }
+    />
+  );
+
+  // 좁은 화면에서는 도구 막대가 늘 떠 있어서, 카드(특히 줄인 카드)의 윗부분을 가리지 않게 위쪽을 띄운다
+  const frame = cn('group relative rounded-[26px] p-1.5 transition max-sm:pt-7', selected ? 'ring-2 ring-accent' : 'hover:ring-2 hover:ring-line');
 
   return (
     <NodeViewWrapper className="my-8" data-story-block="">
@@ -323,8 +370,11 @@ function StoryBlockItem({ node, editor, getPos, selected, deleteNode, extension 
         block.kind === 'voice' ? (
           // 방송창·후원 알림·뉴스 기사: 카드의 글자를 눌러 그 자리에서 바로 고친다. 고치기 시작하면 열려 있던 대본 창은 닫힌다
           <div className={frame} onFocusCapture={() => store.set(null)}>
-            <InlineCardEditor block={block} onChange={commit} autoFocus={isNew} />
+            <StoryBlockSize size={shownSize} always>
+              <InlineCardEditor block={block} onChange={commit} autoFocus={isNew} />
+            </StoryBlockSize>
             {toolbar(null)}
+            {resizeHandle}
           </div>
         ) : editing ? (
           <ConversationEditor block={block} onChange={commit} onClose={close} onDelete={deleteNode} />
@@ -346,13 +396,16 @@ function StoryBlockItem({ node, editor, getPos, selected, deleteNode, extension 
               }}
               className="cursor-pointer rounded-[20px] focus-visible:outline-none"
             >
-              <StoryBlockView block={block} />
+              <StoryBlockSize size={shownSize} always>
+                <StoryBlockView block={block} />
+              </StoryBlockSize>
             </div>
             {toolbar(
               <button type="button" onClick={open} className="h-7 rounded-full bg-accent px-3 text-xs font-semibold text-accent-fg">
                 {editLabel}
               </button>,
             )}
+            {resizeHandle}
           </div>
         )}
       </div>
@@ -361,8 +414,8 @@ function StoryBlockItem({ node, editor, getPos, selected, deleteNode, extension 
 }
 
 /**
- * 본문 속 템플릿 블록 노드. 문서에는 kind·data 속성만 들고, HTML로는
- * <div data-wn-block="종류" data-wn-data="JSON"></div> 한 줄로 저장된다 (lib/story-blocks.ts)
+ * 본문 속 템플릿 블록 노드. 문서에는 kind·data·size 속성을 들고, HTML로는
+ * <div data-wn-block="종류" data-wn-data="JSON"></div> 한 줄로 저장된다 (크기를 바꾸면 data-wn-size="80"이 붙음, lib/story-blocks.ts)
  */
 export const StoryBlockNode = Node.create<{ editingStore: TemplateEditingStore | null }>({
   name: 'storyBlock',
@@ -395,6 +448,12 @@ export const StoryBlockNode = Node.create<{ editingStore: TemplateEditingStore |
       },
       // 방금 넣은 템플릿인지 (편집 창을 바로 열기 위한 표시, 저장되지 않음)
       isNew: { default: false, rendered: false, parseHTML: () => false },
+      // 크기 (원래 크기의 %). 원래 크기면 저장하지 않는다
+      size: {
+        default: BLOCK_SIZE.normal,
+        rendered: false,
+        parseHTML: (element: HTMLElement) => normalizeBlockSize(element.getAttribute('data-wn-size')),
+      },
       // 에디터 안에서만 쓰는 블록 구분용 id (저장되지 않고, 불러올 때마다 새로 붙음)
       uid: { default: null, rendered: false, parseHTML: () => newId() },
     };
@@ -405,7 +464,16 @@ export const StoryBlockNode = Node.create<{ editingStore: TemplateEditingStore |
   },
 
   renderHTML({ node }) {
-    return ['div', { 'data-wn-block': node.attrs.kind ?? '', 'data-wn-data': JSON.stringify(node.attrs.data ?? null) }];
+    // 속성 순서(종류 → 내용 → 크기)를 lib/story-blocks.ts의 BLOCK_PATTERN이 그대로 기대한다
+    const size = normalizeBlockSize(node.attrs.size);
+    return [
+      'div',
+      {
+        'data-wn-block': node.attrs.kind ?? '',
+        'data-wn-data': JSON.stringify(node.attrs.data ?? null),
+        ...(size === BLOCK_SIZE.normal ? {} : { 'data-wn-size': String(size) }),
+      },
+    ];
   },
 
   addNodeView() {

@@ -2,7 +2,7 @@ import 'server-only';
 import sanitizeHtml from 'sanitize-html';
 import { storyBlockToText } from '@/lib/chapter-text';
 import { firstSentence } from '@/lib/opening';
-import { normalizeStoryBlocks, splitStoryContent } from '@/lib/story-blocks';
+import { BLOCK_SIZE, normalizeBlockSize, normalizeStoryBlocks, splitStoryContent } from '@/lib/story-blocks';
 
 // 에디터에서 만들 수 있는 것만 허용 (문단, 줄바꿈, 굵게, 기울임, 취소선, 장면 전환, 인용, 템플릿 블록)
 const ALLOWED_TAGS = ['p', 'br', 'strong', 'em', 's', 'hr', 'blockquote', 'div'];
@@ -10,8 +10,23 @@ const ALLOWED_TAGS = ['p', 'br', 'strong', 'em', 's', 'hr', 'blockquote', 'div']
 export function sanitizeChapterHtml(html: string): string {
   const clean = sanitizeHtml(html, {
     allowedTags: ALLOWED_TAGS,
-    // div는 템플릿 블록용 속성 두 개만 허용. 블록 내용(JSON)은 아래에서 스키마로 다시 검증한다
-    allowedAttributes: { div: ['data-wn-block', 'data-wn-data'] },
+    // div는 템플릿 블록용 속성(종류·내용·크기)만 허용. 블록 내용(JSON)과 크기는 아래에서 다시 검증한다
+    allowedAttributes: { div: ['data-wn-block', 'data-wn-data', 'data-wn-size'] },
+    // 속성 순서를 종류 → 내용 → 크기로 맞춘다 (lib/story-blocks.ts의 BLOCK_PATTERN이 이 순서만 알아본다).
+    // 크기는 여기서 숫자로 고르고 원래 크기면 뺀다 (빈 값은 값 없는 속성으로 나와서 블록을 못 알아보게 되므로)
+    transformTags: {
+      div: (tagName, attribs) => {
+        const size = normalizeBlockSize(attribs['data-wn-size']);
+        return {
+          tagName,
+          attribs: {
+            ...('data-wn-block' in attribs ? { 'data-wn-block': attribs['data-wn-block'] } : {}),
+            ...('data-wn-data' in attribs ? { 'data-wn-data': attribs['data-wn-data'] } : {}),
+            ...(size === BLOCK_SIZE.normal ? {} : { 'data-wn-size': String(size) }),
+          },
+        };
+      },
+    },
     disallowedTagsMode: 'discard',
   });
   return normalizeStoryBlocks(clean);

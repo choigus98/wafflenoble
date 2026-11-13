@@ -3,7 +3,7 @@
 // 무거운 HTML 해석기 없이 태그 단위로 읽는다. 템플릿은 story-blocks의 splitStoryContent가 따로 꺼내 준다
 
 import type { DocNode } from '@/lib/chapter-text';
-import { splitStoryContent } from '@/lib/story-blocks';
+import { BLOCK_SIZE, splitStoryContent } from '@/lib/story-blocks';
 
 const NAMED: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
 
@@ -70,7 +70,11 @@ function htmlBlocks(html: string): DocNode[] {
 export function htmlToDoc(html: string): DocNode {
   const content: DocNode[] = [];
   for (const segment of splitStoryContent(html)) {
-    if (segment.type === 'block') content.push({ type: 'storyBlock', attrs: { kind: segment.block.kind, data: segment.block.data } });
+    if (segment.type === 'block') {
+      // 크기는 바꾼 템플릿만 (에디터 문서처럼). '발행본과 바뀐 곳 보기'가 크기만 바꾼 것도 알아보게
+      const size = segment.size === BLOCK_SIZE.normal ? {} : { size: segment.size };
+      content.push({ type: 'storyBlock', attrs: { kind: segment.block.kind, data: segment.block.data, ...size } });
+    }
     else content.push(...htmlBlocks(segment.html));
   }
   return { type: 'doc', content };

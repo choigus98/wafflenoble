@@ -6,7 +6,7 @@
 
 import { inlineText, storyBlockToText, type DocNode } from '@/lib/chapter-text';
 import { htmlToDoc } from '@/lib/html-doc';
-import { parseStoryBlock } from '@/lib/story-blocks';
+import { BLOCK_SIZE, normalizeBlockSize, parseStoryBlock } from '@/lib/story-blocks';
 
 export const SCENE_BREAK_UNIT = '* * *';
 
@@ -26,7 +26,9 @@ export function docUnits(doc: DocNode): Unit[] {
     else if (node.type === 'blockquote') for (const child of node.content ?? []) add(`> ${inlineText(child)}`);
     else if (node.type === 'storyBlock') {
       const block = parseStoryBlock(node.attrs?.kind, node.attrs?.data);
-      if (block) units.push({ text: storyBlockToText(block), template: true });
+      // 크기를 바꾼 템플릿은 맨 끝에 크기를 붙여서, 크기만 바꿔도 '고친 템플릿'으로 보이게
+      const size = normalizeBlockSize(node.attrs?.size);
+      if (block) units.push({ text: size === BLOCK_SIZE.normal ? storyBlockToText(block) : `${storyBlockToText(block)}\n(크기 ${size}%)`, template: true });
     }
   }
   return units;

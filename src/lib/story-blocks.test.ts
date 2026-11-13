@@ -9,6 +9,10 @@ import {
   commentDisplayName,
   commentSpeakers,
   createTemplate,
+  BLOCK_SIZE,
+  CHAT_VIEWER_SCRIPT,
+  normalizeBlockSize,
+  serializeStoryBlock,
   isMine,
   isPostAuthor,
   kakaoTitle,
@@ -209,7 +213,7 @@ describe('템플릿 저장 형식', () => {
     const segments = splitStoryContent(stored);
 
     expect(segments).toHaveLength(3);
-    expect(segments[1]).toEqual({ type: 'block', block });
+    expect(segments[1]).toEqual({ type: 'block', block, size: BLOCK_SIZE.normal });
     // 위험한 태그는 블록 데이터(속성) 안에서 글자로만 남는다
     expect(stored.replace(/data-wn-data="[^"]*"/g, '')).not.toMatch(/<script|<img|onerror/i);
     // 다시 정제해도 바뀌지 않는다
@@ -232,7 +236,64 @@ describe('템플릿 저장 형식', () => {
     const live = createTemplate('live');
     const stored = sanitizeChapterHtml(asEditorHtml('live', { ...live.data, onclick: 'alert(1)' }));
     expect(stored).not.toContain('onclick');
-    expect(splitStoryContent(stored)[0]).toEqual({ type: 'block', block: live });
+    expect(splitStoryContent(stored)[0]).toEqual({ type: 'block', block: live, size: BLOCK_SIZE.normal });
+  });
+});
+
+describe('템플릿 크기', () => {
+  const live = createTemplate('live');
+  const withSize = (value: string) => asEditorHtml('live', live.data).replace('></div>', ` data-wn-size="${value}"></div>`);
+  const storedSize = (html: string) => {
+    const segment = splitStoryContent(sanitizeChapterHtml(html))[0];
+    return segment?.type === 'block' ? segment.size : null;
+  };
+
+  it('바꾼 템플릿만 data-wn-size가 붙고, 저장·읽기를 거쳐도 그대로', () => {
+    const stored = sanitizeChapterHtml(`<p>앞</p>${withSize('80')}<p>뒤</p>`);
+    expect(stored).toBe(`<p>앞</p>${serializeStoryBlock(live, 80)}<p>뒤</p>`);
+    expect(splitStoryContent(stored)[1]).toEqual({ type: 'block', block: live, size: 80 });
+    expect(sanitizeChapterHtml(stored)).toBe(stored);
+    // 원래 크기(100%)는 저장하지 않는다
+    expect(sanitizeChapterHtml(withSize('100'))).toBe(serializeStoryBlock(live));
+    expect(serializeStoryBlock(live, 100)).not.toContain('data-wn-size');
+  });
+
+  it('예전 글(크기 없음)은 원래 크기', () => {
+    expect(storedSize(asEditorHtml('live', live.data))).toBe(100);
+  });
+
+  it('범위 밖은 50~150으로, 소수는 반올림, 숫자가 아니면 원래 크기', () => {
+    expect(storedSize(withSize('10'))).toBe(50);
+    expect(storedSize(withSize('999'))).toBe(150);
+    expect(storedSize(withSize('82.6'))).toBe(83);
+    expect(storedSize(withSize('abc'))).toBe(100);
+    expect(storedSize(withSize(''))).toBe(100);
+    expect(storedSize(withSize('80;background:red'))).toBe(100);
+    expect(normalizeBlockSize(undefined)).toBe(100);
+    expect(normalizeBlockSize(null)).toBe(100);
+    expect(normalizeBlockSize(Number.POSITIVE_INFINITY)).toBe(100);
+    expect(normalizeBlockSize(75)).toBe(75);
+  });
+
+  it('속성 순서가 달라도 알아보고, 다른 속성은 버린다', () => {
+    const reversed = `<div onclick="alert(1)" data-wn-size="70" data-wn-data="${browserAttr(JSON.stringify(live.data))}" data-wn-block="live"></div>`;
+    const stored = sanitizeChapterHtml(reversed);
+    expect(stored).toBe(serializeStoryBlock(live, 70));
+  });
+});
+
+describe('새 템플릿 기본값', () => {
+  it('실시간 채팅창: 시청자1~9 이름만 깔고 대사는 비움 (대사가 빈 줄은 화면에 안 나옴)', () => {
+    const chat = createTemplate('chat');
+    expect(chat.kind === 'chat' && chat.data.script).toBe(CHAT_VIEWER_SCRIPT);
+    expect(CHAT_VIEWER_SCRIPT.split('\n')).toEqual(Array.from({ length: 9 }, (_, index) => `시청자${index + 1}: `));
+    expect(parseScript(CHAT_VIEWER_SCRIPT)).toEqual([]);
+    expect(parseScript(CHAT_VIEWER_SCRIPT.replace('시청자2: ', '시청자2: ㅋㅋㅋ'))).toEqual([{ type: 'message', name: '시청자2', text: 'ㅋㅋㅋ', time: '' }]);
+  });
+
+  it('라이브 방송창: 카테고리는 Just Chatting', () => {
+    const block = createTemplate('live');
+    expect(block.kind === 'live' && block.data.category).toBe('Just Chatting');
   });
 });
 

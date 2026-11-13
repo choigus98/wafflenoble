@@ -23,6 +23,8 @@ describe('저장 HTML → 문서', () => {
     const doc = htmlToDoc(`<p>앞</p>${serializeStoryBlock(kakao)}<p>뒤</p>`);
     expect(doc.content?.map((node) => node.type)).toEqual(['paragraph', 'storyBlock', 'paragraph']);
     expect(doc.content?.[1].attrs).toEqual({ kind: kakao.kind, data: kakao.data });
+    // 크기를 바꾼 템플릿은 크기도 (에디터 문서처럼)
+    expect(htmlToDoc(serializeStoryBlock(kakao, 80)).content?.[0].attrs).toEqual({ kind: kakao.kind, data: kakao.data, size: 80 });
   });
 
   it('특수 문자 풀기: 이름 · 숫자 · 16진수, 모르는 것은 그대로', () => {

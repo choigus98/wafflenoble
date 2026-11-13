@@ -297,6 +297,12 @@ export function InlineCardEditor({
 
 // ─── 카톡 · 채팅창 · 게시글 댓글: 대본으로 쓰기 ──────────────
 
+/** 대사가 빈 첫 '이름:' 줄의 끝 위치 (없으면 null) */
+function emptyLineEnd(script: string): number | null {
+  const match = /^[^:：\n]{1,15}[:：][ \t]*$/m.exec(script);
+  return match ? match.index + match[0].length : null;
+}
+
 export function ConversationEditor({
   block,
   onChange,
@@ -313,14 +319,18 @@ export function ConversationEditor({
   const scriptRef = useRef<HTMLTextAreaElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
 
-  // 열리면 편집 창 머리가 위쪽 고정 툴바에 가리지 않게 스크롤하고, 커서를 둔다 (게시글은 제목 끝, 나머지는 대본 끝)
+  // 열리면 편집 창 머리가 위쪽 고정 툴바에 가리지 않게 스크롤하고, 커서를 둔다 (게시글은 제목 끝, 나머지는 대본 끝).
+  // 채팅창은 대사가 빈 '이름:' 줄이 있으면 그 줄 끝에 (새 채팅창은 '시청자1: ' 뒤라서 바로 대사를 쓸 수 있게)
   useEffect(() => {
     rootRef.current?.scrollIntoView({ block: 'start', behavior: scrollBehavior() });
     const target = titleRef.current ?? scriptRef.current;
     if (target) {
       target.focus({ preventScroll: true });
-      target.setSelectionRange(target.value.length, target.value.length);
+      const end = (draft.kind === 'chat' && target === scriptRef.current ? emptyLineEnd(target.value) : null) ?? target.value.length;
+      target.setSelectionRange(end, end);
     }
+    // 처음 열릴 때 한 번만
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const lines = draft.kind === 'kakao' || draft.kind === 'chat' || draft.kind === 'sms' ? parseScript(draft.data.script) : [];

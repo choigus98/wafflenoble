@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 // 본문 중간에 넣는 '이야기 속 화면' 템플릿 (카톡 1:1·단체방, 실시간 채팅창, 라이브 방송창, 후원 알림, 커뮤니티 게시글, 시스템 창, 뉴스 기사, 전화 화면, 쪽지, SNS 게시물, 이메일, 검색 결과, 휴대폰 알림, 문자 메시지, 영수증, 위치 공유, 투표, 송금 완료, 알람, 일정, 아이템 획득, 음악 재생, 실시간 순위, 할 일 목록, 명함, 날씨, 지하철 안내, 택배 배송 조회, 탑승권·승차권, 게임 결과, 메신저 프로필).
 // 저장 형식: <div data-wn-block="종류" data-wn-data="JSON"></div>
+//   크기를 바꾼 템플릿만 data-wn-size="80"(원래 크기의 %)이 붙는다 (없으면 원래 크기, 예전 글도 그대로)
 // 에디터(Tiptap 노드), 서버(저장할 때 검증), 열람 화면(렌더링)이 모두 이 파일을 같이 쓴다.
 //
 // 대화형 템플릿은 '대본' 텍스트를 그대로 저장한다. 쓰는 사람은 평소 대사 쓰듯 적기만 하면 된다.
@@ -1543,6 +1544,9 @@ function postStamp(date = new Date()): string {
   return `${parts.year}.${parts.month}.${parts.day} ${parts.hour}:${parts.minute}`;
 }
 
+/** 새 실시간 채팅창의 대본: '시청자1: ' ~ '시청자9: ' (대사 없이) */
+export const CHAT_VIEWER_SCRIPT = Array.from({ length: 9 }, (_, index) => `시청자${index + 1}: `).join('\n');
+
 /** 새로 넣을 템플릿. 쓰는 법이 바로 보이도록 예시 대본을 채워 둔다 */
 export function createTemplate(key: TemplateKey): StoryBlock {
   switch (key) {
@@ -1573,12 +1577,13 @@ export function createTemplate(key: TemplateKey): StoryBlock {
     case 'chat':
       return {
         kind: 'chat',
-        data: { title: '방송인 채팅', badge: 'LIVE', colors: {}, script: ['시청자1: 방송 켰다!', '시청자2: 오늘 뭐 함?'].join('\n') },
+        // 시청자1~9 이름만 깔아 두고 대사는 비워 둔다 (대사가 빈 줄은 화면에 안 나와서, 쓴 만큼만 보인다)
+        data: { title: '방송인 채팅', badge: 'LIVE', colors: {}, script: CHAT_VIEWER_SCRIPT },
       };
     case 'live':
       return {
         kind: 'live',
-        data: { streamer: '방송인', badge: 'LIVE', title: '방송 제목', viewers: '1,024', category: '종합 게임' },
+        data: { streamer: '방송인', badge: 'LIVE', title: '방송 제목', viewers: '1,024', category: 'Just Chatting' },
       };
     case 'donation':
       return {
@@ -1995,17 +2000,37 @@ function parseEncodedBlock(kind: string, encoded: string): StoryBlock | null {
   }
 }
 
-export function serializeStoryBlock(block: StoryBlock): string {
-  return `<div data-wn-block="${block.kind}" data-wn-data="${escapeAttr(JSON.stringify(block.data))}"></div>`;
+// ─── 템플릿 크기 ───────────────────────────────────────
+// 에디터에서 템플릿 오른쪽 아래 모서리를 끌면 비율 그대로 커지고 작아진다. 원래 크기(100%)는 저장하지 않는다
+
+export const BLOCK_SIZE = { min: 50, max: 150, normal: 100 } as const;
+
+/** 저장값·끌어 온 값을 50~150 사이의 정수(%)로. 비었거나 숫자가 아니면 원래 크기 */
+export function normalizeBlockSize(value: unknown): number {
+  const size = typeof value === 'string' ? (value.trim() ? Number(value) : Number.NaN) : value;
+  if (typeof size !== 'number' || !Number.isFinite(size)) return BLOCK_SIZE.normal;
+  return Math.min(BLOCK_SIZE.max, Math.max(BLOCK_SIZE.min, Math.round(size)));
 }
 
-const BLOCK_PATTERN = /<div data-wn-block="([a-z]+)" data-wn-data="([^"]*)"\s*><\/div>/g;
+export function serializeStoryBlock(block: StoryBlock, size: number = BLOCK_SIZE.normal): string {
+  const normalized = normalizeBlockSize(size);
+  const sizeAttr = normalized === BLOCK_SIZE.normal ? '' : ` data-wn-size="${normalized}"`;
+  return `<div data-wn-block="${block.kind}" data-wn-data="${escapeAttr(JSON.stringify(block.data))}"${sizeAttr}></div>`;
+}
+
+// 크기 속성은 에디터가 늘 data-wn-data 뒤에 쓴다 (story-block-node.tsx의 renderHTML)
+const BLOCK_PATTERN = /<div data-wn-block="([a-z]+)" data-wn-data="([^"]*)"(?: data-wn-size="([^"]*)")?\s*><\/div>/g;
+
+/** 정규식에서 꺼낸 크기 속성 값 (속성이 없으면 원래 크기) */
+function matchedSize(raw: string | undefined): number {
+  return raw === undefined ? BLOCK_SIZE.normal : normalizeBlockSize(raw);
+}
 
 /** 저장 직전: 블록 데이터를 검증해 같은 형식으로 다시 쓰고, 형식이 틀린 블록은 지운다 */
 export function normalizeStoryBlocks(html: string): string {
-  return html.replace(BLOCK_PATTERN, (_match, kind: string, encoded: string) => {
+  return html.replace(BLOCK_PATTERN, (_match, kind: string, encoded: string, size: string | undefined) => {
     const block = parseEncodedBlock(kind, encoded);
-    return block ? serializeStoryBlock(block) : '';
+    return block ? serializeStoryBlock(block, matchedSize(size)) : '';
   });
 }
 
@@ -2013,7 +2038,7 @@ export function hasStoryBlocks(html: string): boolean {
   return html.includes('data-wn-block=');
 }
 
-export type ContentSegment = { type: 'html'; html: string } | { type: 'block'; block: StoryBlock };
+export type ContentSegment = { type: 'html'; html: string } | { type: 'block'; block: StoryBlock; size: number };
 
 /** 열람 화면용: 본문 HTML을 일반 HTML 조각과 템플릿 블록으로 나눈다 */
 export function splitStoryContent(html: string): ContentSegment[] {
@@ -2023,7 +2048,7 @@ export function splitStoryContent(html: string): ContentSegment[] {
     const start = match.index ?? 0;
     if (start > cursor) segments.push({ type: 'html', html: html.slice(cursor, start) });
     const block = parseEncodedBlock(match[1], match[2]);
-    if (block) segments.push({ type: 'block', block });
+    if (block) segments.push({ type: 'block', block, size: matchedSize(match[3]) });
     cursor = start + match[0].length;
   }
   if (cursor < html.length) segments.push({ type: 'html', html: html.slice(cursor) });

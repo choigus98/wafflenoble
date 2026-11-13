@@ -892,22 +892,24 @@ body {
 }
 
 /* ─── 읽기 설정 (html의 data-* 속성으로 제어, localStorage에 저장) ─── */
+/* 줄 간격·문단 간격은 '너무 넓다'는 말에 한 단계씩 좁혔다 (예전 '보통'이 지금 '넓게'쯤).
+   엔터로 한 줄씩 나눠 쓰는 원고는 줄 사이가 줄 간격 + 문단 간격이라 둘을 같이 줄여야 덜 벌어져 보인다 */
 :root {
   --reader-size: 18px;
-  --reader-leading: 1.85;
+  --reader-leading: 1.6;
   --reader-font: var(--font-sans);
 }
 :root[data-size="0"] { --reader-size: 16px; }
 :root[data-size="1"] { --reader-size: 18px; }
 :root[data-size="2"] { --reader-size: 20px; }
 :root[data-size="3"] { --reader-size: 22px; }
-:root[data-leading="0"] { --reader-leading: 1.65; }
-:root[data-leading="1"] { --reader-leading: 1.85; }
-:root[data-leading="2"] { --reader-leading: 2.15; }
+:root[data-leading="0"] { --reader-leading: 1.45; }
+:root[data-leading="1"] { --reader-leading: 1.6; }
+:root[data-leading="2"] { --reader-leading: 1.85; }
 /* 문단 간격 (문단 사이 여백, 본문 글자 크기 기준) */
-:root { --reader-gap: 0.95em; }
-:root[data-gap="0"] { --reader-gap: 0.45em; }
-:root[data-gap="2"] { --reader-gap: 1.7em; }
+:root { --reader-gap: 0.5em; }
+:root[data-gap="0"] { --reader-gap: 0.2em; }
+:root[data-gap="2"] { --reader-gap: 1em; }
 :root[data-font="serif"] { --reader-font: var(--font-serif); }
 
 /* 본문 폭: 넓은 화면에서 한 줄 길이 (보통 = 원래 폭 48rem). 회차 화면에서만 열람 칸과 위쪽 바를 같이 바꾼다.
@@ -1046,6 +1048,23 @@ body:has(article[data-reading]) :is(#main, [data-reader-bar]) {
   font-weight: 700;
 }
 
+/* 템플릿 크기 (에디터에서 모서리를 끌어 바꾼 것, components/story-block-size.tsx).
+   바깥 칸이 본문 폭의 n%를 차지하고 안쪽을 n%로 확대·축소해서, 그 기기에서 원래 보이던 모양 그대로 비율만 바뀐다.
+   키운 템플릿은 본문 폭을 넘지 않고, 휴대폰처럼 좁은 화면에서는 원래 크기로 (이미 화면 폭이라 더 키울 자리가 없다) */
+.wn-size {
+  width: calc(var(--wn-size) * 100%);
+  max-width: 100%;
+  margin-inline: auto;
+}
+.wn-size > .wn-size-zoom {
+  zoom: var(--wn-size);
+}
+@media (width < 40rem) {
+  .wn-size[data-up] > .wn-size-zoom {
+    zoom: 1;
+  }
+}
+
 /* ─── 이야기 속 화면 템플릿 (방송창·채팅·후원·카톡·게시글·시스템 창·뉴스·전화·쪽지·SNS) ─────────────────
    색은 위의 --wn-* 토큰으로 사이트 테마(밝게/어둡게)를 따라가고,
    읽기 설정(글자 크기·글꼴)과 상관없이 같은 크기로 그린다 */
@@ -1162,7 +1181,7 @@ html[data-focus="on"] [data-focus-grid] {
   }
   .novel-body {
     font-size: 11.5pt;
-    line-height: 1.8;
+    line-height: 1.6;
   }
   .novel-body p {
     orphans: 2;
