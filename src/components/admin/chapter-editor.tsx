@@ -37,7 +37,7 @@ import { PrivateNote } from '@/components/admin/private-note';
 import { useDismiss } from '@/components/use-dismiss';
 import { formatDateTime, formatNumber, formatSchedule, formatTime } from '@/lib/format';
 import { announce } from '@/lib/announce';
-import { bodyStats, dialogueShare } from '@/lib/body-stats';
+import { bodyStats, charCounts, dialogueShare, rangeCharCounts, type CharCounts } from '@/lib/body-stats';
 import { chapterFileName, chapterToText, type DocNode } from '@/lib/chapter-text';
 import { compareChapter, type ChapterChanges } from '@/lib/paragraph-diff';
 import { plainTextToBlocks } from '@/lib/paste';
@@ -105,8 +105,35 @@ function plainTextSlice(text: string, schema: Schema): Slice {
 type EditorPanel = 'find' | CheckTool;
 
 function countText(editor: Editor) {
-  const text = editor.state.doc.textContent;
-  return { all: [...text].length, noSpace: [...text.replace(/\s/g, '')].length, ...bodyStats(editor.state.doc) };
+  return { ...charCounts(editor.state.doc.textContent), ...bodyStats(editor.state.doc) };
+}
+
+/**
+ * 고른 글 글자수: 본문에서 글을 고르면 위에 붙은 막대의 오른쪽 아래 끝에 '고른 글 123자 · 공백 제외 98자' (본문 글자수와 같은 셈).
+ * 글자수 줄은 본문 맨 아래라 긴 회차 가운데를 고르면 안 보여서, 따라다니는 막대에 붙인다. 막대 높이를 바꾸지 않게 떠 있는 표시로
+ * (고르는 도중 본문이 밀리지 않게). 고를 때마다 바뀌므로 낭독기 알림은 하지 않는다
+ */
+function SelectionCount({ editor }: { editor: Editor }) {
+  const [count, setCount] = useState<CharCounts | null>(null);
+  useEffect(() => {
+    const update = () => {
+      const { from, to } = editor.state.selection;
+      const next = rangeCharCounts(editor.state.doc, from, to);
+      setCount((prev) => (prev?.all === next?.all && prev?.noSpace === next?.noSpace ? prev : next));
+    };
+    editor.on('selectionUpdate', update);
+    editor.on('update', update);
+    return () => {
+      editor.off('selectionUpdate', update);
+      editor.off('update', update);
+    };
+  }, [editor]);
+  if (!count) return null;
+  return (
+    <p className="pointer-events-none absolute top-full right-1 mt-1 rounded-full border border-line bg-surface px-2.5 py-1 text-xs font-semibold text-accent tabular-nums shadow-sm">
+      고른 글 {formatNumber(count.all)}자 · 공백 제외 {formatNumber(count.noSpace)}자
+    </p>
+  );
 }
 
 /**
@@ -662,6 +689,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
           ) : (
             <div className="h-10" />
           )}
+          {editor ? <SelectionCount editor={editor} /> : null}
           <div className="flex flex-wrap items-center justify-end gap-2">
             {editingTemplate ? (
               // 편집 중에는 발행이 막힌다는 걸 알려 주고, 여기서 바로 편집을 마칠 수 있게

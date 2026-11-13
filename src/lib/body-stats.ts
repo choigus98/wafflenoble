@@ -31,3 +31,20 @@ export function bodyStats(doc: PMNode): BodyStats {
 export function dialogueShare(stats: BodyStats): number {
   return stats.paragraphs > 0 ? Math.round((stats.dialogue / stats.paragraphs) * 100) : 0;
 }
+
+// ─── 글자수 ──────────────────────────────────────
+// 본문 글자수와 '고른 글 글자수'는 같은 셈: 문서의 글만 (문단 사이 줄바꿈 · 템플릿 안의 글은 안 셈), 글자 단위(이모지·한글도 한 글자)
+
+export type CharCounts = { all: number; noSpace: number };
+
+/** 공백 포함 · 공백 제외 글자수 */
+export function charCounts(text: string): CharCounts {
+  return { all: [...text].length, noSpace: [...text.replace(/\s/g, '')].length };
+}
+
+/** 고른 범위(from~to)의 글자수. 고른 게 없거나 고른 곳에 글이 없으면(템플릿만 고른 경우 등) null */
+export function rangeCharCounts(doc: PMNode, from: number, to: number): CharCounts | null {
+  if (from >= to) return null;
+  const counts = charCounts(doc.textBetween(from, to));
+  return counts.all > 0 ? counts : null;
+}
