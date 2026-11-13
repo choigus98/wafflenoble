@@ -2784,7 +2784,8 @@ export function VoiceCard({ data, field }: { data: VoiceData; field?: FieldRende
         {show('sender') && (editing || !mine) ? (
           <div className="max-w-full px-1 text-xs font-semibold break-keep text-(--wn-voice-muted)">{slot('sender', "보낸 사람 ('나'면 오른쪽)", 30, 'max-w-full')}</div>
         ) : null}
-        <div className={cn('flex max-w-full items-end gap-1.5', mine && 'flex-row-reverse')}>
+        {/* 에디터에서는 빈 칸의 긴 안내 글로 시각 칸이 넓어지므로, 자리가 모자라면 시각 칸이 아래 줄로 (말풍선 · 파형이 좁아지지 않게) */}
+        <div className={cn('flex max-w-full items-end gap-1.5', mine && 'flex-row-reverse', editing && 'flex-wrap')}>
           <div
             className={cn(
               'w-64 max-w-full min-w-0 rounded-2xl px-3 py-2.5',

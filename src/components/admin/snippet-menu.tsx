@@ -48,7 +48,8 @@ export const SnippetShortcut = Extension.create({
 export function SnippetMenu({ editor }: { editor: Editor }) {
   const [snippets, setSnippets] = useState<string[]>(readSnippets);
   const [open, setOpen] = useState(false);
-  const [place, setPlace] = useState({ left: 0, width: MENU_WIDTH });
+  // 메뉴 자리 (높이는 단추 아래 남은 화면만큼 — 위에 붙은 막대에 달려 있어 페이지를 스크롤해도 아래가 안 보이므로)
+  const [place, setPlace] = useState({ left: 0, width: MENU_WIDTH, maxHeight: 360 });
   // 메뉴를 연 때 고른 글 ('고른 글을 상용구로')
   const [selected, setSelected] = useState('');
   const [draft, setDraft] = useState('');
@@ -85,7 +86,7 @@ export function SnippetMenu({ editor }: { editor: Editor }) {
       const width = Math.min(MENU_WIDTH, viewport - 16);
       // 오른쪽이 넘치면 그만큼 왼쪽으로, 그래도 왼쪽 여백(8px)보다 더 가지는 않게
       const left = Math.max(8 - rect.left, Math.min(0, viewport - 8 - (rect.left + width)));
-      setPlace({ left, width });
+      setPlace({ left, width, maxHeight: Math.max(160, Math.min(360, window.innerHeight - rect.top - 48)) });
       const { from, to } = editor.state.selection;
       setSelected(editor.state.doc.textBetween(from, to, ' ', ' ').trim());
     }
@@ -195,11 +196,14 @@ export function SnippetMenu({ editor }: { editor: Editor }) {
         </svg>
       </button>
       {open ? (
-        <div style={{ left: place.left, width: place.width }} className="absolute top-10 z-30 rounded-xl border border-line bg-surface p-1 shadow-lg shadow-black/10">
+        <div
+          style={{ left: place.left, width: place.width, maxHeight: place.maxHeight }}
+          className="absolute top-10 z-30 flex flex-col rounded-xl border border-line bg-surface p-1 shadow-lg shadow-black/10"
+        >
           {snippets.length === 0 ? (
-            <p className="px-2.5 pt-1.5 pb-1 text-xs leading-relaxed text-muted">아직 상용구가 없어요. 글을 골라 넣거나 ‘상용구 고치기’에서 한 줄에 하나씩 적어 두세요.</p>
+            <p className="shrink-0 px-2.5 pt-1.5 pb-1 text-xs leading-relaxed text-muted">아직 상용구가 없어요. 글을 골라 넣거나 ‘상용구 고치기’에서 한 줄에 하나씩 적어 두세요.</p>
           ) : null}
-          <div ref={menuRef} id={menuId} role="menu" aria-label="상용구" onKeyDown={onMenuKeyDown} className="max-h-[min(22rem,60dvh)] overflow-y-auto overscroll-contain">
+          <div ref={menuRef} id={menuId} role="menu" aria-label="상용구" onKeyDown={onMenuKeyDown} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
             {snippets.map((text, index) => (
               <button
                 key={text}

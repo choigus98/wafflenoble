@@ -28,8 +28,9 @@ const MENU_WIDTH = 272;
  */
 export function CheckMenu({ openTool, onPolish, onTool }: { openTool: CheckTool | null; onPolish: () => void; onTool: (tool: CheckTool) => void }) {
   const [open, setOpen] = useState(false);
-  // 메뉴 자리: 단추 왼쪽 끝에서 시작하되 화면 밖으로 나가지 않게 좌우 8px 안으로 당긴다 (단추 기준 왼쪽 위치, 너비)
-  const [place, setPlace] = useState({ left: 0, width: MENU_WIDTH });
+  // 메뉴 자리: 단추 왼쪽 끝에서 시작하되 화면 밖으로 나가지 않게 좌우 8px 안으로 당긴다 (단추 기준 왼쪽 위치, 너비).
+  // 높이는 단추 아래 남은 화면만큼 (위에 붙은 막대에 달려 있어 페이지를 스크롤해도 아래가 안 보이므로, 넘치면 메뉴 안에서 스크롤)
+  const [place, setPlace] = useState({ left: 0, width: MENU_WIDTH, maxHeight: 480 });
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -51,7 +52,7 @@ export function CheckMenu({ openTool, onPolish, onTool }: { openTool: CheckTool 
       const width = Math.min(MENU_WIDTH, viewport - 16);
       // 오른쪽이 넘치면 그만큼 왼쪽으로, 그래도 왼쪽 여백(8px)보다 더 가지는 않게
       const left = Math.max(8 - rect.left, Math.min(0, viewport - 8 - (rect.left + width)));
-      setPlace({ left, width });
+      setPlace({ left, width, maxHeight: Math.max(160, window.innerHeight - rect.top - 48) });
     }
     setOpen(next);
   }
@@ -125,8 +126,8 @@ export function CheckMenu({ openTool, onPolish, onTool }: { openTool: CheckTool 
           role="menu"
           aria-label="글 점검"
           onKeyDown={onMenuKeyDown}
-          style={{ left: place.left, width: place.width }}
-          className="absolute top-10 z-30 rounded-xl border border-line bg-surface p-1 shadow-lg shadow-black/10"
+          style={{ left: place.left, width: place.width, maxHeight: place.maxHeight }}
+          className="absolute top-10 z-30 overflow-y-auto overscroll-contain rounded-xl border border-line bg-surface p-1 shadow-lg shadow-black/10"
         >
           {ITEMS.map((item) => {
             const checked = item.key !== 'polish' && openTool === item.key;
