@@ -31,6 +31,7 @@ import { ShortcutGuide } from '@/components/admin/shortcut-guide';
 import { TemplateMenu } from '@/components/admin/story-block/template-menu';
 import { TodayChars } from '@/components/admin/today-chars';
 import { WritingTimer } from '@/components/admin/writing-timer';
+import { SnippetMenu, SnippetShortcut } from '@/components/admin/snippet-menu';
 import { SubmitButton } from '@/components/submit-button';
 import { Badge, Button, buttonClass } from '@/components/ui';
 import { PrivateNote } from '@/components/admin/private-note';
@@ -379,6 +380,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
       Placeholder.configure({ placeholder: '여기에 본문을 써 주세요' }),
       StoryBlockNode.configure({ editingStore: templateStore }),
       FindReplace.configure({ onOpen: openFind }),
+      SnippetShortcut,
       SpellingCheck,
       LongSentenceMarks,
       ParagraphFlash,
@@ -1117,6 +1119,8 @@ function Toolbar({
       </button>
       {/* 글 다듬기 도구는 '글 점검' 메뉴 하나로 (휴대폰에서 도구 막대가 너무 길어지지 않게) */}
       <CheckMenu openTool={panel === 'find' ? null : panel} onPolish={onPolish} onTool={onTogglePanel} />
+      {/* 자주 쓰는 말 넣기 (⌘;) */}
+      <SnippetMenu editor={editor} />
       <button
         type="button"
         onClick={onToggleFocus}

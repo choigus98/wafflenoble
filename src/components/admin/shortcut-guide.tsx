@@ -45,6 +45,13 @@ const GROUPS: Array<{ title: string; items: Item[] }> = [
     ],
   },
   {
+    title: '상용구',
+    items: [
+      { label: '상용구 메뉴 열기 (자주 쓰는 말 넣기)', combos: [{ mod: true, key: ';' }] },
+      { label: '메뉴에서 그 번호의 상용구 바로 넣기', combos: [{ key: '1~9' }] },
+    ],
+  },
+  {
     title: '쓰면 바로 바뀌는 것',
     items: [
       { label: '장면 전환 ✦ (빈 줄에서)', typed: '---' },
@@ -67,7 +74,7 @@ const GROUPS: Array<{ title: string; items: Item[] }> = [
   },
 ];
 
-const SPOKEN: Record<string, string> = { '⌘': 'Command', '⇧': 'Shift', '⌥': 'Option', '↑': '위 화살표', '↓': '아래 화살표', "'": '작은따옴표' };
+const SPOKEN: Record<string, string> = { '⌘': 'Command', '⇧': 'Shift', '⌥': 'Option', '↑': '위 화살표', '↓': '아래 화살표', "'": '작은따옴표', ';': '세미콜론', '1~9': '숫자 1부터 9' };
 
 /** Mac은 ⇧⌘Z · ⌥↑처럼 붙여서(애플 순서 ⌥⇧⌘), 그 밖은 Ctrl+Shift+Z · Alt+↑ */
 function comboKeys(combo: Combo, mac: boolean): string[] {
