@@ -12,6 +12,7 @@ import { ReaderSettings } from '@/components/reader/reader-settings';
 import { BackToTop } from '@/components/reader/back-to-top';
 import { ChapterBookmark } from '@/components/reader/chapter-bookmark';
 import { QuoteCopy } from '@/components/reader/quote-copy';
+import { ReadTimeTracker } from '@/components/reader/read-time-tracker';
 import { ReadingProgress } from '@/components/reader/reading-progress';
 import { RemainingTime } from '@/components/reader/remaining-time';
 import { ViewTracker } from '@/components/reader/view-tracker';
@@ -187,6 +188,8 @@ async function ChapterView({ params }: Pick<PageProps<'/novels/[novelId]/[chapte
 
       {isReader && chapter.visibleNow ? <ViewTracker chapterId={chapter.id} /> : null}
       <ReadingProgress chapterId={chapter.id} />
+      {/* 이 기기에서 읽은 시간 세기 ('내 기록'의 오늘 읽은 시간) */}
+      <ReadTimeTracker />
       {/* 읽어 내려가면 오른쪽 위에 '약 3분 남음' (3분 넘는 회차만) */}
       <RemainingTime charCount={chapter.charCount} />
       <BackToTop targetId="chapter-title" />

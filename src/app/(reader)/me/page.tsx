@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Suspense } from 'react';
+import { TodayReadTime } from '@/components/reader/today-read-time';
 import { Skeleton } from '@/components/ui';
 import { formatNumber, formatRelative } from '@/lib/format';
 import { getMyRecord } from '@/lib/queries/reader';
@@ -50,6 +51,8 @@ async function MyRecord() {
           <dd className="mt-1 text-2xl font-bold text-like tabular-nums">{formatNumber(record.likeCount)}</dd>
         </div>
       </dl>
+      {/* 이 기기에서 센 읽은 시간 (서버 기록과 달리 기기마다 따로) */}
+      <TodayReadTime />
 
       <RecordList
         title="좋아요한 회차"
