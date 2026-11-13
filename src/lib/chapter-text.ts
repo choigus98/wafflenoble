@@ -182,6 +182,13 @@ export function storyBlockToText(block: StoryBlock): string {
           .join(' · ');
         return lines(data.carrier, route, data.date, data.passenger.trim() && `승객: ${data.passenger.trim()}`, details);
       }
+      case 'voice': {
+        const { data } = block;
+        return lines(
+          [data.sender, data.duration, data.time].map((value) => value.trim()).filter(Boolean).join(' · '),
+          data.transcript.trim() && `받아쓰기: ${data.transcript.trim()}`,
+        );
+      }
       case 'grades': {
         const { data } = block;
         const parsed = parseGradesScript(data.script);

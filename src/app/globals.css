@@ -284,6 +284,11 @@
   --wn-grades-track: #e5e7eb;
   --wn-grades-muted: #5f6672;
   --wn-grades-note: #f3f4f6;
+  --wn-voice-bg: #e3eaf2;
+  --wn-voice-in: #ffffff;
+  --wn-voice-out: #fee500;
+  --wn-voice-out-fg: #191919;
+  --wn-voice-muted: #4b5563;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -559,6 +564,11 @@
     --wn-grades-track: rgb(255 255 255 / 0.16);
     --wn-grades-muted: rgb(255 255 255 / 0.62);
     --wn-grades-note: rgb(255 255 255 / 0.06);
+    --wn-voice-bg: #17191e;
+    --wn-voice-in: #2a2d34;
+    --wn-voice-out: #f5d90a;
+    --wn-voice-out-fg: #191919;
+    --wn-voice-muted: rgb(255 255 255 / 0.62);
   }
 }
 
@@ -833,6 +843,11 @@
   --wn-grades-track: rgb(255 255 255 / 0.16);
   --wn-grades-muted: rgb(255 255 255 / 0.62);
   --wn-grades-note: rgb(255 255 255 / 0.06);
+  --wn-voice-bg: #17191e;
+  --wn-voice-in: #2a2d34;
+  --wn-voice-out: #f5d90a;
+  --wn-voice-out-fg: #191919;
+  --wn-voice-muted: rgb(255 255 255 / 0.62);
 }
 
 @theme inline {

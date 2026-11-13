@@ -44,6 +44,8 @@ import {
   parseBankScript,
   parseGradesScript,
   gradesAverage,
+  voiceIsMine,
+  voiceWave,
   todoProgress,
   weatherKind,
   type AlarmData,
@@ -75,6 +77,7 @@ import {
   type MatchData,
   type BankData,
   type GradesData,
+  type VoiceData,
   type ProfileData,
   type TaxiData,
   type TranslateData,
@@ -183,6 +186,8 @@ export function StoryBlockView({ block }: { block: StoryBlock }) {
       return <BankCard data={block.data} />;
     case 'grades':
       return <GradesCard data={block.data} />;
+    case 'voice':
+      return <VoiceCard data={block.data} />;
   }
 }
 
@@ -2748,6 +2753,67 @@ function GradesCard({ data }: { data: GradesData }) {
             {data.comment}
           </div>
         ) : null}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 음성 메시지: 메신저 음성 메시지 말풍선 (보낸 사람 · 재생 단추 그림 · 파형 그림 · 길이 · 받아쓰기 · 보낸 시각).
+ * 보낸 사람이 '나'면 오른쪽 노란 말풍선(이름은 안 보임), 아니면 왼쪽 흰 말풍선 — 카톡 대화 템플릿과 같은 약속.
+ * 재생 단추와 파형은 그림이라 누를 수 없고 낭독기에서는 숨기며 '음성 메시지 엄마 0:42 받아쓰기 …'로 읽는다.
+ * 파형 모양은 받아쓰기 · 길이 글로 정해져서(voiceWave) 열 때마다 같다
+ */
+export function VoiceCard({ data, field }: { data: VoiceData; field?: FieldRenderer }) {
+  const editing = Boolean(field);
+  const slot = (name: keyof VoiceData, label: string, maxLength: number, className: string, multiline = false) =>
+    field ? (
+      field({ name, value: data[name], label, placeholder: label, maxLength, className, multiline, wrap: !multiline })
+    ) : (
+      <span className={className}>{data[name]}</span>
+    );
+  const show = (name: keyof VoiceData) => editing || data[name].trim() !== '';
+  const mine = voiceIsMine(data.sender);
+  const wave = voiceWave(`${data.transcript}|${data.duration}`);
+
+  return (
+    <div className="wn-block mx-auto w-full max-w-[420px] rounded-[18px] border border-(--wn-border) bg-(--wn-voice-bg) px-4 py-4 text-(--wn-fg) shadow-sm">
+      {editing ? null : <span className="sr-only">{mine ? '내가 보낸 음성 메시지 ' : '음성 메시지 '}</span>}
+      <div className={cn('flex flex-col gap-1', mine ? 'items-end' : 'items-start')}>
+        {/* 내가 보낸 것은 이름을 안 보이지만, 에디터에서는 고칠 수 있게 칸을 둔다 */}
+        {show('sender') && (editing || !mine) ? (
+          <div className="max-w-full px-1 text-xs font-semibold break-keep text-(--wn-voice-muted)">{slot('sender', "보낸 사람 ('나'면 오른쪽)", 30, 'max-w-full')}</div>
+        ) : null}
+        <div className={cn('flex max-w-full items-end gap-1.5', mine && 'flex-row-reverse')}>
+          <div
+            className={cn(
+              'w-64 max-w-full min-w-0 rounded-2xl px-3 py-2.5',
+              mine ? 'rounded-tr-md bg-(--wn-voice-out) text-(--wn-voice-out-fg)' : 'rounded-tl-md bg-(--wn-voice-in)',
+            )}
+          >
+            <div className="flex items-center gap-2">
+              <span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-full bg-current/10">
+                <svg viewBox="0 0 24 24" fill="currentColor" className="size-3.5 translate-x-px">
+                  <path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z" />
+                </svg>
+              </span>
+              {/* 막대는 칸 폭에 맞춰 1~3px로 (좁은 화면에서도 파형이 잘리지 않게) */}
+              <span aria-hidden="true" className="flex h-7 min-w-0 flex-1 items-center gap-[2px] overflow-hidden">
+                {wave.map((height, index) => (
+                  <span key={index} className="max-w-[3px] min-w-px flex-1 rounded-full bg-current opacity-60" style={{ height: `${Math.round(height * 100)}%` }} />
+                ))}
+              </span>
+              {show('duration') ? <span className="shrink-0 text-xs font-semibold tabular-nums">{slot('duration', '길이', 10, 'max-w-16')}</span> : null}
+            </div>
+            {show('transcript') ? (
+              <div className="mt-1.5 text-[13px] leading-snug break-keep whitespace-pre-line">
+                {editing ? null : <span className="sr-only">받아쓰기 </span>}
+                {slot('transcript', '받아쓰기 (비우면 안 보여요)', 300, 'block w-full', true)}
+              </div>
+            ) : null}
+          </div>
+          {show('time') ? <span className="shrink-0 pb-0.5 text-[11px] text-(--wn-voice-muted) tabular-nums">{slot('time', '보낸 시각 (비우면 안 보여요)', 20, 'max-w-24')}</span> : null}
+        </div>
       </div>
     </div>
   );

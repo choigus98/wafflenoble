@@ -131,6 +131,9 @@ describe('회차 텍스트로 내보내기', () => {
     expect(storyBlockToText(createTemplate('stock'))).toBe(
       ['[주식 시세]', '와플전자 · 와플거래소 · WFL', '72,400원 +1,200 (+1.68%)', '거래량 1,234만 주 · 장 마감 · 15:30', '흐름: 70,100 → 72,400'].join('\n'),
     );
+    expect(storyBlockToText(createTemplate('voice'))).toBe(
+      ['[음성 메시지]', '엄마 · 0:42 · 오후 11:52', '받아쓰기: 어디야? 늦으면 늦는다고 연락 좀 해. 와플 사 오는 거 잊지 말고.'].join('\n'),
+    );
     expect(storyBlockToText(createTemplate('grades'))).toBe(
       [
         '[성적표]',
@@ -197,7 +200,7 @@ describe('회차 텍스트로 내보내기', () => {
   });
 
   it('모든 템플릿이 머리 한 줄 + 글로 풀린다 (빈 줄 없이)', () => {
-    const keys = ['kakao-dm', 'kakao-group', 'live', 'chat', 'donation', 'post', 'system-quest', 'system-status', 'news', 'call-incoming', 'call-active', 'note', 'sns', 'mail', 'search', 'push', 'sms', 'receipt', 'location', 'poll', 'transfer', 'alarm', 'event', 'item', 'music', 'rank', 'todo', 'namecard', 'weather', 'subway', 'parcel', 'ticket-plane', 'ticket-train', 'match', 'profile', 'taxi', 'translate', 'stock', 'bank', 'grades'] as const;
+    const keys = ['kakao-dm', 'kakao-group', 'live', 'chat', 'donation', 'post', 'system-quest', 'system-status', 'news', 'call-incoming', 'call-active', 'note', 'sns', 'mail', 'search', 'push', 'sms', 'receipt', 'location', 'poll', 'transfer', 'alarm', 'event', 'item', 'music', 'rank', 'todo', 'namecard', 'weather', 'subway', 'parcel', 'ticket-plane', 'ticket-train', 'match', 'profile', 'taxi', 'translate', 'stock', 'bank', 'grades', 'voice'] as const;
     for (const key of keys) {
       const text = storyBlockToText(createTemplate(key));
       const [head, ...rest] = text.split('\n');

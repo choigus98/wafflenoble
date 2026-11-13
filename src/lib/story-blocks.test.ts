@@ -52,6 +52,8 @@ import {
   parseBankScript,
   parseGradesScript,
   gradesAverage,
+  voiceIsMine,
+  voiceWave,
 } from '@/lib/story-blocks';
 
 // 브라우저 DOM 직렬화처럼 & 와 " 만 이스케이프 (Tiptap getHTML 결과 흉내)
@@ -107,6 +109,7 @@ const KEYS: TemplateKey[] = [
   'stock',
   'bank',
   'grades',
+  'voice',
 ];
 
 function withTrickyText(block: StoryBlock): StoryBlock {
@@ -175,6 +178,8 @@ function withTrickyText(block: StoryBlock): StoryBlock {
       return { ...block, data: { ...block.data, bank: '<b>와플</b> & "은행" 😀', account: TRICKY.slice(0, 40), script: `${block.data.script}\n${TRICKY}: -1,000원 <i>잔액</i>` } };
     case 'grades':
       return { ...block, data: { ...block.data, school: '<b>와플</b> & "고교" 😀', comment: TRICKY.slice(0, 200), script: `${block.data.script}\n${TRICKY}: 77 / <i>등급</i>` } };
+    case 'voice':
+      return { ...block, data: { ...block.data, sender: '<b>엄마</b> & "나" 😀', transcript: `${TRICKY}\n둘째 줄`.slice(0, 300), time: '' } };
     case 'match':
       return { ...block, data: { ...block.data, mvp: '<b>하연화</b> & 😀', script: `${block.data.script}\n* ${TRICKY}: 1 / 2 / 3` } };
     case 'ticket':
@@ -932,5 +937,23 @@ describe('성적표', () => {
     expect(gradesAverage({ average: '' }, parseGradesScript('체육: A'))).toBe('');
     // '92등' · '1000'처럼 점수로 못 읽으면 글 점수 (막대·평균에서 빠짐)
     expect(parseGradesScript('반 석차: 92등\n총점: 1000').map((line) => (line.kind === 'subject' ? line.value : 'x'))).toEqual([null, null]);
+  });
+});
+
+describe('음성 메시지', () => {
+  it("보낸 사람이 '나'면 내가 보낸 것 (앞뒤 빈칸은 무시)", () => {
+    expect([voiceIsMine('나'), voiceIsMine(' 나 '), voiceIsMine('나나'), voiceIsMine('엄마'), voiceIsMine('')]).toEqual([true, true, false, false, false]);
+  });
+
+  it('파형: 같은 글이면 늘 같은 모양, 글이 다르면 다른 모양, 막대 높이는 0.25~1', () => {
+    const first = voiceWave('어디야?|0:42');
+    expect(first).toHaveLength(28);
+    expect(voiceWave('어디야?|0:42')).toEqual(first);
+    expect(voiceWave('어디야?|0:43')).not.toEqual(first);
+    expect(voiceWave('', 12)).toHaveLength(12);
+    for (const height of [...first, ...voiceWave('😀'.repeat(50))]) {
+      expect(height).toBeGreaterThanOrEqual(0.25);
+      expect(height).toBeLessThanOrEqual(1);
+    }
   });
 });

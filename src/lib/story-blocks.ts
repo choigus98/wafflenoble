@@ -279,6 +279,13 @@ const gradesSchema = z.object({
   comment: text(200), // 담임 한마디. 비우면 안 보임
 });
 
+const voiceSchema = z.object({
+  sender: text(30), // 보낸 사람 ('엄마'). '나'면 오른쪽 노란 말풍선 (voiceIsMine). 비우면 안 보임
+  duration: text(10), // 길이 ('0:42'). 비우면 안 보임
+  transcript: text(300), // 받아쓰기 (말풍선 안 작은 글). 비우면 안 보임
+  time: text(20), // 보낸 시각 ('오후 11:52'). 비우면 안 보임
+});
+
 const translateSchema = z.object({
   from: text(20), // 원문 언어 ('한국어'). 비우면 안 보임
   to: text(20), // 번역 언어 ('일본어'). 비우면 안 보임
@@ -378,6 +385,7 @@ export const storyBlockSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('stock'), data: stockSchema }),
   z.object({ kind: z.literal('bank'), data: bankSchema }),
   z.object({ kind: z.literal('grades'), data: gradesSchema }),
+  z.object({ kind: z.literal('voice'), data: voiceSchema }),
 ]);
 
 export type StoryBlock = z.infer<typeof storyBlockSchema>;
@@ -417,6 +425,7 @@ export type TranslateData = z.infer<typeof translateSchema>;
 export type StockData = z.infer<typeof stockSchema>;
 export type BankData = z.infer<typeof bankSchema>;
 export type GradesData = z.infer<typeof gradesSchema>;
+export type VoiceData = z.infer<typeof voiceSchema>;
 
 /** 메일 보낸 사람 '김지은 <jieun@example.com>' → 이름과 주소. 꺾쇠가 없으면 적은 그대로 이름으로 */
 export function splitMailSender(from: string): { name: string; address: string } {
@@ -1077,6 +1086,34 @@ export function gradesAverage(data: Pick<GradesData, 'average'>, lines: GradesLi
   return (values.reduce((sum, value) => sum + value, 0) / values.length).toFixed(1);
 }
 
+// ─── 음성 메시지 ──────────────────────────────────────
+// 보낸 사람이 '나'면 내가 보낸 것(오른쪽 노란 말풍선) — 카톡 대화 템플릿의 '나:'와 같은 약속
+// 파형은 받아쓰기 · 길이 글로 정해지는 막대 높이라 그릴 때마다(열람 · 에디터 · 새로 고침) 같은 모양
+
+export function voiceIsMine(sender: string): boolean {
+  return sender.trim() === '나';
+}
+
+/** 파형 막대 높이 0.25~1 (count개). 같은 글이면 늘 같고, 가운데가 조금 더 높게 (말소리처럼) */
+export function voiceWave(seed: string, count = 28): number[] {
+  let hash = 2166136261;
+  for (const char of seed) {
+    hash ^= char.codePointAt(0) ?? 0;
+    hash = Math.imul(hash, 16777619);
+  }
+  const bars: number[] = [];
+  for (let index = 0; index < count; index += 1) {
+    // xorshift32
+    hash ^= hash << 13;
+    hash ^= hash >>> 17;
+    hash ^= hash << 5;
+    const random = ((hash >>> 0) % 1000) / 999;
+    const envelope = 0.55 + 0.45 * Math.sin((Math.PI * (index + 0.5)) / count);
+    bars.push(Math.round((0.25 + 0.75 * random * envelope) * 100) / 100);
+  }
+  return bars;
+}
+
 // ─── 메신저 프로필 배경 ──────────────────────────────────────
 // 배경 말로 그라데이션을 고른다: 노을·저녁·석양·주황 → 노을, 밤·별·달빛·새벽 → 밤(밤하늘도), 바다·하늘·파도·파랑 → 바다,
 // 벚꽃·봄·분홍·꽃 → 벚꽃, 숲·나무·초록·풀 → 숲, 그 밖은 기본(회색). 모두 흰 글씨가 대비 4.5:1 이상인 진한 색
@@ -1368,7 +1405,8 @@ export type TemplateKey =
   | 'translate'
   | 'stock'
   | 'bank'
-  | 'grades';
+  | 'grades'
+  | 'voice';
 
 export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }> = [
   { key: 'kakao-dm', label: '카톡 1:1 대화', hint: '두 사람의 메신저 대화' },
@@ -1411,6 +1449,7 @@ export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }>
   { key: 'stock', label: '주식 시세', hint: '종목 · 현재가 · 오르면 빨강 내리면 파랑 · 거래량 · 흐름 그래프' },
   { key: 'bank', label: '통장 거래 내역', hint: '은행 · 계좌 · 잔액 · 입금은 파랑 출금은 기본색 · 거래 기록' },
   { key: 'grades', label: '성적표', hint: '학교 · 학년 반 · 과목별 점수와 등급 · 평균 · 석차 · 담임 한마디' },
+  { key: 'voice', label: '음성 메시지', hint: '메신저 음성 말풍선 · 보낸 사람 · 길이 · 파형 · 받아쓰기 · 보낸 시각' },
 ];
 
 export function templateLabel(block: StoryBlock): string {
@@ -1547,6 +1586,11 @@ export function createTemplate(key: TemplateKey): StoryBlock {
       return {
         kind: 'location',
         data: { badge: '위치 공유', place: '골목 끝 와플 가게', address: '와플시 반죽구 시럽로 12, 1층', note: '여기서 기다릴게' },
+      };
+    case 'voice':
+      return {
+        kind: 'voice',
+        data: { sender: '엄마', duration: '0:42', transcript: '어디야? 늦으면 늦는다고 연락 좀 해. 와플 사 오는 거 잊지 말고.', time: '오후 11:52' },
       };
     case 'grades':
       return {
