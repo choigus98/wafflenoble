@@ -899,6 +899,9 @@ describe('통장 거래 내역', () => {
     expect(parseBankScript('와플 가게: 결제 대기')).toEqual(entry('', '와플 가게', 'none', '', '결제 대기'));
     expect(parseBankScript('해외 결제: -$12.50')).toEqual(entry('', '해외 결제', 'out', '$12.50'));
     expect(parseBankScript('오후 2:05 김지은 입금 10,000원')).toEqual(entry('오후 2:05', '김지은', 'in', '10,000원'));
+    // 쌍점으로 시작하면 내용 없이 금액만 (내용 자리에 ':'가 남지 않게)
+    expect(parseBankScript(': -4,500원')).toEqual(entry('', '', 'out', '4,500원'));
+    expect(parseBankScript('14:05 : +1,000원')).toEqual(entry('14:05', '', 'in', '1,000원'));
     expect(parseBankScript('\n  \n')).toEqual([]);
   });
 });

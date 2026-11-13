@@ -117,7 +117,7 @@ async function NovelAdmin({ params, searchParams }: Pick<PageProps<'/admin/novel
               content: (
                 <Link
                   href={`/admin/novels/${novel.id}/chapters/${chapter.id}`}
-                  className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3.5 transition hover:bg-surface-2/60 sm:px-5"
+                  className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3.5 transition hover:bg-surface-2/60 sm:px-5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
                 >
                   <span className="w-11 shrink-0 text-sm font-semibold text-accent tabular-nums">{chapter.position}화</span>
                   <span className="min-w-0 flex-1 space-y-1">

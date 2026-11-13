@@ -978,9 +978,9 @@ const BANK_WHEN =
   /^(?:\[([^\]]{1,30})\]|(\d{1,4}[./-]\d{1,2}(?:[./-]\d{1,2})?\.?(?:\s*\([^)]{1,3}\))?(?:\s+(?:오전|오후)?\s*\d{1,2}:\d{2}(?::\d{2})?)?|(?:오전|오후)?\s*\d{1,2}:\d{2}(?::\d{2})?))\s+/;
 const BANK_MONEY = /^(입금|출금|[+\-−])?\s*([₩$€¥£]?\d[\d,]*(?:\.\d+)?\S*)\s*(.*)$/;
 
-/** 내용과 금액을 나누는 쌍점: 시각(14:05)처럼 숫자 사이에 낀 것은 빼고 마지막 것 */
+/** 내용과 금액을 나누는 쌍점: 시각(14:05)처럼 숫자 사이에 낀 것은 빼고 마지막 것 (맨 앞이면 내용 없이 금액만) */
 function bankColon(text: string): number {
-  for (let index = text.length - 1; index > 0; index -= 1) {
+  for (let index = text.length - 1; index >= 0; index -= 1) {
     if (text[index] !== ':' && text[index] !== '：') continue;
     if (/\d/.test(text[index - 1]) && /\d/.test(text[index + 1] ?? '')) continue;
     return index;
@@ -998,13 +998,13 @@ export function parseBankScript(script: string): BankLine[] {
     const when = whenMatch ? (whenMatch[1] ?? whenMatch[2] ?? '').trim() : '';
     const body = whenMatch ? line.slice(whenMatch[0].length) : line;
     const colon = bankColon(body);
-    const signed = colon > 0 ? -1 : body.search(/\s(?:입금|출금|[+\-−])\s?\d/);
-    if (colon <= 0 && signed < 0) {
+    const signed = colon >= 0 ? -1 : body.search(/\s(?:입금|출금|[+\-−])\s?\d/);
+    if (colon < 0 && signed < 0) {
       lines.push({ type: 'heading', text: line });
       continue;
     }
-    const detail = (colon > 0 ? body.slice(0, colon) : body.slice(0, signed)).trim();
-    const money = (colon > 0 ? body.slice(colon + 1) : body.slice(signed)).trim();
+    const detail = (colon >= 0 ? body.slice(0, colon) : body.slice(0, signed)).trim();
+    const money = (colon >= 0 ? body.slice(colon + 1) : body.slice(signed)).trim();
     const found = money.match(BANK_MONEY);
     if (!found) {
       lines.push({ type: 'entry', when, detail, flow: 'none', amount: '', rest: money });
