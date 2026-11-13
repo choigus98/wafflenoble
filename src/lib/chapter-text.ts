@@ -195,7 +195,7 @@ export function storyBlockToText(block: StoryBlock): string {
                 : '—'
               : line.kind === 'note'
                 ? line.text
-                : [`${line.subject} ${line.score}${line.value !== null ? '점' : ''}`, line.note].filter(Boolean).join(' · '),
+                : [`${line.subject} ${line.score}${line.value !== null ? '점' : ''}`.trim(), line.note].filter(Boolean).join(' · '),
           )
           .join('\n');
         return lines(

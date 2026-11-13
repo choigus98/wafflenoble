@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { chapterFileName, chapterToText, storyBlockToText, type DocNode } from '@/lib/chapter-text';
-import { createTemplate } from '@/lib/story-blocks';
+import { createTemplate, type GradesData } from '@/lib/story-blocks';
 
 const p = (...parts: Array<string | DocNode>): DocNode => ({
   type: 'paragraph',
@@ -145,6 +145,10 @@ describe('회차 텍스트로 내보내기', () => {
         '평균 88.8 · 반 5등 / 32명',
         '담임 한마디: 수학이 정말 많이 늘었어요. 영어 단어만 조금 더!',
       ].join('\n'),
+    );
+    // 점수가 빈 과목 줄은 끝에 빈칸 없이
+    expect(storyBlockToText({ kind: 'grades', data: { ...(createTemplate('grades').data as GradesData), script: '미술:\n국어: 90', average: '', rank: '', comment: '', school: '', term: '', student: '' } })).toBe(
+      ['[성적표]', '미술', '국어 90점', '평균 90.0'].join('\n'),
     );
     expect(storyBlockToText(createTemplate('bank'))).toBe(
       [
