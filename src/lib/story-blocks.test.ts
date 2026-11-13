@@ -50,6 +50,8 @@ import {
   parseStockPoints,
   stockDirection,
   parseBankScript,
+  parseGradesScript,
+  gradesAverage,
 } from '@/lib/story-blocks';
 
 // 브라우저 DOM 직렬화처럼 & 와 " 만 이스케이프 (Tiptap getHTML 결과 흉내)
@@ -104,6 +106,7 @@ const KEYS: TemplateKey[] = [
   'translate',
   'stock',
   'bank',
+  'grades',
 ];
 
 function withTrickyText(block: StoryBlock): StoryBlock {
@@ -170,6 +173,8 @@ function withTrickyText(block: StoryBlock): StoryBlock {
       return { ...block, data: { ...block.data, name: '<b>와플</b> & "전자" 😀', note: TRICKY.slice(0, 40), points: '1 2 abc 3' } };
     case 'bank':
       return { ...block, data: { ...block.data, bank: '<b>와플</b> & "은행" 😀', account: TRICKY.slice(0, 40), script: `${block.data.script}\n${TRICKY}: -1,000원 <i>잔액</i>` } };
+    case 'grades':
+      return { ...block, data: { ...block.data, school: '<b>와플</b> & "고교" 😀', comment: TRICKY.slice(0, 200), script: `${block.data.script}\n${TRICKY}: 77 / <i>등급</i>` } };
     case 'match':
       return { ...block, data: { ...block.data, mvp: '<b>하연화</b> & 😀', script: `${block.data.script}\n* ${TRICKY}: 1 / 2 / 3` } };
     case 'ticket':
@@ -903,5 +908,29 @@ describe('통장 거래 내역', () => {
     expect(parseBankScript(': -4,500원')).toEqual(entry('', '', 'out', '4,500원'));
     expect(parseBankScript('14:05 : +1,000원')).toEqual(entry('14:05', '', 'in', '1,000원'));
     expect(parseBankScript('\n  \n')).toEqual([]);
+  });
+});
+
+describe('성적표', () => {
+  it('과목 줄: 과목 · 숫자 점수(점 · 소수) · 점수 뒤 등급, 글 점수, 묶음 제목 · 구분선, 설명 글', () => {
+    expect(parseGradesScript('국어: 92 / 2등급\n수학: 100점 · 1등급\n영어: 78.5\n--- 실기 ---\n체육: A\n---\n* 결석 1일\n미술：P (통과)')).toEqual([
+      { kind: 'subject', subject: '국어', score: '92', value: 92, note: '2등급' },
+      { kind: 'subject', subject: '수학', score: '100', value: 100, note: '1등급' },
+      { kind: 'subject', subject: '영어', score: '78.5', value: 78.5, note: '' },
+      { kind: 'divider', label: '실기' },
+      { kind: 'subject', subject: '체육', score: 'A', value: null, note: '' },
+      { kind: 'divider', label: '' },
+      { kind: 'note', text: '* 결석 1일' },
+      { kind: 'subject', subject: '미술', score: 'P (통과)', value: null, note: '' },
+    ]);
+  });
+
+  it('평균: 직접 적은 값이 먼저, 없으면 숫자 점수만 평균(소수 한 자리), 숫자 점수가 없으면 빈 값', () => {
+    const lines = parseGradesScript('국어: 92\n수학: 100\n영어: 78\n과학: 85\n체육: A');
+    expect(gradesAverage({ average: '' }, lines)).toBe('88.8');
+    expect(gradesAverage({ average: ' 90점 ' }, lines)).toBe('90점');
+    expect(gradesAverage({ average: '' }, parseGradesScript('체육: A'))).toBe('');
+    // '92등' · '1000'처럼 점수로 못 읽으면 글 점수 (막대·평균에서 빠짐)
+    expect(parseGradesScript('반 석차: 92등\n총점: 1000').map((line) => (line.kind === 'subject' ? line.value : 'x'))).toEqual([null, null]);
   });
 });

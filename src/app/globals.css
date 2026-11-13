@@ -277,6 +277,13 @@
   --wn-bank-muted: #5f6672;
   --wn-bank-badge: #1d4ed8;
   --wn-bank-badge-fg: #ffffff;
+  --wn-grades-bg: #ffffff;
+  --wn-grades-band: #1e3a8a;
+  --wn-grades-band-fg: #ffffff;
+  --wn-grades-bar: #1e3a8a;
+  --wn-grades-track: #e5e7eb;
+  --wn-grades-muted: #5f6672;
+  --wn-grades-note: #f3f4f6;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -545,6 +552,13 @@
     --wn-bank-muted: rgb(255 255 255 / 0.62);
     --wn-bank-badge: #60a5fa;
     --wn-bank-badge-fg: #17191e;
+    --wn-grades-bg: #17191e;
+    --wn-grades-band: #93b4ff;
+    --wn-grades-band-fg: #17191e;
+    --wn-grades-bar: #93b4ff;
+    --wn-grades-track: rgb(255 255 255 / 0.16);
+    --wn-grades-muted: rgb(255 255 255 / 0.62);
+    --wn-grades-note: rgb(255 255 255 / 0.06);
   }
 }
 
@@ -812,6 +826,13 @@
   --wn-bank-muted: rgb(255 255 255 / 0.62);
   --wn-bank-badge: #60a5fa;
   --wn-bank-badge-fg: #17191e;
+  --wn-grades-bg: #17191e;
+  --wn-grades-band: #93b4ff;
+  --wn-grades-band-fg: #17191e;
+  --wn-grades-bar: #93b4ff;
+  --wn-grades-track: rgb(255 255 255 / 0.16);
+  --wn-grades-muted: rgb(255 255 255 / 0.62);
+  --wn-grades-note: rgb(255 255 255 / 0.06);
 }
 
 @theme inline {

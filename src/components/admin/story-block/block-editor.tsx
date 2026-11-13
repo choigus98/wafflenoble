@@ -58,6 +58,7 @@ import {
   type TicketData,
   type MatchData,
   type BankData,
+  type GradesData,
   type ReceiptData,
   type SearchData,
   type SmsData,
@@ -72,7 +73,7 @@ import { cn } from '@/lib/utils';
 const COMMIT_DELAY_MS = 300;
 
 type CardBlock = Extract<StoryBlock, { kind: 'live' | 'donation' | 'news' | 'call' | 'note' | 'mail' | 'location' | 'transfer' | 'alarm' | 'event' | 'music' | 'namecard' | 'subway' | 'profile' | 'taxi' | 'translate' | 'stock' }>;
-type ConversationBlock = Extract<StoryBlock, { kind: 'kakao' | 'chat' | 'post' | 'system' | 'sns' | 'search' | 'push' | 'sms' | 'receipt' | 'poll' | 'item' | 'rank' | 'todo' | 'weather' | 'parcel' | 'ticket' | 'match' | 'bank' }>;
+type ConversationBlock = Extract<StoryBlock, { kind: 'kakao' | 'chat' | 'post' | 'system' | 'sns' | 'search' | 'push' | 'sms' | 'receipt' | 'poll' | 'item' | 'rank' | 'todo' | 'weather' | 'parcel' | 'ticket' | 'match' | 'bank' | 'grades' }>;
 
 const TEXTAREA =
   'w-full resize-y rounded-2xl border border-line bg-surface px-4 py-3 text-base leading-relaxed text-fg field-sizing-content placeholder:text-muted/60 focus:border-accent focus:ring-3 focus:ring-accent/20 focus:outline-none';
@@ -96,6 +97,7 @@ const SCRIPT_PLACEHOLDER: Record<ConversationBlock['kind'], string> = {
   ticket: '탑승구: 12\n좌석: 23A\n탑승: 13:35',
   match: '--- 우리 팀 ---\n* 하연화: 12 / 3 / 7\n밥알: 8 / 5 / 10',
   bank: '11.13 (금)\n14:05 와플 가게: -4,500원 잔액 1,234,500원\n09:12 김지은: +50,000원',
+  grades: '국어: 92 / 2등급\n수학: 100 / 1등급\n--- 실기 ---\n체육: A',
 };
 
 function useDraft<T extends StoryBlock>(block: T, onChange: (block: StoryBlock) => void) {
@@ -335,7 +337,8 @@ export function ConversationEditor({
           draft.kind === 'parcel' ||
           draft.kind === 'ticket' ||
           draft.kind === 'match' ||
-          draft.kind === 'bank'
+          draft.kind === 'bank' ||
+          draft.kind === 'grades'
         ? []
         : scriptSpeakers(lines);
 
@@ -358,7 +361,8 @@ export function ConversationEditor({
       | Partial<ParcelData>
       | Partial<TicketData>
       | Partial<MatchData>
-      | Partial<BankData>,
+      | Partial<BankData>
+      | Partial<GradesData>,
   ) {
     update({ ...draft, data: { ...draft.data, ...patch } } as ConversationBlock);
   }
@@ -377,7 +381,8 @@ export function ConversationEditor({
       draft.kind === 'parcel' ||
       draft.kind === 'ticket' ||
       draft.kind === 'match' ||
-      draft.kind === 'bank'
+      draft.kind === 'bank' ||
+      draft.kind === 'grades'
     )
       return;
     if (draft.kind === 'sns') {
@@ -628,6 +633,31 @@ export function ConversationEditor({
               maxLength={40}
               placeholder="비우면 안 보여요"
               onChange={(title) => setData({ title })}
+              className="w-full"
+              inputClassName="flex-1"
+            />
+          </>
+        ) : draft.kind === 'grades' ? (
+          <>
+            <MiniInput label="학교" value={draft.data.school} maxLength={30} placeholder="비우면 안 보여요" onChange={(school) => setData({ school })} inputClassName="w-36" />
+            <MiniInput label="시험" value={draft.data.term} maxLength={30} placeholder="비우면 안 보여요" onChange={(term) => setData({ term })} inputClassName="w-36" />
+            <MiniInput
+              label="학생"
+              value={draft.data.student}
+              maxLength={40}
+              placeholder="비우면 안 보여요"
+              onChange={(student) => setData({ student })}
+              className="w-full"
+              inputClassName="flex-1"
+            />
+            <MiniInput label="평균" value={draft.data.average} maxLength={20} placeholder="비우면 점수로 계산" onChange={(average) => setData({ average })} inputClassName="w-32" />
+            <MiniInput label="석차" value={draft.data.rank} maxLength={30} placeholder="비우면 안 보여요" onChange={(rank) => setData({ rank })} inputClassName="w-36" />
+            <MiniInput
+              label="담임 한마디"
+              value={draft.data.comment}
+              maxLength={200}
+              placeholder="비우면 안 보여요"
+              onChange={(comment) => setData({ comment })}
               className="w-full"
               inputClassName="flex-1"
             />
@@ -883,7 +913,7 @@ export function ConversationEditor({
             ref={scriptRef}
             value={draft.data.script}
             onChange={(e) => setData({ script: e.target.value })}
-            aria-label={draft.kind === 'post' ? '댓글 대본' : draft.kind === 'sns' ? '답글 대본' : draft.kind === 'search' ? '검색 결과 대본' : draft.kind === 'push' ? '알림 대본' : draft.kind === 'receipt' ? '품목 대본' : draft.kind === 'poll' ? '선택지 대본' : draft.kind === 'item' ? '능력치 대본' : draft.kind === 'rank' ? '순위 대본' : draft.kind === 'todo' ? '할 일 대본' : draft.kind === 'weather' ? '시간별 대본' : draft.kind === 'parcel' ? '배송 기록 대본' : draft.kind === 'ticket' ? '표 정보 대본' : draft.kind === 'match' ? '기록 대본'  : draft.kind === 'bank' ? '거래 대본' : '대본'}
+            aria-label={draft.kind === 'post' ? '댓글 대본' : draft.kind === 'sns' ? '답글 대본' : draft.kind === 'search' ? '검색 결과 대본' : draft.kind === 'push' ? '알림 대본' : draft.kind === 'receipt' ? '품목 대본' : draft.kind === 'poll' ? '선택지 대본' : draft.kind === 'item' ? '능력치 대본' : draft.kind === 'rank' ? '순위 대본' : draft.kind === 'todo' ? '할 일 대본' : draft.kind === 'weather' ? '시간별 대본' : draft.kind === 'parcel' ? '배송 기록 대본' : draft.kind === 'ticket' ? '표 정보 대본' : draft.kind === 'match' ? '기록 대본'  : draft.kind === 'bank' ? '거래 대본' : draft.kind === 'grades' ? '과목 대본' : '대본'}
             spellCheck={false}
             maxLength={LIMITS.script}
             placeholder={SCRIPT_PLACEHOLDER[draft.kind]}
@@ -995,6 +1025,12 @@ const SCRIPT_HELP: Record<ConversationBlock['kind'], Array<[string, string]>> = 
     ['「…」 또는 […]', '등급 색으로 굵게'],
     ['---', '구분선'],
     ['그냥 쓰기', '설명 글'],
+  ],
+  grades: [
+    ['국어: 92 / 2등급', '과목 한 줄 (과목: 점수 / 등급)'],
+    ['체육: A', '점수 대신 글도 됨 (평균에서는 빠짐)'],
+    ['--- 실기 ---', "묶음 제목 ('---'만 쓰면 구분선)"],
+    ['그냥 쓰기', '작은 설명 글'],
   ],
   bank: [
     ['14:05 와플 가게: -4,500원', '거래 한 줄 (위가 최근)'],

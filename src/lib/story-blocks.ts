@@ -269,6 +269,16 @@ const bankSchema = z.object({
   script: text(LIMITS.script), // 거래 대본 (규칙은 parseBankScript 위 설명)
 });
 
+const gradesSchema = z.object({
+  school: text(30), // 학교 이름 ('와플고등학교'). 위쪽 띠. 비우면 안 보임
+  term: text(30), // 시험·학기 ('2학기 중간고사'). 띠 오른쪽. 비우면 안 보임
+  student: text(40), // 학년 반 번호 이름 ('2학년 3반 17번 하연화'). 비우면 안 보임
+  script: text(LIMITS.script), // 과목 대본 (규칙은 parseGradesScript 위 설명)
+  average: text(20), // 평균. 비우면 숫자 점수의 평균 (소수 한 자리, 숫자 점수가 없으면 안 보임)
+  rank: text(30), // 석차 ('반 5등 / 32명'). 비우면 안 보임
+  comment: text(200), // 담임 한마디. 비우면 안 보임
+});
+
 const translateSchema = z.object({
   from: text(20), // 원문 언어 ('한국어'). 비우면 안 보임
   to: text(20), // 번역 언어 ('일본어'). 비우면 안 보임
@@ -367,6 +377,7 @@ export const storyBlockSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('translate'), data: translateSchema }),
   z.object({ kind: z.literal('stock'), data: stockSchema }),
   z.object({ kind: z.literal('bank'), data: bankSchema }),
+  z.object({ kind: z.literal('grades'), data: gradesSchema }),
 ]);
 
 export type StoryBlock = z.infer<typeof storyBlockSchema>;
@@ -405,6 +416,7 @@ export type TaxiData = z.infer<typeof taxiSchema>;
 export type TranslateData = z.infer<typeof translateSchema>;
 export type StockData = z.infer<typeof stockSchema>;
 export type BankData = z.infer<typeof bankSchema>;
+export type GradesData = z.infer<typeof gradesSchema>;
 
 /** 메일 보낸 사람 '김지은 <jieun@example.com>' → 이름과 주소. 꺾쇠가 없으면 적은 그대로 이름으로 */
 export function splitMailSender(from: string): { name: string; address: string } {
@@ -1017,6 +1029,54 @@ export function parseBankScript(script: string): BankLine[] {
   return lines;
 }
 
+// ─── 성적표 ──────────────────────────────────────
+// 과목 대본: 한 줄에 한 과목 '국어: 92 / 2등급' → 과목 · 점수 · 점수 뒤 나머지(등급·석차 등, 앞의 / · | 는 떼고)
+// - 점수가 숫자면(92 · 92점 · 88.5) 막대(100점 기준)와 평균에 들어가고, 'A' · 'P (통과)'처럼 글이면 그대로 보여 주고 평균에서는 뺀다
+// - '--- 선택 과목 ---'은 묶음 제목('---'만 쓰면 구분선), 쌍점 없는 줄은 작은 설명 글
+
+export type GradesLine =
+  | { kind: 'subject'; subject: string; score: string; value: number | null; note: string }
+  | { kind: 'divider'; label: string }
+  | { kind: 'note'; text: string };
+
+const GRADES_SCORE = /^(\d{1,3}(?:\.\d+)?)\s*점?(?=\s|[/·|]|$)\s*(?:[/·|]\s*)?(.*)$/;
+
+export function parseGradesScript(script: string): GradesLine[] {
+  const lines: GradesLine[] = [];
+  for (const raw of script.split(/\r?\n/)) {
+    if (lines.length >= LIMITS.lines) break;
+    const line = raw.trim();
+    if (!line) continue;
+    const divider = line.match(/^-{3,}\s*(.*?)\s*-*$/);
+    if (divider) {
+      lines.push({ kind: 'divider', label: divider[1] });
+      continue;
+    }
+    const colon = line.search(/[:：]/);
+    if (colon <= 0) {
+      lines.push({ kind: 'note', text: line });
+      continue;
+    }
+    const subject = line.slice(0, colon).trim();
+    const rest = line.slice(colon + 1).trim();
+    const found = rest.match(GRADES_SCORE);
+    lines.push(
+      found
+        ? { kind: 'subject', subject, score: found[1], value: Number(found[1]), note: found[2].trim() }
+        : { kind: 'subject', subject, score: rest, value: null, note: '' },
+    );
+  }
+  return lines;
+}
+
+/** 평균: 직접 적은 값이 먼저, 없으면 숫자 점수의 평균(소수 한 자리), 숫자 점수가 없으면 빈 값 */
+export function gradesAverage(data: Pick<GradesData, 'average'>, lines: GradesLine[]): string {
+  if (data.average.trim()) return data.average.trim();
+  const values = lines.flatMap((line) => (line.kind === 'subject' && line.value !== null ? [line.value] : []));
+  if (values.length === 0) return '';
+  return (values.reduce((sum, value) => sum + value, 0) / values.length).toFixed(1);
+}
+
 // ─── 메신저 프로필 배경 ──────────────────────────────────────
 // 배경 말로 그라데이션을 고른다: 노을·저녁·석양·주황 → 노을, 밤·별·달빛·새벽 → 밤(밤하늘도), 바다·하늘·파도·파랑 → 바다,
 // 벚꽃·봄·분홍·꽃 → 벚꽃, 숲·나무·초록·풀 → 숲, 그 밖은 기본(회색). 모두 흰 글씨가 대비 4.5:1 이상인 진한 색
@@ -1307,7 +1367,8 @@ export type TemplateKey =
   | 'taxi'
   | 'translate'
   | 'stock'
-  | 'bank';
+  | 'bank'
+  | 'grades';
 
 export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }> = [
   { key: 'kakao-dm', label: '카톡 1:1 대화', hint: '두 사람의 메신저 대화' },
@@ -1349,6 +1410,7 @@ export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }>
   { key: 'translate', label: '번역기', hint: '원문 언어 → 번역 언어 · 원문 · 번역문 · 발음' },
   { key: 'stock', label: '주식 시세', hint: '종목 · 현재가 · 오르면 빨강 내리면 파랑 · 거래량 · 흐름 그래프' },
   { key: 'bank', label: '통장 거래 내역', hint: '은행 · 계좌 · 잔액 · 입금은 파랑 출금은 기본색 · 거래 기록' },
+  { key: 'grades', label: '성적표', hint: '학교 · 학년 반 · 과목별 점수와 등급 · 평균 · 석차 · 담임 한마디' },
 ];
 
 export function templateLabel(block: StoryBlock): string {
@@ -1485,6 +1547,19 @@ export function createTemplate(key: TemplateKey): StoryBlock {
       return {
         kind: 'location',
         data: { badge: '위치 공유', place: '골목 끝 와플 가게', address: '와플시 반죽구 시럽로 12, 1층', note: '여기서 기다릴게' },
+      };
+    case 'grades':
+      return {
+        kind: 'grades',
+        data: {
+          school: '와플고등학교',
+          term: '2학기 중간고사',
+          student: '2학년 3반 17번 하연화',
+          script: '국어: 92 / 2등급\n수학: 100 / 1등급\n영어: 78 / 4등급\n과학: 85 / 3등급\n--- 실기 ---\n체육: A',
+          average: '',
+          rank: '반 5등 / 32명',
+          comment: '수학이 정말 많이 늘었어요. 영어 단어만 조금 더!',
+        },
       };
     case 'bank':
       return {

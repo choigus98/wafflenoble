@@ -27,6 +27,8 @@ import {
   type StoryBlock,
   parseStockPoints,
   parseBankScript,
+  parseGradesScript,
+  gradesAverage,
 } from '@/lib/story-blocks';
 
 export type DocNode = { type: string; text?: string; attrs?: Record<string, unknown>; content?: DocNode[] };
@@ -179,6 +181,30 @@ export function storyBlockToText(block: StoryBlock): string {
           .map((detail) => (detail.label ? `${detail.label}: ${detail.value}` : detail.value))
           .join(' · ');
         return lines(data.carrier, route, data.date, data.passenger.trim() && `승객: ${data.passenger.trim()}`, details);
+      }
+      case 'grades': {
+        const { data } = block;
+        const parsed = parseGradesScript(data.script);
+        const average = gradesAverage(data, parsed);
+        // 과목 한 줄: '국어 92점 · 2등급' (글 점수는 그대로 '체육 A'), 묶음 제목은 '— 실기 —'
+        const rows = parsed
+          .map((line) =>
+            line.kind === 'divider'
+              ? line.label
+                ? `— ${line.label} —`
+                : '—'
+              : line.kind === 'note'
+                ? line.text
+                : [`${line.subject} ${line.score}${line.value !== null ? '점' : ''}`, line.note].filter(Boolean).join(' · '),
+          )
+          .join('\n');
+        return lines(
+          [data.school, data.term].map((value) => value.trim()).filter(Boolean).join(' · '),
+          data.student,
+          rows,
+          [average && `평균 ${average}`, data.rank.trim()].filter(Boolean).join(' · '),
+          data.comment.trim() && `담임 한마디: ${data.comment.trim()}`,
+        );
       }
       case 'bank': {
         const { data } = block;

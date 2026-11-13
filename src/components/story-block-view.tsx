@@ -42,6 +42,8 @@ import {
   parseStockPoints,
   stockDirection,
   parseBankScript,
+  parseGradesScript,
+  gradesAverage,
   todoProgress,
   weatherKind,
   type AlarmData,
@@ -72,6 +74,7 @@ import {
   type TicketData,
   type MatchData,
   type BankData,
+  type GradesData,
   type ProfileData,
   type TaxiData,
   type TranslateData,
@@ -178,6 +181,8 @@ export function StoryBlockView({ block }: { block: StoryBlock }) {
       return <StockCard data={block.data} />;
     case 'bank':
       return <BankCard data={block.data} />;
+    case 'grades':
+      return <GradesCard data={block.data} />;
   }
 }
 
@@ -2650,6 +2655,100 @@ function BankCard({ data }: { data: BankData }) {
           )}
         </ul>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * 성적표: 학교 띠(학교 · 시험) · 학생 · 과목 표(과목 · 점수 막대 · 점수 · 등급) · 평균 · 석차 · 담임 한마디.
+ * 과목은 대본 한 줄에 하나 (parseGradesScript). 숫자 점수는 100점 기준 막대(그림이라 낭독기에서는 숨김)와 평균에 들어간다.
+ * 과목 줄은 진짜 표(table)라 낭독기가 과목 · 점수 · 등급을 칸으로 읽는다
+ */
+function GradesCard({ data }: { data: GradesData }) {
+  const lines = parseGradesScript(data.script);
+  const average = gradesAverage(data, lines);
+  const head = Boolean(data.school.trim() || data.term.trim());
+  const footer = Boolean(average || data.rank.trim());
+  const empty = !head && !data.student.trim() && lines.length === 0 && !footer && !data.comment.trim();
+
+  return (
+    <div className="wn-block mx-auto w-full max-w-[420px] overflow-hidden rounded-[18px] border border-(--wn-border) bg-(--wn-grades-bg) text-(--wn-fg) shadow-sm">
+      {head ? (
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 bg-(--wn-grades-band) px-5 py-3 text-(--wn-grades-band-fg)">
+          {data.school.trim() ? <span className="text-[15px] font-bold break-keep">{data.school}</span> : null}
+          {data.term.trim() ? <span className="text-xs font-semibold break-keep">{data.term}</span> : null}
+        </div>
+      ) : null}
+      <div className="px-5 pt-3 pb-4">
+        {empty ? <p className="text-sm text-(--wn-grades-muted)">성적표</p> : null}
+        {data.student.trim() ? <div className="text-sm font-semibold break-keep">{data.student}</div> : null}
+        {lines.length > 0 ? (
+          <table className="mt-2 w-full border-collapse text-sm">
+            <caption className="sr-only">과목별 점수</caption>
+            <tbody>
+              {lines.map((line, index) =>
+                line.kind === 'divider' ? (
+                  line.label ? (
+                    <tr key={index}>
+                      <th colSpan={3} scope="colgroup" className="border-t border-(--wn-line) pt-2.5 pb-1 text-left text-xs font-semibold break-keep text-(--wn-grades-muted)">
+                        {line.label}
+                      </th>
+                    </tr>
+                  ) : (
+                    <tr key={index} aria-hidden="true">
+                      <td colSpan={3} className="border-t border-(--wn-line) pt-1.5" />
+                    </tr>
+                  )
+                ) : line.kind === 'note' ? (
+                  <tr key={index}>
+                    <td colSpan={3} className="py-1 text-xs break-keep text-(--wn-grades-muted)">
+                      {line.text}
+                    </td>
+                  </tr>
+                ) : (
+                  <tr key={index}>
+                    <th scope="row" className="w-[28%] py-1.5 pr-2 text-left font-medium break-keep">
+                      {line.subject}
+                    </th>
+                    <td className="py-1.5">
+                      <div className="flex items-center gap-2">
+                        {line.value !== null ? (
+                          <span aria-hidden="true" className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-(--wn-grades-track)">
+                            <span className="block h-full rounded-full bg-(--wn-grades-bar)" style={{ width: `${Math.min(100, line.value)}%` }} />
+                          </span>
+                        ) : (
+                          <span aria-hidden="true" className="flex-1" />
+                        )}
+                        <span className="max-w-[60%] shrink-0 text-right font-bold break-keep tabular-nums">
+                          {line.score}
+                          {line.value !== null ? <span className="sr-only">점</span> : null}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="w-[24%] py-1.5 pl-2 text-right text-xs break-keep text-(--wn-grades-muted)">{line.note}</td>
+                  </tr>
+                ),
+              )}
+            </tbody>
+          </table>
+        ) : null}
+        {footer ? (
+          <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-t border-(--wn-line) pt-2.5 text-sm">
+            {average ? (
+              <span>
+                평균 <span className="font-bold tabular-nums">{average}</span>
+              </span>
+            ) : null}
+            {data.rank.trim() ? <span className="break-keep text-(--wn-grades-muted)">{data.rank}</span> : null}
+          </div>
+        ) : null}
+        {data.comment.trim() ? (
+          <div className="mt-3 rounded-xl bg-(--wn-grades-note) px-3.5 py-2.5 text-sm leading-relaxed break-keep">
+            <span className="block text-xs font-semibold text-(--wn-grades-muted)">담임 한마디</span>
+            {data.comment}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
