@@ -60,6 +60,7 @@ import {
   type MatchData,
   type BankData,
   type GradesData,
+  type ChoiceData,
   type ReceiptData,
   type SearchData,
   type SmsData,
@@ -74,7 +75,7 @@ import { cn } from '@/lib/utils';
 const COMMIT_DELAY_MS = 300;
 
 type CardBlock = Extract<StoryBlock, { kind: 'live' | 'donation' | 'news' | 'call' | 'note' | 'mail' | 'location' | 'transfer' | 'alarm' | 'event' | 'music' | 'namecard' | 'subway' | 'profile' | 'taxi' | 'translate' | 'stock' | 'voice' }>;
-type ConversationBlock = Extract<StoryBlock, { kind: 'kakao' | 'chat' | 'post' | 'system' | 'sns' | 'search' | 'push' | 'sms' | 'receipt' | 'poll' | 'item' | 'rank' | 'todo' | 'weather' | 'parcel' | 'ticket' | 'match' | 'bank' | 'grades' }>;
+type ConversationBlock = Extract<StoryBlock, { kind: 'kakao' | 'chat' | 'post' | 'system' | 'sns' | 'search' | 'push' | 'sms' | 'receipt' | 'poll' | 'item' | 'rank' | 'todo' | 'weather' | 'parcel' | 'ticket' | 'match' | 'bank' | 'grades' | 'choice' }>;
 
 const TEXTAREA =
   'w-full resize-y rounded-2xl border border-line bg-surface px-4 py-3 text-base leading-relaxed text-fg field-sizing-content placeholder:text-muted/60 focus:border-accent focus:ring-3 focus:ring-accent/20 focus:outline-none';
@@ -99,6 +100,7 @@ const SCRIPT_PLACEHOLDER: Record<ConversationBlock['kind'], string> = {
   match: '--- 우리 팀 ---\n* 하연화: 12 / 3 / 7\n밥알: 8 / 5 / 10',
   bank: '11.13 (금)\n14:05 와플 가게: -4,500원 잔액 1,234,500원\n09:12 김지은: +50,000원',
   grades: '국어: 92 / 2등급\n수학: 100 / 1등급\n--- 실기 ---\n체육: A',
+  choice: '문을 연다\n* 숨는다\n도망친다',
 };
 
 function useDraft<T extends StoryBlock>(block: T, onChange: (block: StoryBlock) => void) {
@@ -341,7 +343,8 @@ export function ConversationEditor({
           draft.kind === 'ticket' ||
           draft.kind === 'match' ||
           draft.kind === 'bank' ||
-          draft.kind === 'grades'
+          draft.kind === 'grades' ||
+          draft.kind === 'choice'
         ? []
         : scriptSpeakers(lines);
 
@@ -365,7 +368,8 @@ export function ConversationEditor({
       | Partial<TicketData>
       | Partial<MatchData>
       | Partial<BankData>
-      | Partial<GradesData>,
+      | Partial<GradesData>
+      | Partial<ChoiceData>,
   ) {
     update({ ...draft, data: { ...draft.data, ...patch } } as ConversationBlock);
   }
@@ -385,7 +389,8 @@ export function ConversationEditor({
       draft.kind === 'ticket' ||
       draft.kind === 'match' ||
       draft.kind === 'bank' ||
-      draft.kind === 'grades'
+      draft.kind === 'grades' ||
+      draft.kind === 'choice'
     )
       return;
     if (draft.kind === 'sns') {
@@ -636,6 +641,27 @@ export function ConversationEditor({
               maxLength={40}
               placeholder="비우면 안 보여요"
               onChange={(title) => setData({ title })}
+              className="w-full"
+              inputClassName="flex-1"
+            />
+          </>
+        ) : draft.kind === 'choice' ? (
+          <>
+            <MiniInput
+              label="물음"
+              value={draft.data.prompt}
+              maxLength={120}
+              placeholder="비우면 안 보여요"
+              onChange={(prompt) => setData({ prompt })}
+              className="w-full"
+              inputClassName="flex-1"
+            />
+            <MiniInput
+              label="남은 시간"
+              value={draft.data.timer}
+              maxLength={20}
+              placeholder="비우면 안 보여요 · 7/10초면 막대"
+              onChange={(timer) => setData({ timer })}
               className="w-full"
               inputClassName="flex-1"
             />
@@ -916,7 +942,7 @@ export function ConversationEditor({
             ref={scriptRef}
             value={draft.data.script}
             onChange={(e) => setData({ script: e.target.value })}
-            aria-label={draft.kind === 'post' ? '댓글 대본' : draft.kind === 'sns' ? '답글 대본' : draft.kind === 'search' ? '검색 결과 대본' : draft.kind === 'push' ? '알림 대본' : draft.kind === 'receipt' ? '품목 대본' : draft.kind === 'poll' ? '선택지 대본' : draft.kind === 'item' ? '능력치 대본' : draft.kind === 'rank' ? '순위 대본' : draft.kind === 'todo' ? '할 일 대본' : draft.kind === 'weather' ? '시간별 대본' : draft.kind === 'parcel' ? '배송 기록 대본' : draft.kind === 'ticket' ? '표 정보 대본' : draft.kind === 'match' ? '기록 대본'  : draft.kind === 'bank' ? '거래 대본' : draft.kind === 'grades' ? '과목 대본' : '대본'}
+            aria-label={draft.kind === 'post' ? '댓글 대본' : draft.kind === 'sns' ? '답글 대본' : draft.kind === 'search' ? '검색 결과 대본' : draft.kind === 'push' ? '알림 대본' : draft.kind === 'receipt' ? '품목 대본' : draft.kind === 'poll' ? '선택지 대본' : draft.kind === 'item' ? '능력치 대본' : draft.kind === 'rank' ? '순위 대본' : draft.kind === 'todo' ? '할 일 대본' : draft.kind === 'weather' ? '시간별 대본' : draft.kind === 'parcel' ? '배송 기록 대본' : draft.kind === 'ticket' ? '표 정보 대본' : draft.kind === 'match' ? '기록 대본'  : draft.kind === 'bank' ? '거래 대본' : draft.kind === 'grades' ? '과목 대본' : draft.kind === 'choice' ? '선택지 대본' : '대본'}
             spellCheck={false}
             maxLength={LIMITS.script}
             placeholder={SCRIPT_PLACEHOLDER[draft.kind]}
@@ -1028,6 +1054,11 @@ const SCRIPT_HELP: Record<ConversationBlock['kind'], Array<[string, string]>> = 
     ['「…」 또는 […]', '등급 색으로 굵게'],
     ['---', '구분선'],
     ['그냥 쓰기', '설명 글'],
+  ],
+  choice: [
+    ['문을 연다', '선택지 한 줄 (번호는 저절로)'],
+    ['* 숨는다', '고른 선택지 (강조)'],
+    ['7/10초', "'남은 시간'에 쓰면 막대로"],
   ],
   grades: [
     ['국어: 92 / 2등급', '과목 한 줄 (과목: 점수 / 등급)'],

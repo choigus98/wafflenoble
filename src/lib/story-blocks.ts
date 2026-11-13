@@ -286,6 +286,12 @@ const voiceSchema = z.object({
   time: text(20), // 보낸 시각 ('오후 11:52'). 비우면 안 보임
 });
 
+const choiceSchema = z.object({
+  prompt: text(120), // 물음 ('어떻게 할까?'). 비우면 안 보임
+  timer: text(20), // 남은 시간 ('10초'). '7/10초'처럼 쓰면 막대로 (choiceTimer). 비우면 안 보임
+  script: text(LIMITS.script), // 선택지 대본 (규칙은 parseChoiceScript 위 설명)
+});
+
 const translateSchema = z.object({
   from: text(20), // 원문 언어 ('한국어'). 비우면 안 보임
   to: text(20), // 번역 언어 ('일본어'). 비우면 안 보임
@@ -386,6 +392,7 @@ export const storyBlockSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('bank'), data: bankSchema }),
   z.object({ kind: z.literal('grades'), data: gradesSchema }),
   z.object({ kind: z.literal('voice'), data: voiceSchema }),
+  z.object({ kind: z.literal('choice'), data: choiceSchema }),
 ]);
 
 export type StoryBlock = z.infer<typeof storyBlockSchema>;
@@ -426,6 +433,7 @@ export type StockData = z.infer<typeof stockSchema>;
 export type BankData = z.infer<typeof bankSchema>;
 export type GradesData = z.infer<typeof gradesSchema>;
 export type VoiceData = z.infer<typeof voiceSchema>;
+export type ChoiceData = z.infer<typeof choiceSchema>;
 
 /** 메일 보낸 사람 '김지은 <jieun@example.com>' → 이름과 주소. 꺾쇠가 없으면 적은 그대로 이름으로 */
 export function splitMailSender(from: string): { name: string; address: string } {
@@ -1114,6 +1122,43 @@ export function voiceWave(seed: string, count = 28): number[] {
   return bars;
 }
 
+// ─── 선택지 ──────────────────────────────────────
+// 선택지 대본: 한 줄에 하나, 앞에 '* '를 붙이면 고른 선택지(강조). 번호는 저절로 붙으므로 '1. ' · '2) '처럼 쓴 번호는 뗀다. 아홉 개까지
+// 남은 시간: '7/10초' · '3 / 5'처럼 '남은/전체'로 쓰면 막대(남은 몫), 그 밖의 글('10초')은 글만
+
+export type ChoiceOption = { text: string; chosen: boolean };
+
+export function parseChoiceScript(script: string): ChoiceOption[] {
+  const options: ChoiceOption[] = [];
+  for (const raw of script.split(/\r?\n/)) {
+    let line = raw.trim();
+    if (!line) continue;
+    const chosen = /^[*＊]\s*/.test(line);
+    if (chosen) line = line.replace(/^[*＊]\s*/, '');
+    // '1.5초 기다린다'의 '1.'은 번호가 아님 (점 뒤에 숫자가 오면 그대로)
+    line = line.replace(/^\d{1,2}\s*[.)](?!\d)\s*/, '').trim();
+    if (!line) continue;
+    options.push({ text: line, chosen });
+    if (options.length >= 9) break;
+  }
+  return options;
+}
+
+/** 남은 시간 글과 막대 몫(0~1, '남은/전체'로 쓴 때만) */
+export function choiceTimer(timer: string): { label: string; ratio: number | null } {
+  const label = timer.trim();
+  const found = label.match(/^(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)/);
+  if (!found || Number(found[2]) <= 0) return { label, ratio: null };
+  return { label, ratio: Math.min(1, Math.max(0, Number(found[1]) / Number(found[2]))) };
+}
+
+/** 남은 시간을 말로 (낭독기 · 텍스트로 내보내기 · 소리 내어 듣기): '7/10초' → '남은 시간 7/10초', '남은 …'으로 쓴 글은 그대로 */
+export function choiceTimerText(timer: string): string {
+  const label = timer.trim();
+  if (!label) return '';
+  return label.startsWith('남은') ? label : `남은 시간 ${label}`;
+}
+
 // ─── 메신저 프로필 배경 ──────────────────────────────────────
 // 배경 말로 그라데이션을 고른다: 노을·저녁·석양·주황 → 노을, 밤·별·달빛·새벽 → 밤(밤하늘도), 바다·하늘·파도·파랑 → 바다,
 // 벚꽃·봄·분홍·꽃 → 벚꽃, 숲·나무·초록·풀 → 숲, 그 밖은 기본(회색). 모두 흰 글씨가 대비 4.5:1 이상인 진한 색
@@ -1406,7 +1451,8 @@ export type TemplateKey =
   | 'stock'
   | 'bank'
   | 'grades'
-  | 'voice';
+  | 'voice'
+  | 'choice';
 
 export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }> = [
   { key: 'kakao-dm', label: '카톡 1:1 대화', hint: '두 사람의 메신저 대화' },
@@ -1450,6 +1496,7 @@ export const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }>
   { key: 'bank', label: '통장 거래 내역', hint: '은행 · 계좌 · 잔액 · 입금은 파랑 출금은 기본색 · 거래 기록' },
   { key: 'grades', label: '성적표', hint: '학교 · 학년 반 · 과목별 점수와 등급 · 평균 · 석차 · 담임 한마디' },
   { key: 'voice', label: '음성 메시지', hint: '메신저 음성 말풍선 · 보낸 사람 · 길이 · 파형 · 받아쓰기 · 보낸 시각' },
+  { key: 'choice', label: '선택지', hint: '게임 · 비주얼 노벨 선택지 창 · 물음 · 고른 선택지 강조 · 남은 시간 막대' },
 ];
 
 export function templateLabel(block: StoryBlock): string {
@@ -1586,6 +1633,11 @@ export function createTemplate(key: TemplateKey): StoryBlock {
       return {
         kind: 'location',
         data: { badge: '위치 공유', place: '골목 끝 와플 가게', address: '와플시 반죽구 시럽로 12, 1층', note: '여기서 기다릴게' },
+      };
+    case 'choice':
+      return {
+        kind: 'choice',
+        data: { prompt: '수상한 손님이 가게 문을 두드린다. 어떻게 할까?', timer: '7/10초', script: '문을 열어 준다\n* 카운터 뒤에 숨는다\n와플 반죽을 던진다' },
       };
     case 'voice':
       return {

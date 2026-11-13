@@ -29,6 +29,8 @@ import {
   parseBankScript,
   parseGradesScript,
   gradesAverage,
+  parseChoiceScript,
+  choiceTimerText,
 } from '@/lib/story-blocks';
 
 export type DocNode = { type: string; text?: string; attrs?: Record<string, unknown>; content?: DocNode[] };
@@ -181,6 +183,14 @@ export function storyBlockToText(block: StoryBlock): string {
           .map((detail) => (detail.label ? `${detail.label}: ${detail.value}` : detail.value))
           .join(' · ');
         return lines(data.carrier, route, data.date, data.passenger.trim() && `승객: ${data.passenger.trim()}`, details);
+      }
+      case 'choice': {
+        const { data } = block;
+        // 선택지 한 줄: '2. 카운터 뒤에 숨는다 (고름)' — 화면처럼 번호를 붙이고, 고른 것은 말로
+        const options = parseChoiceScript(data.script)
+          .map((option, index) => `${index + 1}. ${option.text}${option.chosen ? ' (고름)' : ''}`)
+          .join('\n');
+        return lines(data.prompt, choiceTimerText(data.timer), options);
       }
       case 'voice': {
         const { data } = block;

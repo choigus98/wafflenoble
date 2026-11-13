@@ -46,6 +46,8 @@ import {
   gradesAverage,
   voiceIsMine,
   voiceWave,
+  parseChoiceScript,
+  choiceTimer,
   todoProgress,
   weatherKind,
   type AlarmData,
@@ -78,6 +80,7 @@ import {
   type BankData,
   type GradesData,
   type VoiceData,
+  type ChoiceData,
   type ProfileData,
   type TaxiData,
   type TranslateData,
@@ -188,6 +191,8 @@ export function StoryBlockView({ block }: { block: StoryBlock }) {
       return <GradesCard data={block.data} />;
     case 'voice':
       return <VoiceCard data={block.data} />;
+    case 'choice':
+      return <ChoiceCard data={block.data} />;
   }
 }
 
@@ -2816,6 +2821,82 @@ export function VoiceCard({ data, field }: { data: VoiceData; field?: FieldRende
           {show('time') ? <span className="shrink-0 pb-0.5 text-[11px] text-(--wn-voice-muted) tabular-nums">{slot('time', '보낸 시각 (비우면 안 보여요)', 20, 'max-w-24')}</span> : null}
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * 선택지: 게임 · 비주얼 노벨의 선택지 창 (물음 · 남은 시간 · 남은 시간 막대 · 번호 붙은 선택지).
+ * 선택지는 대본 한 줄에 하나 (parseChoiceScript). 고른 선택지는 진한 칸 · 굵은 글씨 · 체크 표시로 (색만으로 알리지 않음).
+ * 남은 시간을 '7/10초'처럼 쓰면 남은 몫만큼 막대를 그린다 (그림이라 낭독기에서는 숨김).
+ * 번호 · 체크는 그림이라 숨기고, 낭독기는 목록 순서와 '고른 선택지: 카운터 뒤에 숨는다'로 읽는다
+ */
+function ChoiceCard({ data }: { data: ChoiceData }) {
+  const options = parseChoiceScript(data.script);
+  const timer = choiceTimer(data.timer);
+  const prompt = data.prompt.trim();
+  const empty = !prompt && !timer.label && options.length === 0;
+
+  return (
+    <div className="wn-block mx-auto w-full max-w-[420px] rounded-[18px] border border-(--wn-border) bg-(--wn-choice-bg) px-4 py-4 text-(--wn-fg) shadow-sm">
+      {/* 빈 카드는 '선택지' 한 번만 (낭독기가 두 번 읽지 않게) */}
+      {empty ? <span className="text-sm text-(--wn-choice-muted)">선택지</span> : <span className="sr-only">선택지 </span>}
+      {prompt || timer.label ? (
+        // 남은 시간 글이 길면 물음 아래 줄로 (좁은 화면에서 물음이 눌리지 않게)
+        <div className="flex flex-wrap items-start gap-x-3 gap-y-1">
+          {prompt ? <div className="min-w-0 flex-[1_1_12rem] text-base leading-snug font-bold break-keep">{data.prompt}</div> : null}
+          {timer.label ? (
+            <span className="ml-auto flex max-w-full min-w-0 items-center gap-1 pt-0.5 text-xs font-semibold text-(--wn-choice-muted) tabular-nums">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-3.5 shrink-0">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 7v5l3 2" />
+              </svg>
+              <span className="min-w-0 break-keep">
+                {/* '남은 …'으로 쓴 글은 머리말 없이 (choiceTimerText와 같은 규칙) */}
+                {timer.label.startsWith('남은') ? null : <span className="sr-only">남은 시간 </span>}
+                {timer.label}
+              </span>
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+      {timer.ratio !== null ? (
+        <span aria-hidden="true" className="mt-2.5 block h-1.5 overflow-hidden rounded-full bg-(--wn-choice-option)">
+          <span className={cn('block h-full rounded-full bg-(--wn-choice-chosen)', timer.ratio > 0 && 'min-w-1.5')} style={{ width: `${timer.ratio * 100}%` }} />
+        </span>
+      ) : null}
+      {options.length > 0 ? (
+        <ol aria-label="선택지" className={cn('space-y-2', (prompt || timer.label) && 'mt-3.5')}>
+          {options.map((option, index) => (
+            <li
+              key={index}
+              className={cn(
+                'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm leading-snug',
+                option.chosen ? 'bg-(--wn-choice-chosen) font-semibold text-(--wn-choice-chosen-fg)' : 'bg-(--wn-choice-option)',
+              )}
+            >
+              <span
+                aria-hidden="true"
+                className={cn(
+                  'grid size-6 shrink-0 place-items-center rounded-full text-xs font-bold tabular-nums',
+                  option.chosen ? 'bg-(--wn-choice-chosen-fg) text-(--wn-choice-chosen)' : 'bg-(--wn-choice-bg) text-(--wn-choice-muted)',
+                )}
+              >
+                {index + 1}
+              </span>
+              <span className="min-w-0 flex-1 break-keep">
+                {option.chosen ? <span className="sr-only">고른 선택지: </span> : null}
+                {option.text}
+              </span>
+              {option.chosen ? (
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-4 shrink-0">
+                  <path d="M4.5 10.5l3.5 3.5 7.5-8" />
+                </svg>
+              ) : null}
+            </li>
+          ))}
+        </ol>
+      ) : null}
     </div>
   );
 }

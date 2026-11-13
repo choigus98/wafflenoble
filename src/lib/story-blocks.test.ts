@@ -54,6 +54,9 @@ import {
   gradesAverage,
   voiceIsMine,
   voiceWave,
+  parseChoiceScript,
+  choiceTimer,
+  choiceTimerText,
 } from '@/lib/story-blocks';
 
 // 브라우저 DOM 직렬화처럼 & 와 " 만 이스케이프 (Tiptap getHTML 결과 흉내)
@@ -110,6 +113,7 @@ const KEYS: TemplateKey[] = [
   'bank',
   'grades',
   'voice',
+  'choice',
 ];
 
 function withTrickyText(block: StoryBlock): StoryBlock {
@@ -178,6 +182,8 @@ function withTrickyText(block: StoryBlock): StoryBlock {
       return { ...block, data: { ...block.data, bank: '<b>와플</b> & "은행" 😀', account: TRICKY.slice(0, 40), script: `${block.data.script}\n${TRICKY}: -1,000원 <i>잔액</i>` } };
     case 'grades':
       return { ...block, data: { ...block.data, school: '<b>와플</b> & "고교" 😀', comment: TRICKY.slice(0, 200), script: `${block.data.script}\n${TRICKY}: 77 / <i>등급</i>` } };
+    case 'choice':
+      return { ...block, data: { ...block.data, prompt: TRICKY.slice(0, 120), timer: '<b>3</b>/5 & "초"', script: `${block.data.script}\n* ${TRICKY}\n<i>도망</i> & "숨기"` } };
     case 'voice':
       return { ...block, data: { ...block.data, sender: '<b>엄마</b> & "나" 😀', transcript: `${TRICKY}\n둘째 줄`.slice(0, 300), time: '' } };
     case 'match':
@@ -955,5 +961,42 @@ describe('음성 메시지', () => {
       expect(height).toBeGreaterThanOrEqual(0.25);
       expect(height).toBeLessThanOrEqual(1);
     }
+  });
+});
+
+describe('선택지', () => {
+  it("한 줄에 하나, '*'는 고른 선택지, 써 둔 번호는 떼고 빈 줄은 건너뜀", () => {
+    expect(parseChoiceScript('문을 연다\n\n* 숨는다\n＊ 2) 도망친다\n3. 소리친다\n  1.5초 기다린다  \n*\n10) 열 번째')).toEqual([
+      { text: '문을 연다', chosen: false },
+      { text: '숨는다', chosen: true },
+      { text: '도망친다', chosen: true },
+      { text: '소리친다', chosen: false },
+      { text: '1.5초 기다린다', chosen: false },
+      { text: '열 번째', chosen: false },
+    ]);
+    expect(parseChoiceScript('')).toEqual([]);
+  });
+
+  it('선택지는 아홉 개까지', () => {
+    const many = Array.from({ length: 12 }, (_, index) => `선택 ${index + 1}`).join('\n');
+    expect(parseChoiceScript(many)).toHaveLength(9);
+    expect(parseChoiceScript(many).at(-1)?.text).toBe('선택 9');
+  });
+
+  it("남은 시간: '남은/전체'면 막대 몫, 아니면 글만", () => {
+    expect(choiceTimer('7/10초')).toEqual({ label: '7/10초', ratio: 0.7 });
+    expect(choiceTimer(' 3 / 5 ')).toEqual({ label: '3 / 5', ratio: 0.6 });
+    expect(choiceTimer('2.5/10')).toEqual({ label: '2.5/10', ratio: 0.25 });
+    expect(choiceTimer('12/10초')).toEqual({ label: '12/10초', ratio: 1 });
+    expect(choiceTimer('0/10초')).toEqual({ label: '0/10초', ratio: 0 });
+    expect(choiceTimer('3/0')).toEqual({ label: '3/0', ratio: null });
+    expect(choiceTimer('10초')).toEqual({ label: '10초', ratio: null });
+    expect(choiceTimer('')).toEqual({ label: '', ratio: null });
+  });
+
+  it("남은 시간을 말로: 머리말 '남은 시간'을 붙이되 '남은 …'으로 쓴 글은 그대로", () => {
+    expect(choiceTimerText(' 7/10초 ')).toBe('남은 시간 7/10초');
+    expect(choiceTimerText('남은 시간이 거의 없다')).toBe('남은 시간이 거의 없다');
+    expect(choiceTimerText('  ')).toBe('');
   });
 });

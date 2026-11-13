@@ -78,7 +78,8 @@ function StoryBlockItem({ node, editor, getPos, selected, deleteNode, extension 
     block?.kind === 'ticket' ||
     block?.kind === 'match' ||
     block?.kind === 'bank' ||
-    block?.kind === 'grades';
+    block?.kind === 'grades' ||
+    block?.kind === 'choice';
   const isPostLike = block?.kind === 'post' || block?.kind === 'sns';
   const editLabel = isPostLike
     ? '글 고치기'
@@ -88,7 +89,7 @@ function StoryBlockItem({ node, editor, getPos, selected, deleteNode, extension 
         ? '알림 고치기'
         : block?.kind === 'receipt'
           ? '품목 고치기'
-          : block?.kind === 'poll'
+          : block?.kind === 'poll' || block?.kind === 'choice'
             ? '선택지 고치기'
             : block?.kind === 'item'
               ? '능력치 고치기'
@@ -111,7 +112,7 @@ function StoryBlockItem({ node, editor, getPos, selected, deleteNode, extension 
                               : '대본 고치기';
   // 읽어 주는 이름: '커뮤니티 게시글 고치기', 'SNS 게시물 고치기', '검색 결과 고치기', '휴대폰 알림 고치기', '투표 고치기'
   const editName =
-    isPostLike || block?.kind === 'search' || block?.kind === 'push' || block?.kind === 'receipt' || block?.kind === 'poll' || block?.kind === 'item' || block?.kind === 'rank' || block?.kind === 'todo' || block?.kind === 'weather' || block?.kind === 'parcel' || block?.kind === 'ticket' || block?.kind === 'match' || block?.kind === 'bank' || block?.kind === 'grades'
+    isPostLike || block?.kind === 'search' || block?.kind === 'push' || block?.kind === 'receipt' || block?.kind === 'poll' || block?.kind === 'item' || block?.kind === 'rank' || block?.kind === 'todo' || block?.kind === 'weather' || block?.kind === 'parcel' || block?.kind === 'ticket' || block?.kind === 'match' || block?.kind === 'bank' || block?.kind === 'grades' || block?.kind === 'choice'
       ? '고치기'
       : '대본 고치기';
   const editing = uid !== null && editingUid === uid;
