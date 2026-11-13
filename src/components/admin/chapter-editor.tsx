@@ -20,6 +20,7 @@ import { CheckMenu, type CheckTool } from '@/components/admin/check-menu';
 import { CharGoal } from '@/components/admin/char-goal';
 import { FindBar, FindReplace } from '@/components/admin/find-replace';
 import { LongSentenceMarks, LongSentencePanel } from '@/components/admin/long-sentence-panel';
+import { QuotePairMarks, QuotePairPanel } from '@/components/admin/quote-pair-panel';
 import { MoveBlock } from '@/components/admin/move-block';
 import { QuoteWrap } from '@/components/admin/quote-wrap';
 import { ParagraphFlash } from '@/components/admin/paragraph-flash';
@@ -383,6 +384,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
       SnippetShortcut,
       SpellingCheck,
       LongSentenceMarks,
+      QuotePairMarks,
       ParagraphFlash,
       SpeakMarks,
       MoveBlock,
@@ -796,6 +798,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
           <CharacterPanel editor={editor} names={chapter.characters} novelId={chapter.novelId} onFind={findWord} onClose={() => closePanel('characters')} />
         ) : null}
         {panel === 'long' && editor ? <LongSentencePanel editor={editor} onClose={() => closePanel('long')} /> : null}
+        {panel === 'quotes' && editor ? <QuotePairPanel editor={editor} onClose={() => closePanel('quotes')} /> : null}
         {panel === 'speak' && editor ? <SpeakPanel editor={editor} onClose={() => closePanel('speak')} /> : null}
         {panel === 'spelling' && editor ? <SpellingPanel editor={editor} onClose={() => closePanel('spelling')} /> : null}
         {panel === 'scenes' && editor ? (

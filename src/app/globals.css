@@ -1123,6 +1123,16 @@ html[data-focus="on"] [data-focus-grid] {
   background: var(--find-current-bg);
   box-shadow: 0 0 0 1px var(--accent);
 }
+/* 따옴표 짝: 짝이 안 맞는 따옴표 (한 글자라 밑줄 대신 칸으로 또렷하게), 목록에서 고른 문단의 따옴표는 찾기처럼 */
+.ProseMirror .wn-quote-issue {
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  box-shadow: 0 0 0 1.5px var(--danger);
+}
+.ProseMirror .wn-quote-current {
+  background: var(--find-current-bg);
+  box-shadow: 0 0 0 1.5px var(--accent);
+}
 /* 소리 내어 읽기(에디터)·듣기(회차 화면): 지금 읽는 덩어리 (템플릿이면 카드 둘레) */
 .ProseMirror .wn-speak-current,
 .novel-body .wn-speak-current {
