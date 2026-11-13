@@ -3075,3 +3075,18 @@
 - 남은 것: 길드원을 지우면 포커스가 페이지 처음으로 떨어짐 (원래 있던 것, 이번 점검에서 확인) → 새 백로그 160
 - 확인: 2화 내용 · 시험용 길드원(원래 둘만 남김) · 열람 기록 · 길드원 마지막 접속 시각 · 두 주소의 `wn:*` 저장값을 되돌림 (회차·작품·길드원·열람·좋아요 표 백업과 같음), 내려받기 폴더에 새 파일 없음. `pnpm test` 382개, 타입 검사 · 린트 · 빌드 통과
 - 다음: 새 백로그 157~161 추가 (일기 템플릿, 같은 끝맺음 찾기, 안 읽은 회차만, 길드원 지운 뒤 포커스, 품질 점검 31)
+
+### 2026-11-13 16:23 · 배포 (Vercel + Neon)
+
+- 한 것
+  - Vercel 프로젝트 `wafflenoble` (choigus98 Hobby, GitHub 레포 연결 — main에 push하면 프로덕션 배포), 주소 https://wafflenoble.vercel.app
+  - Neon DB `wafflenoble-db`: Vercel Storage에서 만들고 프로젝트에 연결 (Free 요금제, 싱가포르, Neon Auth · Realtime 끔, Production · Preview 환경). `DATABASE_URL` · `DATABASE_URL_UNPOOLED` 등이 자동으로 들어감
+  - 환경변수 `ADMIN_PASSWORD` · `SESSION_SECRET`(무작위 32바이트)을 Production에 Secret으로 등록
+  - 빌드 명령(`pnpm db:migrate && pnpm build`)과 함수 리전(`sin1`)은 `vercel.json`으로 (대시보드 설정보다 앞섬)
+- 확인
+  - 첫 배포는 DB 연결 전이라 마이그레이션 단계에서 멈춤(`url: ''`) → DB · 환경변수를 넣고 다시 배포: 설치(pnpm 12.18.0) → 마이그레이션 적용 → 빌드 50초, 함수는 SIN1 · Node.js 26.x
+  - 배포된 사이트: `/` → `/enter`, 길드 열람 비밀번호를 아직 정하지 않아 `아직 열람이 열리지 않았어요.` (입장 닫힘), 관리자 로그인 → 관리자 홈(빈 서재) · 설정 화면이 DB와 함께 뜸
+  - 빌드 경고는 pg의 SSL 모드 안내 하나(지금 동작은 가장 엄격한 `verify-full`과 같음)
+- 남은 것
+  - 관리자 → 설정에서 길드 열람 비밀번호 정하기 (정하기 전에는 길드원이 못 들어옴)
+  - 배포 DB는 비어 있음: 로컬 DB의 작품 · 회차는 옮기지 않음
