@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useWakeLock } from '@/components/use-wake-lock';
 import { announce } from '@/lib/announce';
 import { scrollBehavior } from '@/lib/motion';
 import { listenText } from '@/lib/speech';
@@ -17,6 +18,7 @@ import { cn } from '@/lib/utils';
 // - 듣는 동안은 화면 아래(오른쪽 단추들을 피해서)에 작은 막대
 // - 끝까지 들으면 공개된 다음 화가 있을 때 막대가 '다음 화도 듣기'로 바뀌고, 누르면 다음 화로 가서 처음부터 이어 읽는다
 //   (화면 안에서 넘어가야 브라우저가 소리 내기를 계속 허락해서, 페이지를 새로 읽지 않고 넘어간다)
+// - 읽는 동안(멈춤·다 읽음 말고)은 휴대폰 화면이 꺼지지 않게 잡아 둔다 (화면이 잠기면 브라우저가 소리를 끊는 경우가 많아서, 지원하는 브라우저만)
 
 const CONTENT_ID = 'chapter-content';
 // 이만큼 내려가면 오른쪽 아래 듣기 단추가 뜬다 (책갈피 단추와 같게)
@@ -71,6 +73,7 @@ export function ChapterListen({ next }: { next: { href: string; label: string } 
   const router = useRouter();
   const supported = useSyncExternalStore(subscribeNothing, () => speechEngine() !== null, () => false);
   const [status, setStatus] = useState<Status>('idle');
+  useWakeLock(status === 'playing');
   const [place, setPlace] = useState({ index: 0, total: 0 });
   const [rate, setRate] = useState(1);
   const unitsRef = useRef<Unit[]>([]);
