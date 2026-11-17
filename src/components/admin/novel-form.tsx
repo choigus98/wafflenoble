@@ -1,13 +1,15 @@
 'use client';
 
-import { startTransition, useActionState, useMemo, useState, type FormEvent } from 'react';
-import { createNovel, updateNovel } from '@/app/admin/actions';
+import { startTransition, useActionState, useMemo, useRef, useState, useTransition, type FormEvent } from 'react';
+import { createNovel, updateNovel, uploadImage } from '@/app/admin/actions';
 import { NovelCover } from '@/components/novel-cover';
 import { Button, Field, FormMessage, Input, Textarea } from '@/components/ui';
 import { IDLE } from '@/lib/action-state';
 import { CHARACTERS_MAX_LENGTH } from '@/lib/characters';
 import { COVER_COLORS, COVER_COLOR_KEYS, autoCoverColor, isCoverColor, type CoverColor } from '@/lib/cover';
 import type { SerialStatus } from '@/lib/db/schema';
+import { imageFormData, prepareImage } from '@/lib/image-prepare';
+import { COVER_HEIGHT, COVER_MIN_HEIGHT, COVER_MIN_WIDTH, COVER_WIDTH } from '@/lib/images';
 import { SERIAL_STATUS_LABEL, cn } from '@/lib/utils';
 
 type NovelInput = {
@@ -17,6 +19,7 @@ type NovelInput = {
   serialStatus: SerialStatus;
   isPublished: boolean;
   coverColor: string | null;
+  coverImageId?: string | null;
   scheduleNote: string;
   characters: string;
 };
@@ -31,6 +34,7 @@ export function NovelForm({ novel }: { novel?: NovelInput }) {
   // 표지 미리보기용 (입력칸 자체는 그대로 폼 값으로 보낸다)
   const [title, setTitle] = useState(novel?.title ?? '');
   const [coverColor, setCoverColor] = useState<CoverColor | null>(isCoverColor(novel?.coverColor) ? novel.coverColor : null);
+  const [coverImageId, setCoverImageId] = useState<string | null>(novel?.coverImageId ?? null);
 
   // 저장 후에도 입력한 값이 그대로 남도록 form action 대신 직접 dispatch
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -53,7 +57,15 @@ export function NovelForm({ novel }: { novel?: NovelInput }) {
         />
       </Field>
 
-      <CoverColorPicker novelId={novelId} title={title} value={coverColor} onChange={setCoverColor} />
+      <CoverPicker
+        novelId={novelId}
+        title={title}
+        value={coverColor}
+        onChange={setCoverColor}
+        imageId={coverImageId}
+        onImageChange={setCoverImageId}
+        savedImageId={novel?.coverImageId ?? null}
+      />
 
       <Field label="소개" htmlFor="novel-description" hint="작품 화면 맨 위에 보여요. 줄바꿈도 그대로 보여요.">
         <Textarea id="novel-description" name="description" defaultValue={novel?.description} rows={5} maxLength={2000} />
@@ -128,29 +140,112 @@ export function NovelForm({ novel }: { novel?: NovelInput }) {
   );
 }
 
-/** 표지 색 고르기. '자동'은 작품 번호로 정해지는 색 (지금까지와 같음) */
-function CoverColorPicker({
+/**
+ * 표지: 사진을 올리면 사진, 없으면 색 표지. 색의 '자동'은 작품 번호로 정해지는 색 (지금까지와 같음).
+ * 사진은 고르는 즉시 올리고(id만 폼으로 보냄), '저장'을 눌러야 작품에 반영된다
+ */
+function CoverPicker({
   novelId,
   title,
   value,
   onChange,
+  imageId,
+  onImageChange,
+  savedImageId,
 }: {
   novelId: number | undefined;
   title: string;
   value: CoverColor | null;
   onChange: (value: CoverColor | null) => void;
+  imageId: string | null;
+  onImageChange: (value: string | null) => void;
+  savedImageId: string | null;
 }) {
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [uploading, startUpload] = useTransition();
+  const [message, setMessage] = useState<{ tone: 'error' | 'info'; text: string } | null>(null);
+
+  function upload(file: File) {
+    setMessage(null);
+    startUpload(async () => {
+      try {
+        const prepared = await prepareImage(file, 'cover');
+        const result = await uploadImage(imageFormData(prepared, 'cover'));
+        if ('error' in result) {
+          setMessage({ tone: 'error', text: result.error });
+          return;
+        }
+        onImageChange(result.id);
+        setMessage({
+          tone: 'info',
+          text: prepared.small
+            ? `사진이 작아서 흐릿하게 보일 수 있어요 (${prepared.width}×${prepared.height}). '저장'을 눌러야 표지가 바뀌어요.`
+            : "'저장'을 눌러야 표지가 바뀌어요.",
+        });
+      } catch (error) {
+        setMessage({ tone: 'error', text: error instanceof Error ? error.message : '사진을 올리지 못했어요' });
+      }
+    });
+  }
+
   const auto = novelId ? COVER_COLORS[autoCoverColor(novelId)] : null;
   const swatch =
     'relative grid size-9 cursor-pointer place-items-center rounded-full ring-1 ring-black/10 transition has-checked:ring-2 has-checked:ring-fg has-checked:ring-offset-2 has-checked:ring-offset-surface has-focus-visible:outline-2 has-focus-visible:outline-offset-4 has-focus-visible:outline-accent';
 
   return (
     <fieldset>
-      <legend className="mb-1.5 text-sm font-semibold">표지 색</legend>
+      <legend className="mb-1.5 text-sm font-semibold">표지</legend>
+      <input type="hidden" name="coverImageId" value={imageId ?? ''} />
       <div className="flex items-start gap-4">
         {/* 작품 화면과 같은 크기 (좁으면 'WAFFLE NOVEL'이 두 줄로 꺾인다) */}
-        <NovelCover id={novelId ?? 0} title={title.trim() || '제목'} color={value} size="sm" className="w-28 shrink-0" />
-        <div className="min-w-0 space-y-2">
+        <NovelCover id={novelId ?? 0} title={title.trim() || '제목'} color={value} imageId={imageId} size="sm" className="w-28 shrink-0" />
+        <div className="min-w-0 space-y-4">
+          <div className="space-y-2">
+            <p className="text-[13px] font-semibold">사진</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                ref={fileInput}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/*"
+                className="sr-only"
+                tabIndex={-1}
+                aria-hidden="true"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = '';
+                  if (file) upload(file);
+                }}
+              />
+              <Button type="button" variant="secondary" size="sm" disabled={uploading} onClick={() => fileInput.current?.click()}>
+                {uploading ? '올리는 중…' : imageId ? '다른 사진으로' : '내 컴퓨터에서 올리기'}
+              </Button>
+              {imageId ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={uploading}
+                  onClick={() => {
+                    onImageChange(null);
+                    setMessage(savedImageId ? { tone: 'info', text: "'저장'을 누르면 사진이 빠지고 색 표지로 돌아가요." } : null);
+                  }}
+                >
+                  사진 빼기
+                </Button>
+              ) : null}
+            </div>
+            <p className="text-[13px] leading-relaxed text-muted">
+              추천: <strong className="font-semibold text-fg">세로 3:4 비율, {COVER_WIDTH}×{COVER_HEIGHT}px</strong> (최소 {COVER_MIN_WIDTH}×{COVER_MIN_HEIGHT}px).
+              다른 비율은 가운데를 기준으로 3:4로 잘려요. 목록에서는 작게 보이니 제목 글자는 크게, 가장자리에서 떨어뜨려 주세요. JPG · PNG · WebP, 큰 사진은 자동으로 줄여서 올려요.
+            </p>
+            {message ? (
+              <p role={message.tone === 'error' ? 'alert' : 'status'} className={cn('text-[13px]', message.tone === 'error' ? 'text-danger' : 'text-accent')}>
+                {message.text}
+              </p>
+            ) : null}
+          </div>
+          <div className="space-y-2">
+          <p className="text-[13px] font-semibold">색 {imageId ? <span className="font-normal text-muted">(사진을 빼면 이 색 표지)</span> : null}</p>
           <div className="flex flex-wrap items-center gap-2">
             <label
               className={cn(
@@ -186,6 +281,7 @@ function CoverColorPicker({
           </div>
           <div className="text-[13px] leading-relaxed text-muted">
             {novelId ? '자동은 작품마다 정해진 색이에요. 고르면 그 색으로 바뀌어요.' : '자동은 작품을 만들 때 작품마다 정해져요.'}
+          </div>
           </div>
         </div>
       </div>

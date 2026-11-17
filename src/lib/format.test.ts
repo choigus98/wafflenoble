@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatDate, formatDateTime, formatRelative, formatSchedule, formatUntil, particle, withParticle } from '@/lib/format';
+import { formatDate, formatDateTime, formatLogTime, formatRelative, formatSchedule, formatUntil, particle, withParticle } from '@/lib/format';
 
 describe('날짜 표시', () => {
   it('서버가 UTC여도 한국 시간으로 표시한다', () => {
@@ -54,5 +54,12 @@ describe('조사', () => {
 
   it('한글이 아니면 둘 다', () => {
     expect(withParticle('Chapter 1', '을', '를')).toBe('Chapter 1을(를)');
+  });
+});
+
+describe('formatLogTime', () => {
+  it('서울 시간으로 앞자리 0 없이', () => {
+    expect(formatLogTime(new Date('2026-11-18T05:05:00Z'))).toBe('26년 11월 18일 14시 5분');
+    expect(formatLogTime(new Date('2026-01-01T15:00:00Z'))).toBe('26년 1월 2일 0시 0분');
   });
 });

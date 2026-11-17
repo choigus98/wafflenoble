@@ -12,6 +12,7 @@ import {
   createTemplateEditingStore,
   useEditingTemplateUid,
 } from '@/components/admin/story-block/story-block-node';
+import { AuthorNotePhotos } from '@/components/admin/author-note-photos';
 import { ChangesDialog } from '@/components/admin/changes-dialog';
 import { CharacterPanel } from '@/components/admin/character-panel';
 import { DialoguePanel } from '@/components/admin/dialogue-panel';
@@ -149,6 +150,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
   const [title, setTitle] = useState(chapter.title);
   const [position, setPosition] = useState(String(chapter.position));
   const [authorNote, setAuthorNote] = useState(chapter.authorNote);
+  const authorNoteRef = useRef<HTMLTextAreaElement>(null);
   const [revisions, setRevisions] = useState(chapter.revisions);
   const [restorePending, startRestore] = useTransition();
   const [status, setStatus] = useState(chapter.status);
@@ -852,9 +854,10 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
           작가의 말 <span className="font-normal text-muted">(선택)</span>
         </label>
         <p id="author-note-hint" className="text-xs text-muted">
-          회차 맨 아래에 상자로 보여요. 비워 두면 안 보여요. 글자수에는 들어가지 않아요.
+          회차 맨 아래에 상자로 보여요. 비워 두면 안 보여요. 글자수에는 들어가지 않아요. [사진:…] 줄 자리에 사진이 보여요.
         </p>
         <textarea
+          ref={authorNoteRef}
           id="author-note"
           aria-describedby="author-note-hint"
           value={authorNote}
@@ -863,6 +866,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
           placeholder="이번 화 뒷이야기, 다음 화 예고, 감사 인사 같은 것"
           className="min-h-24 w-full resize-y rounded-2xl border border-line bg-surface px-4 py-3 text-base leading-relaxed field-sizing-content placeholder:text-muted/70 focus:border-accent focus:ring-3 focus:ring-accent/20 focus:outline-none"
         />
+        <AuthorNotePhotos value={authorNote} onChange={updateAuthorNote} textarea={authorNoteRef} />
       </div>
 
       {/* 작가 메모: 본문과 따로 저장되고 길드원에게는 절대 안 보인다 */}

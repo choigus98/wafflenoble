@@ -35,6 +35,12 @@ export function formatSheetDateTime(date: Date): string {
   return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}`;
 }
 
+/** 26년 11월 18일 14시 5분 — 작가 화면 '읽은 기록' */
+export function formatLogTime(date: Date): string {
+  const p = parts(date);
+  return `${p.year.slice(-2)}년 ${Number(p.month)}월 ${Number(p.day)}일 ${Number(p.hour)}시 ${Number(p.minute)}분`;
+}
+
 /** 14:05 */
 export function formatTime(date: Date): string {
   const p = parts(date);

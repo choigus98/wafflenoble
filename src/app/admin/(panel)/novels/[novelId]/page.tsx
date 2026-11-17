@@ -182,6 +182,7 @@ async function NovelAdmin({ params, searchParams }: Pick<PageProps<'/admin/novel
               serialStatus: novel.serialStatus,
               isPublished: novel.isPublished,
               coverColor: novel.coverColor,
+              coverImageId: novel.coverImageId,
               scheduleNote: novel.scheduleNote,
               characters: novel.characters,
             }}

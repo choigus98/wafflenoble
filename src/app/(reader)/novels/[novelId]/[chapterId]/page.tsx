@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { parseAuthorNote } from '@/lib/images';
 import { notFound } from 'next/navigation';
 import { Fragment, Suspense } from 'react';
 import { ChapterBody } from '@/components/reader/chapter-body';
@@ -142,7 +143,18 @@ async function ChapterView({ params }: Pick<PageProps<'/novels/[novelId]/[chapte
           <h2 id="author-note-title" className="text-xs font-semibold text-muted">
             작가의 말
           </h2>
-          <p className="mt-1.5 text-[15px] leading-relaxed whitespace-pre-line break-keep">{chapter.authorNote}</p>
+          <div className="mt-1.5 space-y-3">
+            {parseAuthorNote(chapter.authorNote).map((part, index) =>
+              part.type === 'text' ? (
+                <p key={index} className="text-[15px] leading-relaxed whitespace-pre-line break-keep">
+                  {part.text}
+                </p>
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img key={index} src={`/img/${part.id}`} alt="작가가 올린 사진" loading="lazy" className="mx-auto max-h-[70vh] w-auto max-w-full rounded-xl" />
+              ),
+            )}
+          </div>
         </aside>
       ) : null}
 

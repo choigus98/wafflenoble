@@ -64,6 +64,13 @@
       "when": 1794934559188,
       "tag": "0008_comments_seen",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794936513267,
+      "tag": "0009_images_view_logs",
+      "breakpoints": true
     }
   ]
 }

@@ -1,8 +1,8 @@
 import { COVER_COLORS, resolveCoverColor } from '@/lib/cover';
 import { cn } from '@/lib/utils';
 
-// 표지 이미지 없이 제목 + 색으로 만드는 텍스트 표지. 와플 격자 무늬를 은은하게 깐다.
-// 색은 관리자가 고른 색, 안 골랐으면 작품 번호로 정해진 색 (lib/cover.ts)
+// 표지. 올린 표지 사진(imageId)이 있으면 사진, 없으면 제목 + 색으로 만드는 텍스트 표지(와플 격자 무늬를 은은하게 깐다).
+// 색은 관리자가 고른 색, 안 골랐으면 작품 번호로 정해진 색 (lib/cover.ts). 사진은 세로 3:4로 올린다 (lib/images.ts)
 
 const TITLE_SIZE = {
   sm: 'text-[13px] leading-snug',
@@ -14,16 +14,27 @@ export function NovelCover({
   id,
   title,
   color,
+  imageId,
   size = 'md',
   className,
 }: {
   id: number;
   title: string;
   color?: string | null;
+  imageId?: string | null;
   size?: keyof typeof TITLE_SIZE;
   className?: string;
 }) {
   const { background, foreground } = COVER_COLORS[resolveCoverColor(id, color)];
+  if (imageId) {
+    return (
+      <div className={cn('relative aspect-[3/4] overflow-hidden rounded-xl bg-surface-2 shadow-sm ring-1 ring-black/5', className)}>
+        {/* 제목은 표지 옆·아래에 따로 적혀 있어서 대체 글은 비운다. 이미지 최적화(next/image)는 입장 쿠키가 필요한 주소라 쓰지 않는다 */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={`/img/${imageId}`} alt="" className="absolute inset-0 size-full object-cover" />
+      </div>
+    );
+  }
   return (
     <div
       className={cn('relative aspect-[3/4] overflow-hidden rounded-xl shadow-sm ring-1 ring-black/5', className)}

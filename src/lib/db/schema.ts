@@ -1,5 +1,6 @@
 import {
   boolean,
+  customType,
   index,
   integer,
   pgEnum,
@@ -11,6 +12,9 @@ import {
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core';
+
+// 사진 원본 바이트 (drizzle 0.45에는 bytea가 없어서 직접 정의)
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => 'bytea' });
 
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
 const updatedAt = () =>
@@ -40,6 +44,21 @@ export const readers = pgTable('readers', {
   lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * 올린 사진 (표지 · 작가의 말). 0009. 파일 저장소 없이 DB에 바이트로 둔다 — 브라우저에서 줄여서(긴 쪽 1600px, 1MB 미만) 올린다.
+ * /img/[id]로 보여 주고, 입장한 사람(관리자·길드원)만 볼 수 있다. id는 추측할 수 없게 uuid
+ */
+export const images = pgTable('images', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  kind: varchar('kind', { length: 10 }).notNull(), // 'cover' | 'note'
+  mime: varchar('mime', { length: 20 }).notNull(), // image/jpeg · image/png · image/webp 만
+  width: integer('width').notNull(),
+  height: integer('height').notNull(),
+  byteSize: integer('byte_size').notNull(),
+  data: bytea('data').notNull(),
+  createdAt: createdAt(),
+});
+
 export const novels = pgTable('novels', {
   id: serial('id').primaryKey(),
   title: varchar('title', { length: 100 }).notNull(),
@@ -48,6 +67,7 @@ export const novels = pgTable('novels', {
   isPublished: boolean('is_published').notNull().default(false), // 작품 자체 공개 여부
   lastPublishedAt: timestamp('last_published_at', { withTimezone: true }), // 최근 회차 발행 시각 (목록 정렬용)
   coverColor: varchar('cover_color', { length: 20 }), // 표지 색 이름 (lib/cover.ts). 비어 있으면 작품 번호로 자동
+  coverImageId: uuid('cover_image_id').references(() => images.id, { onDelete: 'set null' }), // 표지 사진 (0009). 있으면 색 표지 대신
   scheduleNote: varchar('schedule_note', { length: 60 }).notNull().default(''), // '매주 금요일 저녁 8시' 같은 연재 일정. 비면 안 보임
   characters: text('characters').notNull().default(''), // 등장인물 소개. 한 줄에 한 명 '이름: 소개' (lib/characters.ts). 비면 안 보임
   createdAt: createdAt(),
@@ -143,6 +163,25 @@ export const chapterComments = pgTable(
   (t) => [
     index('chapter_comments_chapter_idx').on(t.chapterId, t.createdAt),
     index('chapter_comments_reader_idx').on(t.readerId, t.createdAt),
+  ],
+);
+
+/** 회차를 연 기록 한 줄씩 (0009부터 쌓임). chapter_views.view_count가 늘 때마다(30분 안 재방문 제외) 한 줄. 작가 화면에서만 본다 */
+export const chapterViewLogs = pgTable(
+  'chapter_view_logs',
+  {
+    id: serial('id').primaryKey(),
+    chapterId: integer('chapter_id')
+      .notNull()
+      .references(() => chapters.id, { onDelete: 'cascade' }),
+    readerId: uuid('reader_id')
+      .notNull()
+      .references(() => readers.id, { onDelete: 'cascade' }),
+    viewedAt: timestamp('viewed_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('chapter_view_logs_chapter_idx').on(t.chapterId, t.viewedAt),
+    index('chapter_view_logs_reader_idx').on(t.readerId),
   ],
 );
 

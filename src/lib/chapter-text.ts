@@ -5,6 +5,7 @@
 // - 템플릿은 '[카톡 1:1 대화]'처럼 머리를 달고, 대본·카드 글을 보이는 순서대로 (빈 칸은 뺌)
 // 에디터 문서를 바로 읽어서 HTML 정리 라이브러리를 화면 쪽에 싣지 않아도 되고, 저장 안 한 수정도 들어간다
 
+import { authorNoteAsText } from '@/lib/images';
 import {
   CALL_DETAIL_DEFAULT,
   kakaoTitle,
@@ -368,7 +369,7 @@ export function bodyText(doc: DocNode): string {
 export function chapterToText(input: { novelTitle: string; position: number | string; title: string; doc: DocNode; authorNote: string }): string {
   const heading = [`『${input.novelTitle.trim()}』`, `${input.position}화`, input.title.trim()].filter(Boolean).join(' ');
   const parts = [heading, bodyText(input.doc)];
-  if (input.authorNote.trim()) parts.push(`[작가의 말]\n${input.authorNote.trim()}`);
+  if (input.authorNote.trim()) parts.push(`[작가의 말]\n${authorNoteAsText(input.authorNote)}`);
   return `${parts.filter(Boolean).join('\n\n')}\n`;
 }
 
@@ -402,7 +403,7 @@ export function novelToText(input: {
     const body = bodyText(chapter.doc);
     const lines = [section.join('\n\n')];
     if (body) lines.push(body);
-    if (chapter.authorNote.trim()) lines.push(`[작가의 말]\n${chapter.authorNote.trim()}`);
+    if (chapter.authorNote.trim()) lines.push(`[작가의 말]\n${authorNoteAsText(chapter.authorNote)}`);
     parts.push(lines.join('\n\n'));
   }
   return `${parts.join('\n\n')}\n`;

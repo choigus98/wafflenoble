@@ -47,7 +47,7 @@ async function NovelGrid() {
       {novels.map((novel) => (
         <li key={novel.id}>
           <Link href={`/novels/${novel.id}`} className="group block rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent">
-            <NovelCover id={novel.id} title={novel.title} color={novel.coverColor} className="transition duration-200 group-hover:-translate-y-0.5 group-hover:shadow-md" />
+            <NovelCover id={novel.id} title={novel.title} color={novel.coverColor} imageId={novel.coverImageId} className="transition duration-200 group-hover:-translate-y-0.5 group-hover:shadow-md" />
             <div className="mt-3 space-y-1.5">
               <p className="line-clamp-2 leading-snug font-semibold">{novel.title}</p>
               <div className="flex flex-wrap items-center gap-1.5 text-[13px] text-muted">
@@ -83,19 +83,24 @@ function ContinueReading({ item, now }: { item: ContinueItem; now: Date }) {
         이어 읽기
       </h2>
       <div className="mt-3 flex items-center gap-3.5">
-        {/* 작은 표지: 작품 색과 와플 무늬만 */}
+        {/* 작은 표지: 표지 사진, 없으면 작품 색과 와플 무늬 */}
         <span
           aria-hidden="true"
           className="relative block aspect-[3/4] w-11 shrink-0 overflow-hidden rounded-lg shadow-sm ring-1 ring-black/5"
           style={{ background, color: foreground }}
         >
-          <span
-            className="absolute inset-0 opacity-[0.15]"
-            style={{
-              backgroundImage: 'linear-gradient(currentColor 1px, transparent 1px), linear-gradient(90deg, currentColor 1px, transparent 1px)',
-              backgroundSize: '9px 9px',
-            }}
-          />
+          {item.coverImageId ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={`/img/${item.coverImageId}`} alt="" className="absolute inset-0 size-full object-cover" />
+          ) : (
+            <span
+              className="absolute inset-0 opacity-[0.15]"
+              style={{
+                backgroundImage: 'linear-gradient(currentColor 1px, transparent 1px), linear-gradient(90deg, currentColor 1px, transparent 1px)',
+                backgroundSize: '9px 9px',
+              }}
+            />
+          )}
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-[13px] text-muted">{item.novelTitle}</p>

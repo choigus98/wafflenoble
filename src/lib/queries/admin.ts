@@ -4,7 +4,7 @@ import { isAdmin, requireAdmin } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { parseCharacters } from '@/lib/characters';
 import { htmlExcerpt } from '@/lib/content';
-import { chapterComments, chapterLikes, chapterNotes, chapterRevisions, chapterViews, chapters, novels, readers, settings } from '@/lib/db/schema';
+import { chapterComments, chapterLikes, chapterNotes, chapterRevisions, chapterViewLogs, chapterViews, chapters, novels, readers, settings } from '@/lib/db/schema';
 import { guildProgress } from '@/lib/guild-progress';
 import { getGuildSettings } from '@/lib/settings';
 import { weekReadsByNovel } from '@/lib/week-reads';
@@ -31,6 +31,7 @@ export async function adminListNovels() {
       serialStatus: novels.serialStatus,
       isPublished: novels.isPublished,
       coverColor: novels.coverColor,
+      coverImageId: novels.coverImageId,
       updatedAt: novels.updatedAt,
       totalChapters: novelChapterCount,
       publishedChapters: novelVisibleChapterCount,
@@ -191,9 +192,10 @@ export async function adminGetChapter(novelId: number, chapterId: number) {
     .limit(1);
   if (!row) return null;
 
-  const [viewers, likers, revisions, [note], comments] = await Promise.all([
+  const [viewerRows, likers, revisions, [note], comments, logs] = await Promise.all([
     db
       .select({
+        readerId: chapterViews.readerId,
         nickname: readers.nickname,
         viewCount: chapterViews.viewCount,
         lastViewedAt: chapterViews.lastViewedAt,
@@ -218,7 +220,17 @@ export async function adminGetChapter(novelId: number, chapterId: number) {
       .innerJoin(readers, eq(readers.id, chapterComments.readerId))
       .where(eq(chapterComments.chapterId, chapterId))
       .orderBy(desc(chapterComments.createdAt), desc(chapterComments.id)),
+    // 읽은 기록 한 줄씩 (0009부터 쌓임, 최근 것부터)
+    db
+      .select({ readerId: chapterViewLogs.readerId, viewedAt: chapterViewLogs.viewedAt })
+      .from(chapterViewLogs)
+      .where(eq(chapterViewLogs.chapterId, chapterId))
+      .orderBy(desc(chapterViewLogs.viewedAt)),
   ]);
+  const viewers = viewerRows.map(({ readerId, ...viewer }) => ({
+    ...viewer,
+    logs: logs.filter((log) => log.readerId === readerId).map((log) => log.viewedAt),
+  }));
 
   return {
     chapter: row.chapter,

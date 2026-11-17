@@ -36,6 +36,7 @@ async function continueReadingFor(readerId: string) {
       novelId: novels.id,
       novelTitle: novels.title,
       coverColor: novels.coverColor,
+      coverImageId: novels.coverImageId,
     })
     .from(chapterViews)
     .innerJoin(chapters, eq(chapters.id, chapterViews.chapterId))
@@ -79,6 +80,7 @@ function listNovelRows(isAdmin: boolean, readerId: string | null) {
       serialStatus: novels.serialStatus,
       isPublished: novels.isPublished,
       coverColor: novels.coverColor,
+      coverImageId: novels.coverImageId,
       lastPublishedAt: novelLastVisibleAt,
       chapterCount: novelVisibleChapterCount,
       // 이 길드원이 아직 안 읽은 새 회차 수 (관리자는 0)

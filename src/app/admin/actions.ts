@@ -15,7 +15,8 @@ import { countCharacters, sanitizeChapterHtml } from '@/lib/content';
 import { COVER_COLOR_KEYS } from '@/lib/cover';
 import { db } from '@/lib/db';
 import { isUniqueViolation } from '@/lib/db/errors';
-import { chapterNotes, chapterRevisions, chapters, novels, readers, settings } from '@/lib/db/schema';
+import { chapterNotes, chapterRevisions, chapters, images, novels, readers, settings } from '@/lib/db/schema';
+import { IMAGE_MAX_BYTES, sniffImageMime } from '@/lib/images';
 import { adminListRevisions, type RevisionItem } from '@/lib/queries/admin';
 import { isVisibleChapter } from '@/lib/queries/visibility';
 import { hasStoryBlocks } from '@/lib/story-blocks';
@@ -36,6 +37,8 @@ const novelSchema = z.object({
   isPublished: z.boolean(),
   // 정해진 색 이름만 받는다. null이면 작품 번호로 자동
   coverColor: z.enum(COVER_COLOR_KEYS, { error: '표지 색을 다시 골라 주세요' }).nullable(),
+  // 올린 표지 사진 (uploadImage가 돌려준 id). null이면 색 표지
+  coverImageId: z.uuid({ error: '표지 사진을 다시 올려 주세요' }).nullable(),
 });
 
 function parseNovelForm(formData: FormData) {
@@ -48,7 +51,15 @@ function parseNovelForm(formData: FormData) {
     serialStatus: formData.get('serialStatus'),
     isPublished: formData.get('isPublished') === 'on',
     coverColor: String(formData.get('coverColor') ?? '') || null,
+    coverImageId: String(formData.get('coverImageId') ?? '') || null,
   });
+}
+
+/** 표지로 올린 사진이 실제로 있는지 (지워졌거나 다른 용도 사진이면 저장하지 않는다) */
+async function isCoverImage(id: string | null): Promise<boolean> {
+  if (!id) return true;
+  const image = await db.query.images.findFirst({ columns: { id: true }, where: and(eq(images.id, id), eq(images.kind, 'cover')) });
+  return Boolean(image);
 }
 
 function firstIssue(error: z.ZodError): string {
@@ -61,6 +72,7 @@ export async function createNovel(_prev: ActionState, formData: FormData): Promi
   await requireAdmin();
   const parsed = parseNovelForm(formData);
   if (!parsed.success) return { status: 'error', message: firstIssue(parsed.error) };
+  if (!(await isCoverImage(parsed.data.coverImageId))) return { status: 'error', message: '표지 사진을 다시 올려 주세요' };
 
   const [created] = await db.insert(novels).values(parsed.data).returning({ id: novels.id });
   redirect(`/admin/novels/${created.id}`);
@@ -76,7 +88,14 @@ export async function updateNovel(
   const parsed = parseNovelForm(formData);
   if (!parsed.success) return { status: 'error', message: firstIssue(parsed.error) };
 
+  if (!(await isCoverImage(parsed.data.coverImageId))) return { status: 'error', message: '표지 사진을 다시 올려 주세요' };
+
+  const before = await db.query.novels.findFirst({ columns: { coverImageId: true }, where: eq(novels.id, novelId) });
   await db.update(novels).set(parsed.data).where(eq(novels.id, novelId));
+  // 바꾸거나 뺀 예전 표지 사진은 지운다 (표지 사진은 작품 하나에만 쓰인다)
+  if (before?.coverImageId && before.coverImageId !== parsed.data.coverImageId) {
+    await db.delete(images).where(and(eq(images.id, before.coverImageId), eq(images.kind, 'cover')));
+  }
   refresh();
   return { status: 'success', message: '저장했어요', at: Date.now() };
 }
@@ -90,6 +109,7 @@ export async function deleteNovel(novelId: number, formData: FormData): Promise<
   if (String(formData.get('confirmTitle') ?? '') !== novel.title) return;
 
   await db.delete(novels).where(eq(novels.id, novelId));
+  if (novel.coverImageId) await db.delete(images).where(and(eq(images.id, novel.coverImageId), eq(images.kind, 'cover')));
   redirect('/admin');
 }
 
@@ -610,4 +630,34 @@ export async function markCommentsSeen(until: string): Promise<void> {
       },
     });
   refresh(); // 레이아웃의 메뉴 배지를 다시 그린다
+}
+
+// ─── 사진 ──────────────────────────────────────────────
+
+export type UploadResult = { id: string; width: number; height: number } | { error: string };
+
+/**
+ * 사진 올리기 (표지 · 작가의 말). 브라우저에서 이미 줄여서(lib/image-prepare.ts) 보낸다.
+ * 형식은 파일 앞 바이트로 다시 확인하고, JPEG · PNG · WebP만 받는다
+ */
+export async function uploadImage(formData: FormData): Promise<UploadResult> {
+  await requireAdmin();
+  const kind = formData.get('kind');
+  const file = formData.get('file');
+  const width = Number(formData.get('width'));
+  const height = Number(formData.get('height'));
+  if ((kind !== 'cover' && kind !== 'note') || !(file instanceof File)) return { error: '잘못된 요청이에요' };
+  if (![width, height].every((value) => Number.isInteger(value) && value > 0 && value <= 10_000)) return { error: '잘못된 요청이에요' };
+  if (file.size === 0) return { error: '빈 파일이에요' };
+  if (file.size > IMAGE_MAX_BYTES) return { error: '사진이 너무 커요. 더 작은 사진으로 올려 주세요' };
+
+  const data = Buffer.from(await file.arrayBuffer());
+  const mime = sniffImageMime(data);
+  if (!mime) return { error: 'JPG · PNG · WebP 사진만 올릴 수 있어요' };
+
+  const [created] = await db
+    .insert(images)
+    .values({ kind, mime, width, height, byteSize: data.length, data })
+    .returning({ id: images.id });
+  return { id: created.id, width, height };
 }

@@ -7,7 +7,7 @@ import { getReader, getViewer } from '@/lib/auth/guards';
 import { READER_COOKIE, READER_MAX_AGE, sessionCookieOptions, signSession } from '@/lib/auth/session';
 import { db } from '@/lib/db';
 import { isUniqueViolation } from '@/lib/db/errors';
-import { chapterComments, chapterLikes, chapterViews, readers } from '@/lib/db/schema';
+import { chapterComments, chapterLikes, chapterViewLogs, chapterViews, readers } from '@/lib/db/schema';
 import { COMMENT_MAX, COMMENT_PER_MINUTE, normalizeComment, type CommentItem } from '@/lib/comments';
 import { getComments } from '@/lib/queries/comments';
 import { getLikeSummary, isChapterOpenToReaders, type LikeSummary } from '@/lib/queries/reactions';
@@ -83,6 +83,13 @@ export async function recordView(chapterId: number): Promise<void> {
   if (!reader || !isValidId(chapterId)) return;
   if (!(await isChapterOpenToReaders(chapterId))) return;
 
+  // 횟수가 느는 열람(처음이거나 30분 넘게 지나서 다시 연 것)이면 시각 기록도 한 줄 남긴다 (작가 화면 '읽은 기록')
+  const previous = await db.query.chapterViews.findFirst({
+    columns: { lastViewedAt: true },
+    where: and(eq(chapterViews.chapterId, chapterId), eq(chapterViews.readerId, reader.id)),
+  });
+  const counted = !previous || previous.lastViewedAt.getTime() < Date.now() - 30 * 60_000;
+
   await db
     .insert(chapterViews)
     .values({ chapterId, readerId: reader.id })
@@ -96,6 +103,7 @@ export async function recordView(chapterId: number): Promise<void> {
         lastViewedAt: sql`now()`,
       },
     });
+  if (counted) await db.insert(chapterViewLogs).values({ chapterId, readerId: reader.id });
   await db.update(readers).set({ lastSeenAt: sql`now()` }).where(eq(readers.id, reader.id));
 }
 
