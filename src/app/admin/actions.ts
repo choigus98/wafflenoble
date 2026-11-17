@@ -588,3 +588,26 @@ export async function logoutAdmin(): Promise<void> {
   (await cookies()).delete(ADMIN_COOKIE);
   redirect('/admin/login');
 }
+
+/**
+ * '댓글' 화면을 열면 화면에 보인 가장 최근 댓글 시각까지 '확인함'으로 적는다 (메뉴의 새 댓글 배지가 사라짐).
+ * 지금 시각이 아니라 보인 댓글 시각을 받아서, 화면을 그린 뒤 막 달린 댓글은 새 댓글로 남긴다. 시각은 앞으로만 간다
+ */
+export async function markCommentsSeen(until: string): Promise<void> {
+  await requireAdmin();
+  const seenAt = z.iso.datetime({ offset: true }).safeParse(until);
+  if (!seenAt.success) return;
+  const value = new Date(seenAt.data);
+  await db
+    .insert(settings)
+    .values({ id: 1, commentsSeenAt: value })
+    .onConflictDoUpdate({
+      target: settings.id,
+      set: {
+        commentsSeenAt: sql`greatest(${settings.commentsSeenAt}, ${value.toISOString()}::timestamptz)`,
+        // updatedAt은 길드 비밀번호를 바꾼 시각으로 쓰이므로 그대로 둔다
+        updatedAt: sql`${settings.updatedAt}`,
+      },
+    });
+  refresh(); // 레이아웃의 메뉴 배지를 다시 그린다
+}

@@ -27,7 +27,9 @@ export const settings = pgTable('settings', {
   id: integer('id').primaryKey().default(1),
   guildPasswordHash: text('guild_password_hash'), // null이면 아직 입장 불가
   guildPasswordVersion: integer('guild_password_version').notNull().default(1), // 바꿀 때마다 +1 → 기존 길드원 쿠키 무효
-  updatedAt: updatedAt(),
+  // 작가가 '댓글' 화면에서 마지막으로 확인한 댓글 시각 (0008). 이보다 늦은 댓글 수가 메뉴의 새 댓글 배지. null이면 모두 새 댓글
+  commentsSeenAt: timestamp('comments_seen_at', { withTimezone: true }),
+  updatedAt: updatedAt(), // 길드 비밀번호를 바꾼 시각으로도 쓰여서, 댓글 확인 시각만 바꿀 때는 그대로 둔다
 });
 
 export const readers = pgTable('readers', {

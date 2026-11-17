@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Suspense } from 'react';
+import { Suspense, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
 const LINKS = [
@@ -12,7 +12,7 @@ const LINKS = [
   { href: '/admin/settings', label: '설정', match: (path: string) => path.startsWith('/admin/settings') },
 ];
 
-function NavLinks({ pathname }: { pathname: string | null }) {
+function NavLinks({ pathname, commentBadge }: { pathname: string | null; commentBadge?: ReactNode }) {
   return (
     <nav className="-mx-1 flex w-full gap-1 overflow-x-auto pb-2 sm:mx-0 sm:w-auto sm:pb-0">
       {LINKS.map((link) => {
@@ -23,11 +23,12 @@ function NavLinks({ pathname }: { pathname: string | null }) {
             href={link.href}
             aria-current={active ? 'page' : undefined}
             className={cn(
-              'rounded-lg px-3 py-2 text-sm font-semibold transition',
+              'inline-flex shrink-0 items-center rounded-lg px-3 py-2 text-sm font-semibold transition',
               active ? 'bg-accent-soft text-accent' : 'text-muted hover:bg-surface-2 hover:text-fg',
             )}
           >
             {link.label}
+            {link.href === '/admin/comments' ? commentBadge : null}
           </Link>
         );
       })}
@@ -35,18 +36,18 @@ function NavLinks({ pathname }: { pathname: string | null }) {
   );
 }
 
-function ActiveNavLinks() {
-  return <NavLinks pathname={usePathname()} />;
+function ActiveNavLinks({ commentBadge }: { commentBadge?: ReactNode }) {
+  return <NavLinks pathname={usePathname()} commentBadge={commentBadge} />;
 }
 
 /**
  * 현재 경로는 요청 시점에만 알 수 있어서(Cache Components), 정적 뼈대에는 강조 없는 메뉴를 넣고
- * 현재 메뉴 강조는 Suspense 안에서 채운다
+ * 현재 메뉴 강조는 Suspense 안에서 채운다. commentBadge: '댓글' 옆 새 댓글 수 (서버에서 그려서 넘긴다)
  */
-export function AdminNav() {
+export function AdminNav({ commentBadge }: { commentBadge?: ReactNode }) {
   return (
     <Suspense fallback={<NavLinks pathname={null} />}>
-      <ActiveNavLinks />
+      <ActiveNavLinks commentBadge={commentBadge} />
     </Suspense>
   );
 }

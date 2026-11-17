@@ -1,10 +1,10 @@
 import 'server-only';
 import { and, asc, count, countDistinct, desc, eq, gt, sql } from 'drizzle-orm';
-import { requireAdmin } from '@/lib/auth/guards';
+import { isAdmin, requireAdmin } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { parseCharacters } from '@/lib/characters';
 import { htmlExcerpt } from '@/lib/content';
-import { chapterComments, chapterLikes, chapterNotes, chapterRevisions, chapterViews, chapters, novels, readers } from '@/lib/db/schema';
+import { chapterComments, chapterLikes, chapterNotes, chapterRevisions, chapterViews, chapters, novels, readers, settings } from '@/lib/db/schema';
 import { guildProgress } from '@/lib/guild-progress';
 import { getGuildSettings } from '@/lib/settings';
 import { weekReadsByNovel } from '@/lib/week-reads';
@@ -413,4 +413,27 @@ export async function adminListComments(limit = 300) {
     .innerJoin(novels, eq(novels.id, chapters.novelId))
     .orderBy(desc(chapterComments.createdAt), desc(chapterComments.id))
     .limit(limit);
+}
+
+/** 작가가 '댓글' 화면에서 마지막으로 확인한 시각. null이면 아직 한 번도 안 봤음 */
+export async function adminCommentsSeenAt(): Promise<Date | null> {
+  await requireAdmin();
+  const row = await db.query.settings.findFirst({ columns: { commentsSeenAt: true }, where: eq(settings.id, 1) });
+  return row?.commentsSeenAt ?? null;
+}
+
+/**
+ * 메뉴의 새 댓글 배지용: 마지막 확인 뒤에 달린 댓글 수.
+ * 모든 관리자 화면의 레이아웃에서 불리므로 관리자가 아니면 로그인으로 보내지 않고 0을 돌려준다
+ */
+export async function adminUnreadCommentCount(): Promise<number> {
+  if (!(await isAdmin())) return 0;
+  const row = await db.query.settings.findFirst({ columns: { commentsSeenAt: true }, where: eq(settings.id, 1) });
+  const seenAt = row?.commentsSeenAt ?? null;
+  const [result] = await db
+    .select({ value: count() })
+    .from(chapterComments)
+    // DB 시각은 마이크로초까지, 확인 시각은 JS Date라 밀리초까지라서 밀리초로 맞춰 비교한다
+    .where(seenAt ? sql`date_trunc('milliseconds', ${chapterComments.createdAt}) > ${seenAt.toISOString()}::timestamptz` : undefined);
+  return result?.value ?? 0;
 }

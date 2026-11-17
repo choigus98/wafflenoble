@@ -1,0 +1,1 @@
+ALTER TABLE "settings" ADD COLUMN "comments_seen_at" timestamp with time zone;

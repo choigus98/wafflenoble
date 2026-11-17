@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { deleteComment } from '@/app/(reader)/actions';
+import { Badge } from '@/components/ui';
 import { formatDateTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
@@ -12,6 +13,7 @@ export type AdminComment = {
   author: string;
   body: string;
   createdAt: string; // ISO
+  isNew?: boolean; // '댓글' 화면: 지난번 확인 뒤에 달린 댓글
   chapter?: { label: string; href: string; readerHref: string }; // '댓글' 화면에서만 (어느 회차인지)
 };
 
@@ -58,6 +60,7 @@ export function AdminCommentList({ items, compact = false, empty }: { items: Adm
         {list.map((item) => (
           <li key={item.id} className={cn('space-y-1', compact ? 'rounded-xl bg-surface-2 px-3 py-2.5' : 'px-4 py-3.5 sm:px-5')}>
             <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
+              {item.isNew ? <Badge tone="solid">새 댓글</Badge> : null}
               <span className="font-semibold text-fg">{item.author}</span>
               {item.chapter ? (
                 <Link href={item.chapter.href} className="font-medium text-accent underline-offset-2 hover:underline">

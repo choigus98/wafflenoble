@@ -1,7 +1,9 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { logoutAdmin } from '@/app/admin/actions';
 import { AdminNav } from '@/components/admin/admin-nav';
+import { UnreadCommentsBadge } from '@/components/admin/unread-comments-badge';
 import { Logo } from '@/components/logo';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Badge, Button, ButtonLink } from '@/components/ui';
@@ -31,7 +33,13 @@ export default function AdminPanelLayout({ children }: { children: React.ReactNo
               </Button>
             </form>
           </div>
-          <AdminNav />
+          <AdminNav
+            commentBadge={
+              <Suspense fallback={null}>
+                <UnreadCommentsBadge />
+              </Suspense>
+            }
+          />
         </div>
       </header>
       <main id="main" tabIndex={-1} className="outline-none mx-auto w-full max-w-5xl flex-1 px-4 pt-8 pb-20">{children}</main>
