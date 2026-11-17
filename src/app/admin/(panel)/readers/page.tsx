@@ -16,7 +16,7 @@ export default function ReadersPage({ searchParams }: PageProps<'/admin/readers'
     <div className="max-w-3xl">
       <h1 className="text-xl font-bold tracking-tight">길드원</h1>
       <p className="mt-1.5 mb-6 text-sm leading-relaxed text-muted">
-        열람 비밀번호로 들어온 사람들이에요. 삭제하면 그 사람의 좋아요·열람 기록이 지워지고 바로 다시 입장해야 해요.
+        열람 비밀번호로 들어온 사람들이에요. 삭제하면 그 사람의 좋아요·댓글·열람 기록이 지워지고 바로 다시 입장해야 해요.
       </p>
       <Suspense fallback={<Skeleton className="h-60" />}>
         <ReaderList searchParams={searchParams} />

@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 
 const LINKS = [
   { href: '/admin', label: '작품', match: (path: string) => path === '/admin' || path.startsWith('/admin/novels') },
+  { href: '/admin/comments', label: '댓글', match: (path: string) => path.startsWith('/admin/comments') },
   { href: '/admin/readers', label: '길드원', match: (path: string) => path.startsWith('/admin/readers') },
   { href: '/admin/settings', label: '설정', match: (path: string) => path.startsWith('/admin/settings') },
 ];

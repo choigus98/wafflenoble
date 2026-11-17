@@ -81,7 +81,7 @@ export function ReaderRow({ reader }: { reader: ReaderSummary }) {
           <form
             action={deleteReader.bind(null, reader.id)}
             onSubmit={(event) => {
-              if (!window.confirm(`${reader.nickname}님을 삭제할까요? 좋아요·열람 기록도 지워져요.`)) {
+              if (!window.confirm(`${reader.nickname}님을 삭제할까요? 좋아요·댓글·열람 기록도 지워져요.`)) {
                 event.preventDefault();
               }
             }}

@@ -4,7 +4,7 @@ import { requireAdmin } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { parseCharacters } from '@/lib/characters';
 import { htmlExcerpt } from '@/lib/content';
-import { chapterLikes, chapterNotes, chapterRevisions, chapterViews, chapters, novels, readers } from '@/lib/db/schema';
+import { chapterComments, chapterLikes, chapterNotes, chapterRevisions, chapterViews, chapters, novels, readers } from '@/lib/db/schema';
 import { guildProgress } from '@/lib/guild-progress';
 import { getGuildSettings } from '@/lib/settings';
 import { weekReadsByNovel } from '@/lib/week-reads';
@@ -191,7 +191,7 @@ export async function adminGetChapter(novelId: number, chapterId: number) {
     .limit(1);
   if (!row) return null;
 
-  const [viewers, likers, revisions, [note]] = await Promise.all([
+  const [viewers, likers, revisions, [note], comments] = await Promise.all([
     db
       .select({
         nickname: readers.nickname,
@@ -211,6 +211,13 @@ export async function adminGetChapter(novelId: number, chapterId: number) {
     adminListRevisions(chapterId),
     // 작가 메모 (관리자 화면에서만)
     db.select({ body: chapterNotes.body }).from(chapterNotes).where(eq(chapterNotes.chapterId, chapterId)).limit(1),
+    // 댓글 (쓴 사람 이름 포함, 최근 것부터)
+    db
+      .select({ id: chapterComments.id, body: chapterComments.body, createdAt: chapterComments.createdAt, nickname: readers.nickname })
+      .from(chapterComments)
+      .innerJoin(readers, eq(readers.id, chapterComments.readerId))
+      .where(eq(chapterComments.chapterId, chapterId))
+      .orderBy(desc(chapterComments.createdAt), desc(chapterComments.id)),
   ]);
 
   return {
@@ -222,6 +229,7 @@ export async function adminGetChapter(novelId: number, chapterId: number) {
     characters: parseCharacters(row.novelCharacters).map((character) => character.name),
     viewers,
     likers: likers.map((liker) => liker.nickname),
+    comments,
     revisions,
   };
 }
@@ -290,9 +298,19 @@ export type Activity =
       chapterTitle: string;
       viewCount: number;
     }
+  | {
+      kind: 'comment';
+      at: Date;
+      nickname: string;
+      novelId: number;
+      chapterId: number;
+      position: number;
+      chapterTitle: string;
+      body: string;
+    }
   | { kind: 'join'; at: Date; nickname: string };
 
-/** 좋아요·읽음·새 길드원을 시간 순서로 섞은 최근 반응. 종류마다 최근 것만 가져와 합친다 */
+/** 댓글·좋아요·읽음·새 길드원을 시간 순서로 섞은 최근 반응. 종류마다 최근 것만 가져와 합친다 */
 export async function adminRecentActivity(limit = 20): Promise<Activity[]> {
   await requireAdmin();
   const chapterColumns = {
@@ -302,7 +320,14 @@ export async function adminRecentActivity(limit = 20): Promise<Activity[]> {
     position: chapters.position,
     chapterTitle: chapters.title,
   };
-  const [likes, reads, joins] = await Promise.all([
+  const [comments, likes, reads, joins] = await Promise.all([
+    db
+      .select({ at: chapterComments.createdAt, body: chapterComments.body, ...chapterColumns })
+      .from(chapterComments)
+      .innerJoin(readers, eq(readers.id, chapterComments.readerId))
+      .innerJoin(chapters, eq(chapters.id, chapterComments.chapterId))
+      .orderBy(desc(chapterComments.createdAt))
+      .limit(limit),
     db
       .select({ at: chapterLikes.createdAt, ...chapterColumns })
       .from(chapterLikes)
@@ -321,6 +346,7 @@ export async function adminRecentActivity(limit = 20): Promise<Activity[]> {
   ]);
 
   return [
+    ...comments.map((row) => ({ kind: 'comment' as const, ...row })),
     ...likes.map((row) => ({ kind: 'like' as const, ...row })),
     ...reads.map((row) => ({ kind: 'read' as const, ...row })),
     ...joins.map((row) => ({ kind: 'join' as const, ...row })),
@@ -355,10 +381,36 @@ export async function adminWeekReads() {
 export async function adminLast24h() {
   await requireAdmin();
   const since = sql`now() - interval '24 hours'`;
-  const [[reads], [likes], [joins]] = await Promise.all([
+  const [[reads], [likes], [comments], [joins]] = await Promise.all([
     db.select({ value: countDistinct(chapterViews.readerId) }).from(chapterViews).where(gt(chapterViews.lastViewedAt, since)),
     db.select({ value: count() }).from(chapterLikes).where(gt(chapterLikes.createdAt, since)),
+    db.select({ value: count() }).from(chapterComments).where(gt(chapterComments.createdAt, since)),
     db.select({ value: count() }).from(readers).where(gt(readers.createdAt, since)),
   ]);
-  return { readers: reads?.value ?? 0, likes: likes?.value ?? 0, joins: joins?.value ?? 0 };
+  return { readers: reads?.value ?? 0, likes: likes?.value ?? 0, comments: comments?.value ?? 0, joins: joins?.value ?? 0 };
+}
+
+// ─── 댓글 ─────────────────────────────────────────
+
+/** 관리자 '댓글' 화면: 모든 작품의 댓글을 최근 것부터 (쓴 사람 이름 포함) */
+export async function adminListComments(limit = 300) {
+  await requireAdmin();
+  return db
+    .select({
+      id: chapterComments.id,
+      body: chapterComments.body,
+      createdAt: chapterComments.createdAt,
+      nickname: readers.nickname,
+      novelId: chapters.novelId,
+      novelTitle: novels.title,
+      chapterId: chapters.id,
+      position: chapters.position,
+      chapterTitle: chapters.title,
+    })
+    .from(chapterComments)
+    .innerJoin(readers, eq(readers.id, chapterComments.readerId))
+    .innerJoin(chapters, eq(chapters.id, chapterComments.chapterId))
+    .innerJoin(novels, eq(novels.id, chapters.novelId))
+    .orderBy(desc(chapterComments.createdAt), desc(chapterComments.id))
+    .limit(limit);
 }

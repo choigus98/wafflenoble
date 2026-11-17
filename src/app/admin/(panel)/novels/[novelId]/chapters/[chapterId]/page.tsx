@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
+import { AdminCommentList } from '@/components/admin/admin-comment-list';
 import { ChapterEditorLoader } from '@/components/admin/chapter-editor-loader';
 import { Skeleton } from '@/components/ui';
 import { formatRelative } from '@/lib/format';
@@ -22,7 +23,7 @@ async function ChapterAdmin({ params }: Pick<PageProps<'/admin/novels/[novelId]/
   const data = await adminGetChapter(novelId, chapterId);
   if (!data) notFound();
 
-  const { chapter, novelTitle, viewers, likers, scheduled, revisions, privateNote, characters } = data;
+  const { chapter, novelTitle, viewers, likers, comments, scheduled, revisions, privateNote, characters } = data;
   const now = new Date();
 
   return (
@@ -80,6 +81,18 @@ async function ChapterAdmin({ params }: Pick<PageProps<'/admin/novels/[novelId]/
           ) : (
             <p className="text-sm leading-relaxed break-keep">{likers.join(', ')}</p>
           )}
+        </section>
+        <section className="space-y-2.5">
+          <h2 className="text-sm font-bold">
+            댓글 <span className="text-muted">{comments.length}개</span>
+          </h2>
+          <AdminCommentList
+            // 지운 뒤 새로 받은 목록으로 다시 그린다
+            key={comments.map((comment) => comment.id).join(',')}
+            compact
+            empty={chapter.status === 'published' ? '아직 댓글이 없어요.' : '발행하면 길드원 댓글이 여기 보여요.'}
+            items={comments.map((comment) => ({ id: comment.id, author: comment.nickname, body: comment.body, createdAt: comment.createdAt.toISOString() }))}
+          />
         </section>
       </aside>
     </div>

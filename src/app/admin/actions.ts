@@ -542,7 +542,7 @@ export async function renameReader(
   return { status: 'success', at: Date.now() };
 }
 
-/** 길드원 삭제. 그 길드원의 좋아요·열람 기록도 함께 지워지고, 쿠키는 바로 무효가 된다 */
+/** 길드원 삭제. 그 길드원의 좋아요·댓글·열람 기록도 함께 지워지고, 쿠키는 바로 무효가 된다 */
 export async function deleteReader(readerId: string): Promise<void> {
   await requireAdmin();
   if (!z.uuid().safeParse(readerId).success) return;

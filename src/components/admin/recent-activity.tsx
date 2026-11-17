@@ -3,7 +3,7 @@ import { formatRelative, particle } from '@/lib/format';
 import { adminLast24h, adminRecentActivity, type Activity } from '@/lib/queries/admin';
 import { cn } from '@/lib/utils';
 
-/** 관리자 홈: 누가 어느 회차를 읽고 좋아요를 눌렀는지, 새 길드원은 누구인지 (최근 순) */
+/** 관리자 홈: 누가 어느 회차를 읽고 좋아요·댓글을 남겼는지, 새 길드원은 누구인지 (최근 순) */
 export async function RecentActivity() {
   const [items, summary] = await Promise.all([adminRecentActivity(), adminLast24h()]);
   const now = new Date();
@@ -13,12 +13,12 @@ export async function RecentActivity() {
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <h2 className="font-bold">최근 반응</h2>
         <p className="text-[13px] text-muted">
-          최근 24시간 · 읽은 사람 {summary.readers}명 · 좋아요 {summary.likes}개 · 새 길드원 {summary.joins}명
+          최근 24시간 · 읽은 사람 {summary.readers}명 · 좋아요 {summary.likes}개 · 댓글 {summary.comments}개 · 새 길드원 {summary.joins}명
         </p>
       </div>
       {items.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-line px-6 py-10 text-center text-sm text-muted">
-          아직 반응이 없어요. 길드원이 읽거나 좋아요를 누르면 여기에 보여요.
+          아직 반응이 없어요. 길드원이 읽거나 좋아요·댓글을 남기면 여기에 보여요.
         </p>
       ) : (
         <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
@@ -39,7 +39,7 @@ export async function RecentActivity() {
   );
 }
 
-function chapterTarget(item: Extract<Activity, { kind: 'like' | 'read' }>) {
+function chapterTarget(item: Extract<Activity, { kind: 'like' | 'read' | 'comment' }>) {
   const title = item.chapterTitle ? `${item.position}화 ${item.chapterTitle}` : `${item.position}화`;
   const label = item.chapterTitle ? `${item.position}화 「${item.chapterTitle}」` : `${item.position}화`;
   return { title, label, href: `/admin/novels/${item.novelId}/chapters/${item.chapterId}` };
@@ -56,6 +56,14 @@ function ActivityText({ item }: { item: Activity }) {
     </Link>
   );
   if (item.kind === 'like') return <>{name}님이 {link}에 좋아요를 눌렀어요</>;
+  if (item.kind === 'comment') {
+    return (
+      <>
+        {name}님이 {link}에 댓글을 남겼어요
+        <span className="mt-0.5 block line-clamp-2 text-muted whitespace-pre-line">{item.body}</span>
+      </>
+    );
+  }
   // 조사는 제목(「」 빼고)의 받침 기준으로, 링크 밖에 붙인다
   return (
     <>
@@ -68,13 +76,16 @@ function ActivityText({ item }: { item: Activity }) {
 function ActivityIcon({ kind }: { kind: Activity['kind'] }) {
   const styles = {
     like: 'bg-like/12 text-like',
+    comment: 'bg-accent-soft text-accent',
     read: 'bg-accent-soft text-accent',
     join: 'bg-surface-2 text-muted',
   };
   return (
     <span aria-hidden="true" className={cn('grid size-7 shrink-0 place-items-center rounded-full', styles[kind])}>
       <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        {kind === 'like' ? (
+        {kind === 'comment' ? (
+          <path d="M5 5h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-8l-4 3.5V16H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" />
+        ) : kind === 'like' ? (
           <path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" fill="currentColor" stroke="none" />
         ) : kind === 'read' ? (
           <path d="M3 5.5C5 4.5 8 4.3 12 6.5c4-2.2 7-2 9-1v13c-2-1-5-1.2-9 1-4-2.2-7-2-9-1zM12 6.5v13" />

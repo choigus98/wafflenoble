@@ -933,7 +933,7 @@ export function ChapterEditor({ chapter, novelTitle }: { chapter: EditorChapter;
         <form
           action={deleteChapter.bind(null, chapter.novelId, chapter.id)}
           onSubmit={(event) => {
-            if (!window.confirm('이 회차를 삭제할까요? 좋아요·열람 기록도 함께 지워지고 되돌릴 수 없어요.')) {
+            if (!window.confirm('이 회차를 삭제할까요? 좋아요·댓글·열람 기록도 함께 지워지고 되돌릴 수 없어요.')) {
               event.preventDefault();
               return;
             }
