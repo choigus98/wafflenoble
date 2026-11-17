@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Fragment, Suspense } from 'react';
 import { ChapterBody } from '@/components/reader/chapter-body';
+import { ChapterComments } from '@/components/reader/chapter-comments';
 import { ChapterCharacters } from '@/components/reader/chapter-characters';
 import { ChapterToc } from '@/components/reader/chapter-toc';
 import { ChapterKeyNav } from '@/components/reader/chapter-key-nav';
@@ -42,7 +43,7 @@ async function ChapterView({ params }: Pick<PageProps<'/novels/[novelId]/[chapte
   const data = await getChapterView(novelId, chapterId);
   if (!data) notFound();
 
-  const { viewer, novel, chapter, prev, next, toc, nextScheduledAt, nextOpening, likes, readCount } = data;
+  const { viewer, novel, chapter, prev, next, toc, nextScheduledAt, nextOpening, likes, comments, readCount } = data;
   const isReader = viewer.kind === 'reader';
   const minutes = readingMinutes(chapter.charCount);
   // 회차 끝 '이 회차 등장인물': 작품 정보의 등장인물 중 이 회차 본문·템플릿에 나온 인물만
@@ -198,6 +199,17 @@ async function ChapterView({ params }: Pick<PageProps<'/novels/[novelId]/[chapte
               {keyHint.text}
             </p>
           ) : null}
+        </div>
+
+        {/* 댓글: 길드원끼리는 익명, 작가에게는 이름이 보인다 */}
+        <div className="border-t border-line pt-7">
+          <ChapterComments
+            key={chapter.id}
+            chapterId={chapter.id}
+            initial={comments}
+            canWrite={isReader && chapter.visibleNow && novel.isPublished}
+            isAdmin={viewer.kind === 'admin'}
+          />
         </div>
       </footer>
 

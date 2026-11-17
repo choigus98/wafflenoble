@@ -74,7 +74,7 @@ export function EnterForm({
         />
       </Field>
 
-      <Field label="이름" htmlFor="name" hint="좋아요를 누르면 이 이름이 보여요. 다른 기기에서도 같은 이름을 쓰면 기록이 이어져요.">
+      <Field label="이름" htmlFor="name" hint="이름은 작가에게만 보여요. 좋아요와 댓글은 다른 길드원에게 익명으로 보여요. 다른 기기에서도 같은 이름을 쓰면 기록이 이어져요.">
         <Input
           ref={nameRef}
           id="name"

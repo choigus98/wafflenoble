@@ -121,6 +121,29 @@ export const chapterLikes = pgTable(
   ],
 );
 
+/**
+ * 회차 댓글. 0007 마이그레이션.
+ * 길드원끼리는 '익명'으로만 보이고, 쓴 사람(reader_id → 이름)은 작가 화면에서만 보인다 (lib/queries/comments.ts)
+ */
+export const chapterComments = pgTable(
+  'chapter_comments',
+  {
+    id: serial('id').primaryKey(),
+    chapterId: integer('chapter_id')
+      .notNull()
+      .references(() => chapters.id, { onDelete: 'cascade' }),
+    readerId: uuid('reader_id')
+      .notNull()
+      .references(() => readers.id, { onDelete: 'cascade' }),
+    body: text('body').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('chapter_comments_chapter_idx').on(t.chapterId, t.createdAt),
+    index('chapter_comments_reader_idx').on(t.readerId, t.createdAt),
+  ],
+);
+
 export const chapterViews = pgTable(
   'chapter_views',
   {

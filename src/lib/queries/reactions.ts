@@ -6,8 +6,10 @@ import { isVisibleChapter } from './visibility';
 
 export type LikeSummary = { liked: boolean; count: number; names: string[] };
 
-/** 회차 좋아요 수와 누른 사람 이름 (좋아요는 이름까지 공개) */
-export async function getLikeSummary(chapterId: number, readerId: string | null): Promise<LikeSummary> {
+/**
+ * 회차 좋아요 수와 누른 사람 이름. 길드원끼리는 익명이라 이름은 작가(관리자)에게만 보낸다 (withNames)
+ */
+export async function getLikeSummary(chapterId: number, readerId: string | null, withNames = false): Promise<LikeSummary> {
   const rows = await db
     .select({ readerId: chapterLikes.readerId, nickname: readers.nickname })
     .from(chapterLikes)
@@ -17,7 +19,7 @@ export async function getLikeSummary(chapterId: number, readerId: string | null)
   return {
     liked: readerId ? rows.some((row) => row.readerId === readerId) : false,
     count: rows.length,
-    names: rows.map((row) => row.nickname),
+    names: withNames ? rows.map((row) => row.nickname) : [],
   };
 }
 

@@ -4,6 +4,7 @@ import { requireViewer } from '@/lib/auth/guards';
 import { chapterOpening } from '@/lib/content';
 import { db } from '@/lib/db';
 import { chapterLikes, chapterViews, chapters, novels } from '@/lib/db/schema';
+import { getComments } from './comments';
 import { getLikeSummary } from './reactions';
 import {
   chapterIsNewFor,
@@ -243,7 +244,7 @@ export async function getChapterView(novelId: number, chapterId: number) {
   const readByMe = readerId ? chapterReadBy(readerId) : sql<boolean>`false`;
 
   // 목차(회차 화면 머리의 '목차' 단추)와 이전·다음 화를 한 번에: 이 사람에게 보이는 회차 전부, 번호 순
-  const [toc, likes, [reads], [myView], nextAt] = await Promise.all([
+  const [toc, likes, comments, [reads], [myView], nextAt] = await Promise.all([
     db
       .select({
         id: chapters.id,
@@ -256,7 +257,8 @@ export async function getChapterView(novelId: number, chapterId: number) {
       .from(chapters)
       .where(visible)
       .orderBy(asc(chapters.position), asc(chapters.id)),
-    getLikeSummary(chapter.id, readerId),
+    getLikeSummary(chapter.id, readerId, isAdmin),
+    getComments(chapter.id, { readerId, isAdmin }),
     db.select({ readers: count() }).from(chapterViews).where(eq(chapterViews.chapterId, chapter.id)),
     readerId
       ? db
@@ -288,6 +290,7 @@ export async function getChapterView(novelId: number, chapterId: number) {
     // 공개된 다음 화의 첫 문장 (미리 보기를 안 보일 때는 null, 글 문단이 없으면 '')
     nextOpening,
     likes,
+    comments,
     readCount: (reads?.readers ?? 0) + (countsSelf ? 1 : 0),
   };
 }

@@ -67,6 +67,7 @@ export function LikeButton({
         <p className="max-w-xs text-center text-[13px] leading-relaxed text-muted break-keep">
           {shown.join(', ')}
           {rest > 0 ? ` 외 ${rest}명` : ''}님이 좋아해요
+          <span className="block text-xs">이름은 작가에게만 보여요</span>
         </p>
       ) : null}
       {error ? (

@@ -1,13 +1,15 @@
 'use server';
 
-import { and, eq, sql } from 'drizzle-orm';
+import { and, count, eq, gt, sql } from 'drizzle-orm';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { getReader } from '@/lib/auth/guards';
+import { getReader, getViewer } from '@/lib/auth/guards';
 import { READER_COOKIE, READER_MAX_AGE, sessionCookieOptions, signSession } from '@/lib/auth/session';
 import { db } from '@/lib/db';
 import { isUniqueViolation } from '@/lib/db/errors';
-import { chapterLikes, chapterViews, readers } from '@/lib/db/schema';
+import { chapterComments, chapterLikes, chapterViews, readers } from '@/lib/db/schema';
+import { COMMENT_MAX, COMMENT_PER_MINUTE, normalizeComment, type CommentItem } from '@/lib/comments';
+import { getComments } from '@/lib/queries/comments';
 import { getLikeSummary, isChapterOpenToReaders, type LikeSummary } from '@/lib/queries/reactions';
 import { getGuildSettings } from '@/lib/settings';
 import { NICKNAME_MAX, NICKNAME_MIN, normalizeNickname } from '@/lib/utils';
@@ -35,6 +37,44 @@ export async function setLike(
       .where(and(eq(chapterLikes.chapterId, chapterId), eq(chapterLikes.readerId, reader.id)));
   }
   return getLikeSummary(chapterId, reader.id);
+}
+
+/** 댓글 쓰기 (길드원만). 길드원끼리는 익명으로 보이고, 이름은 작가 화면에서만 보인다 */
+export async function addComment(chapterId: number, raw: string): Promise<{ comments: CommentItem[] } | { error: string }> {
+  const reader = await getReader();
+  if (!reader) return { error: '길드원으로 입장해야 댓글을 쓸 수 있어요' };
+  if (!isValidId(chapterId)) return { error: '잘못된 요청이에요' };
+  const body = normalizeComment(raw);
+  if (!body) return { error: `댓글은 1~${COMMENT_MAX}자로 써 주세요` };
+  if (!(await isChapterOpenToReaders(chapterId))) return { error: '볼 수 없는 회차예요' };
+
+  const [recent] = await db
+    .select({ n: count() })
+    .from(chapterComments)
+    .where(and(eq(chapterComments.readerId, reader.id), gt(chapterComments.createdAt, sql`now() - interval '1 minute'`)));
+  if ((recent?.n ?? 0) >= COMMENT_PER_MINUTE) return { error: '댓글을 너무 빨리 쓰고 있어요. 잠시 뒤에 다시 써 주세요' };
+
+  await db.insert(chapterComments).values({ chapterId, readerId: reader.id, body });
+  return { comments: await getComments(chapterId, { readerId: reader.id, isAdmin: false }) };
+}
+
+/** 댓글 지우기: 길드원은 자기 댓글만, 작가(관리자)는 모든 댓글 */
+export async function deleteComment(commentId: number): Promise<{ comments: CommentItem[] } | { error: string }> {
+  const viewer = await getViewer();
+  if (!viewer) return { error: '다시 입장해 주세요' };
+  if (!isValidId(commentId)) return { error: '잘못된 요청이에요' };
+  const isAdmin = viewer.kind === 'admin';
+  const readerId = viewer.kind === 'reader' ? viewer.reader.id : null;
+
+  const comment = await db.query.chapterComments.findFirst({
+    columns: { chapterId: true, readerId: true },
+    where: eq(chapterComments.id, commentId),
+  });
+  if (!comment) return { error: '이미 지워진 댓글이에요' };
+  if (!isAdmin && comment.readerId !== readerId) return { error: '내가 쓴 댓글만 지울 수 있어요' };
+
+  await db.delete(chapterComments).where(eq(chapterComments.id, commentId));
+  return { comments: await getComments(comment.chapterId, { readerId, isAdmin }) };
 }
 
 /** 회차 열람 기록. 30분 안에 다시 열면 횟수는 그대로 두고 마지막 열람 시각만 갱신 (이어 읽기용) */
